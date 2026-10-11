@@ -41,12 +41,24 @@ const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 ///
 /// [`Wide::deposit_product`] is the one fallible entry: the exact product of two doubles may lie
 /// below the unit or past `2^1037`, and then it is refused by name rather than rounded.
+///
+/// A plain word: `repr(C)`, the limbs then the counters, with no padding and no invalid bit
+/// pattern, so on a little-endian machine the in-memory bytes are the wire body and an engine may
+/// cast a mapping to `Wide` without a copy. The size and alignment are pinned by a `const`
+/// assertion, and [`Wide::from_parts`] is the safe inverse of [`Wide::limbs`] and
+/// [`Wide::specials`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(C)]
 pub struct Wide {
     limbs: [u64; LIMBS],
     /// `[n, p, q]`: NaN, +∞ and −∞ counts, signed so that a retraction subtracts.
     specials: [i64; 3],
 }
+
+const _: () = assert!(
+    core::mem::size_of::<Wide>() == 8 * (LIMBS + 3) && core::mem::align_of::<Wide>() == 8,
+    "Wide's layout moved"
+);
 
 impl Wide {
     /// The grid: every held finite value is a multiple of `2^LSB`, the smallest subnormal.
@@ -66,6 +78,14 @@ impl Wide {
     #[must_use]
     pub const fn limbs(&self) -> &[u64; LIMBS] {
         &self.limbs
+    }
+
+    /// The value with these limbs and `[n, p, q]` counts. Total: every bit pattern of the two
+    /// arrays is a canonical value, which is what makes a cast over a mapping sound, and
+    /// `from_parts(*w.limbs(), [n, p, q])` with `(n, p, q) = w.specials()` is `w` again.
+    #[must_use]
+    pub const fn from_parts(limbs: [u64; LIMBS], specials: [i64; 3]) -> Self {
+        Self { limbs, specials }
     }
 
     /// The special counts `(n, p, q)`: how many NaN, +∞ and −∞ inputs are in the multiset, each

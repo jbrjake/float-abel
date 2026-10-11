@@ -220,9 +220,11 @@ set, allocator or not.
 
 ### Wide {#sp-wide}
 
-`Copy`: `[u64; 34]` two's complement in units of 2⁻¹⁰⁷⁴ plus `[i64; 3]` special counters, 296 bytes.
-Its limb layout is bitrep's, so bitrep's finite-only conformance vectors apply to `Wide`'s limbs
-directly. It is a group with `Mul<i64>`, and it never allocates; `From<f64>` is total, and the one
+`Copy` and `repr(C)`: `[u64; 34]` two's complement in units of 2⁻¹⁰⁷⁴ then `[i64; 3]` special
+counters, 296 bytes with no padding and no invalid bit pattern, so an engine's cast over a
+little-endian mapping is sound; a `const` assertion pins the size and alignment, and `from_parts` is
+the safe inverse of `limbs` and `specials`. Its limb layout is bitrep's, so bitrep's finite-only
+conformance vectors apply to `Wide`'s limbs directly. It is a group with `Mul<i64>`, and it never allocates; `From<f64>` is total, and the one
 refusal is `deposit_product` on a product outside its window, by name: a set bit below 2⁻¹⁰⁷⁴ is
 `OutOfWindow::OffGrid`, a magnitude at or past 2¹⁰³⁷ is `OutOfWindow::AboveCeiling`, and the state is
 untouched. `Wide` has the *fastest* add of any tier; its cost is bytes, not time. That suits a
@@ -231,8 +233,10 @@ of weights.
 
 ### Fixed {#sp-fixed}
 
-`Copy`: `Fixed<const LSB: i32, const LIMBS: usize>` is `[u64; LIMBS]` two's complement in units of
-2^LSB. `try_deposit(x) -> Result<(), OutOfWindow>` accepts a finite double iff it is exactly a
+`Copy` and `repr(C)`: `Fixed<const LSB: i32, const LIMBS: usize>` is `[u64; LIMBS]` two's complement
+in units of 2^LSB, every bit pattern a value, so an engine's cast over a little-endian mapping is
+sound; `from_limbs` is the safe inverse of `limbs`, and a `const` assertion pins `Fixed256`'s size and
+alignment. `try_deposit(x) -> Result<(), OutOfWindow>` accepts a finite double iff it is exactly a
 multiple of 2^LSB and |x| < 2^(64·LIMBS − 65 − (−LSB)). `quantize(x) -> f64` is round-to-nearest-even
 onto the grid, for callers who *declare* a floor. It is deterministic per input, so it applies
 identically on every engine before the deposit. Group ops are infallible inside the documented budget
@@ -294,8 +298,13 @@ One canonical little-endian encoding per type, with a version byte, emitted both
 feature and by `to_bytes`/`from_bytes` without it:
 
 - `Exact` as its 32 bytes, two limbs, the exponent and three counts, which is its in-memory layout;
-- `Wide` as 272 limb bytes plus 24 counter bytes;
-- `Fixed` as its limbs.
+- `Wide` as 272 limb bytes then 24 counter bytes, which is its in-memory layout;
+- `Fixed` as its limbs, which is its in-memory layout.
+
+Each body is the type's `repr(C)` bytes on a little-endian machine, with the size and alignment
+pinned by `const` assertions, so an engine that frames its own extents casts a mapping to `Wide` or
+`Fixed` without a copy, every bit pattern of theirs being a value. `Exact`'s bytes from outside still
+pass the validating decoder, because an even mantissa is not a value.
 
 **Decoding validates canonical form and refuses anything else.** A non-canonical value smuggled
 through a batch would break `Eq`-substitutability in differential-dataflow's builder, so a decoder

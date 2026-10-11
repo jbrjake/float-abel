@@ -52,8 +52,14 @@ impl std::error::Error for OutOfWindow {}
 /// per value, so there is nothing to canonicalise and the zero has no sign. No operation executes
 /// a floating-point instruction, so the bits are the same on every architecture.
 ///
+/// A plain word: `repr(C)` over the limbs alone, with no padding and no invalid bit pattern, so on
+/// a little-endian machine the in-memory bytes are the wire body and an engine may cast a mapping
+/// to `Fixed` without a copy. [`Fixed256`]'s size and alignment are pinned by a `const` assertion,
+/// and [`Fixed::from_limbs`] is the safe inverse of [`Fixed::limbs`].
+///
 /// [`Fixed256`] is the named default.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(C)]
 pub struct Fixed<const LSB: i32, const LIMBS: usize> {
     limbs: [u64; LIMBS],
 }
@@ -61,6 +67,11 @@ pub struct Fixed<const LSB: i32, const LIMBS: usize> {
 /// 256 bits in units of `2^-96`: every double with `|x| ≥ 2^-44` is on the grid, the ceiling is
 /// `2^95`, and the headroom is `2^64` deposits at the ceiling.
 pub type Fixed256 = Fixed<-96, 4>;
+
+const _: () = assert!(
+    core::mem::size_of::<Fixed256>() == 32 && core::mem::align_of::<Fixed256>() == 8,
+    "Fixed256's layout moved"
+);
 
 impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
     /// The grid: every held value is a multiple of `2^LSB`.
@@ -83,6 +94,13 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
     #[must_use]
     pub const fn limbs(&self) -> &[u64; LIMBS] {
         &self.limbs
+    }
+
+    /// The value with these limbs. Total: every bit pattern is a canonical value, which is what
+    /// makes a cast over a mapping sound, and `from_limbs(*f.limbs())` is `f` again.
+    #[must_use]
+    pub const fn from_limbs(limbs: [u64; LIMBS]) -> Self {
+        Self { limbs }
     }
 
     /// Whether the state is zero.
