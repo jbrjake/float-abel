@@ -13,7 +13,7 @@ status: open
 created: 2026-10-11T18:00Z
 covers:
   - ref: docs/DESIGN.md#sp-wide
-    sha: f9cd0e6f7109063e08dd1b3fcadc03a4951424efd48c72a6412ff3e1cfdebdb8
+    sha: 29ff969fbdb9994b87f98cdf5047fc40d02a85e7365f89961f6ec757d3ac0938
   - ref: docs/DESIGN.md#sp-fixed
     sha: 385c1a5a6100ff95663098763fc307bd8803a39c59961b6ba457d51b20c82302
   - ref: docs/DESIGN.md#sp-wire
@@ -45,3 +45,4 @@ it structurally.
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-fixed @8fa2eadaab9a
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wire @ed67fb6c74a2
 - 2026-10-11T18:26Z cover docs/DESIGN.md#sp-fixed @385c1a5a6100
+- 2026-10-11T18:28Z cover docs/DESIGN.md#sp-wide @29ff969fbdb9

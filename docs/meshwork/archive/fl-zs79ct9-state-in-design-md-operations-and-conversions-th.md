@@ -9,13 +9,13 @@ docs:
   - docs/DESIGN.md#wide-sp-wide
 verify: contains docs/DESIGN.md /refused by name on .Fixed. and .Wide./
 seq: 44
-status: open
+status: done
 created: 2026-10-11T17:24Z
 covers:
   - ref: docs/DESIGN.md#sp-ops
-    sha: f7da3b4f752d48550b0d1253177e1a361e53f1ae423d10b36e1c23a62a107928
+    sha: 7675d055f5a4e08218fb87c0e966dbe6b45fa34b6c986dbf4cb55c086bcce4dc
   - ref: docs/DESIGN.md#sp-wide
-    sha: f9cd0e6f7109063e08dd1b3fcadc03a4951424efd48c72a6412ff3e1cfdebdb8
+    sha: 29ff969fbdb9994b87f98cdf5047fc40d02a85e7365f89961f6ec757d3ac0938
 ---
 Owner's ruling, 2026-10-11, on `Wide::deposit_product` for a product outside `Wide`'s window (a set
 bit below `2^-1074`, or a magnitude at or past `2^1037`): "Refuse by name". The code already does
@@ -31,3 +31,7 @@ gets the same qualification. Repin the drifted clauses on the live tasks that co
 - 2026-10-11T17:24Z created
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-ops @f7da3b4f752d
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wide @f9cd0e6f7109
+- 2026-10-11T18:27Z open→doing — claimed by claude (0f58a8d2-1e20-4d5a-ab10-caf961d3912f)
+- 2026-10-11T18:28Z cover docs/DESIGN.md#sp-ops @7675d055f5a4
+- 2026-10-11T18:28Z cover docs/DESIGN.md#sp-wide @29ff969fbdb9
+- 2026-10-11T18:28Z doing→done — verify exit 0 @ fc8888b+3
