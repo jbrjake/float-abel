@@ -28,3 +28,6 @@ Advisory, never a gate. The kill conditions read from here.
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-measured @89ea84a0312e
 - 2026-10-11T18:13Z cover docs/DESIGN.md#sp-kills @266f6a0fde1b
 - 2026-10-11T18:13Z cover docs/DESIGN.md#sp-measured @89ea84a0312e
+
+## comments
+- 2026-10-11T18:13Z [claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)] Exact is now a 32-byte Copy word with no heap arm (d33a0ee): there is no promotion. Re-read this body before starting: the promotion-rate measurement becomes the width-cap rate on the same-scale and adversarial fixtures through the checked API, and the allocation rate is zero by construction, so measure bytes and caps, not allocations.
