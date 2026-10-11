@@ -295,8 +295,8 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
 - **Zero required dependencies.** Everything else is a feature.
 - MSRV **1.74** for the default feature set, asserted in CI on exactly that set. The `differential`
   feature inherits differential-dataflow 0.24's declared `rust-version = "1.86"`. The `dbsp` feature
-  builds only on rustc 1.96.1 (dbsp declares it, and 1.97 ICEs inside it), so its CI job pins that
-  toolchain.
+  builds on rustc 1.99.0 and on 1.96.1, which dbsp declares; 1.97 and 1.98 ICE inside it, so its CI
+  job pins 1.99.0.
 - The crate lists **itself as a dev-dependency** with `serde`, `differential`, `laws`, `simd` and
   `arbitrary` on: `float-abel = { path = ".", features = [...] }` under `[dev-dependencies]`. That is
   the one Cargo spelling that turns features on for a bare `cargo test` with no flag. `dbsp` stays out
@@ -311,7 +311,7 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
 | `alloc` | — | `Exact` (its heap arm needs a `Box`); `Fixed` and `Wide` work without it |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
 | `differential` | differential-dataflow 0.24 + `serde` | the differential-dataflow adapter |
-| `dbsp` | dbsp 0.356, feldera-macros, rkyv 0.7 (`size_64`), feldera-size-of 0.1.7 | the DBSP adapter |
+| `dbsp` | dbsp 0.364, feldera-macros, rkyv 0.7 (`size_64`), feldera-size-of 0.1.7 | the DBSP adapter |
 | `laws` | proptest | the laws kit |
 | `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate |
 | `arbitrary` | arbitrary 1 | fuzz inputs |
@@ -378,10 +378,10 @@ shape. SQL `SUM(DOUBLE)` can't be made linear from outside, because the compiler
 Feldera's sanctioned route is a `CREATE LINEAR AGGREGATE` UDA whose accumulator type is ours (the
 compiler wraps it in `Tup3<acc, i64, i64>`), and the crate ships that UDA as its DBSP example.
 
-Constraints: the `dbsp` CI job pins rustc 1.96.1. rkyv is used with
+Constraints: the `dbsp` CI job pins rustc 1.99.0. rkyv is used with
 `default-features = false, features = ["std", "size_64"]` to match dbsp's. The feature pins
-`dbsp = "=0.356.0"`, the version the probe ran against. Moving the pin to a newer dbsp that builds on
-1.96.1 means re-running the probe there first.
+`dbsp = "=0.364.0"`; the probe above ran against 0.356.0, and the adapter task re-runs it at the pin
+before the feature ships. Moving the pin again means re-running the probe there first.
 
 ## The laws kit {#sp-laws-kit}
 
@@ -469,7 +469,7 @@ on every push.
 | SIMD | every kernel equals the scalar reference bit for bit on the vectors and 10⁴ seeded multisets (specials and subnormals included); lane-count independence at 2, 4 and 8 partials | the golden hash covers every kernel |
 | batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; within `n·2^(−60(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |
-| DBSP | `OrdIndexedWSet` consolidation and cancellation; `aggregate_linear` scale and retract; the UDA example builds | feature `dbsp`, rustc 1.96.1 |
+| DBSP | `OrdIndexedWSet` consolidation and cancellation; `aggregate_linear` scale and retract; the UDA example builds | feature `dbsp`, rustc 1.99.0 |
 
 ## Measured, on a prototype {#sp-measured}
 

@@ -10,7 +10,7 @@ no group and stays out, and so does `f32`.
 
 ```bash
 cargo test                                             # what every task verify runs; the self dev-dependency turns the test features on
-cargo +1.96.1 test --features dbsp --test main dbsp_   # dbsp builds only on 1.96.1
+cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
 ./scripts/smoke.sh                                     # commit gate (pre-commit hook)
 ./scripts/regression.sh                                # push gate (pre-push hook)
 git config core.hooksPath .githooks                    # run the gates from git
