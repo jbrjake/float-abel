@@ -6,7 +6,7 @@ labels: [reproducible-floats, rf-critical-path]
 docs: [docs/DESIGN.md#crate-posture-sp-posture, docs/DESIGN.md#features-sp-features, CLAUDE.md]
 seq: 10
 verify: "all(exists Cargo.toml, contains Cargo.toml /rust-version = .1\\.74./, contains Cargo.toml /line-tables-only/, exists src/lib.rs, contains src/lib.rs /deny.unsafe_code./, exists tests/main.rs, exists deny.toml, exists scripts/smoke.sh, exists scripts/regression.sh)"
-status: open
+status: done
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-posture
@@ -37,3 +37,5 @@ Not this task: reserving the crates.io name. Any publish is the owner's act.
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-posture @4f94eb664c7e
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-features @a938e9e4c72e
+- 2026-10-11T15:32Z open→doing — claimed by claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)
+- 2026-10-11T15:37Z doing→done — verify exit 0 @ d2f29de+1
