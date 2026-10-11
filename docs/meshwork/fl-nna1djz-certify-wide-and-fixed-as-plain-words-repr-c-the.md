@@ -11,6 +11,13 @@ verify: "all(contains src/wide.rs /#\\[repr\\(C\\)\\]/, contains src/fixed.rs /#
 seq: 46
 status: open
 created: 2026-10-11T18:00Z
+covers:
+  - ref: docs/DESIGN.md#sp-wide
+    sha: f9cd0e6f7109063e08dd1b3fcadc03a4951424efd48c72a6412ff3e1cfdebdb8
+  - ref: docs/DESIGN.md#sp-fixed
+    sha: 8fa2eadaab9aab115d1312b30e795f024b3b0fcdf571a7817f12502a4690e1ae
+  - ref: docs/DESIGN.md#sp-wire
+    sha: ed67fb6c74a2f5d25395ee4cc391ead8d530b72592a9d5ea223a9ce4123ad2f3
 ---
 Owner's ruling, 2026-10-11: "i cannot stress enough the paramount importance of zero-copy here";
 "copy/alloc has to be limited to only the bare necessities. the normal path needs to be zero copy
@@ -34,3 +41,6 @@ it structurally.
 
 ## log
 - 2026-10-11T18:00Z created
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wide @f9cd0e6f7109
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-fixed @8fa2eadaab9a
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wire @ed67fb6c74a2

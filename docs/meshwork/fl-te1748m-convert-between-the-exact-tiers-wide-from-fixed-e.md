@@ -13,7 +13,7 @@ seq: 55
 created: 2026-10-11T16:32Z
 covers:
   - ref: docs/DESIGN.md#sp-ops
-    sha: 63e9572f1cf144a73be825703e1b020e3cdbf1f4882dd181f76ef89dadfb91d9
+    sha: f7da3b4f752d48550b0d1253177e1a361e53f1ae423d10b36e1c23a62a107928
 ---
 
 DESIGN.md § Operations and conversions names four conversions between the exact tiers that no
@@ -36,3 +36,4 @@ a `trybuild` compile-fail case for `Fixed<-1076, 20>`.
 - 2026-10-11T16:32Z created
 - 2026-10-11T16:32Z cover docs/DESIGN.md#sp-ops @cf4faaa1f100
 - 2026-10-11T17:41Z cover docs/DESIGN.md#sp-ops @63e9572f1cf1
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-ops @f7da3b4f752d

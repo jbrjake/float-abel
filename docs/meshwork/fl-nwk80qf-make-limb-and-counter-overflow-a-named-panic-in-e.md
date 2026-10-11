@@ -11,6 +11,70 @@ seq: 43
 status: doing
 created: 2026-10-11T17:24Z
 claimed-by: claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
+covers:
+  - ref: docs/DESIGN.md#sp-fixed
+    sha: 8fa2eadaab9aab115d1312b30e795f024b3b0fcdf571a7817f12502a4690e1ae
+handoff: |
+  The tree at d33a0ee is green through `./scripts/regression.sh` (78 tests
+  in the main package, 4 in
+  `tests/noalloc`, workspace clippy, rustdoc, the MSRV build, cargo-deny).
+  `Exact` is a 32-byte
+  `Copy` plain word (`src/exact/mod.rs`): the compact tier's dyadic
+  (`src/exact/compact.rs`) plus
+  three `i32` counts, `product(a, b)` total and bit-identical to
+  `Wide::deposit_product` through the
+  helpers now in `src/ieee.rs`, `Mul<Exact>` in `src/exact/ring.rs` with
+  integer special amounts,
+  `PastCap { Width, Exponent, Count }`. There is no heap arm and no
+  `alloc` feature. The owner's
+  rulings are quoted in CLAUDE.md's standing decisions and in each task
+  body.
+  
+  This task is next and is small: every `debug_assert!(!overflow, ...)` in
+  `src/fixed.rs` (4 sites:
+  `deposit_dyadic`, `AddAssign`, `Neg`, `Mul<i64>`) and `src/wide.rs` (8
+  sites: `deposit_finite`,
+  `bump`, `AddAssign` limbs and counters, `Neg` both, `Mul<i64>` both)
+  becomes an unconditional
+  `assert!` with the same named message. The three
+  `#[cfg(debug_assertions)] #[should_panic]` tests
+  (`tests/fixed.rs` `fixed_exhausting_the_headroom_is_caught_in_debug`,
+  `tests/wide.rs`
+  `wide_exhausting_the_headroom_is_caught_in_debug`, `tests/wide_group.rs`
+  `wide_overflowing_a_special_counter_is_caught_in_debug`) lose the gate
+  and are renamed
+  `*_is_a_named_panic_in_every_build`; add a `Fixed` scalar-multiply case.
+  `scripts/regression.sh`
+  gains `cargo test --quiet --release --test main every_build >/dev/null`,
+  since only a release run
+  shows release semantics. Fix the two doc comments that say "wrap in
+  release" (`src/wide.rs` type
+  doc, `src/fixed.rs` type doc) and DESIGN.md § Fixed's "a
+  `debug_assert!` guards the headroom";
+  then `meshwork cover fl-nwk80qf docs/DESIGN.md#sp-fixed` and repin the
+  live tasks `lint` names.
+  Add the ruling to CLAUDE.md's standing decisions in one line (owner:
+  "Yes, check in release").
+  
+  After it, in order: fl-zs79ct9 (DESIGN.md § ops and § Wide: products
+  off the grid are refused by
+  name on `Fixed` and `Wide`; § Wide still says "never refuses"),
+  fl-nna1djz (`repr(C)` on `Wide`
+  and `Fixed`, the `layout_*` tests), fl-te1748m (the conversions, now
+  `TryFrom` into `Exact`), then
+  Binned. The portfolio ask fl-cfx001b waits on the portfolio amending the
+  plan; close it when a
+  task there answers it. The sazed and leras tasks that name `Exact`
+  (sazed S1/S3, leras L3) assume
+  the old shape in their bodies; they live in those stores and are the
+  owner's to re-read.
+  
+  The compact unit tests keep `Compact::from_f64`, `from_product` and
+  `Overflow::Special` behind
+  `#[cfg(test)]`; `Exact` never hands the tier a special.
+  `CARGO_TARGET_DIR` is set outside
+  ~/Documents by the repo's `.claude/settings.local.json`; export it by
+  hand elsewhere.
 ---
 Owner's ruling, 2026-10-11, asked whether the bounds ruling extends to `Wide`'s and `Fixed`'s
 headroom budgets and `Wide`'s special counters, which wrap silently in release: "Yes, check in
@@ -34,3 +98,5 @@ Docs: DESIGN.md § Fixed says "a `debug_assert!` guards the headroom" and § Wid
 ## log
 - 2026-10-11T17:24Z created
 - 2026-10-11T17:41Z open→doing — claimed by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-fixed @8fa2eadaab9a
+- 2026-10-11T18:12Z handoff by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)

@@ -11,6 +11,11 @@ verify: contains docs/DESIGN.md /refused by name on .Fixed. and .Wide./
 seq: 44
 status: open
 created: 2026-10-11T17:24Z
+covers:
+  - ref: docs/DESIGN.md#sp-ops
+    sha: f7da3b4f752d48550b0d1253177e1a361e53f1ae423d10b36e1c23a62a107928
+  - ref: docs/DESIGN.md#sp-wide
+    sha: f9cd0e6f7109063e08dd1b3fcadc03a4951424efd48c72a6412ff3e1cfdebdb8
 ---
 Owner's ruling, 2026-10-11, on `Wide::deposit_product` for a product outside `Wide`'s window (a set
 bit below `2^-1074`, or a magnitude at or past `2^1037`): "Refuse by name". The code already does
@@ -24,3 +29,5 @@ gets the same qualification. Repin the drifted clauses on the live tasks that co
 
 ## log
 - 2026-10-11T17:24Z created
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-ops @f7da3b4f752d
+- 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wide @f9cd0e6f7109
