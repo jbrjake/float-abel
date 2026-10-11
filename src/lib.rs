@@ -15,6 +15,13 @@
 #![no_std]
 #![deny(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+// Limb arithmetic moves bits between u64, i64, u128, i32 and usize on purpose; each such cast is
+// the point of the line it is on, so these three lints would only add noise here.
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
 
 // The heap tier of `Exact` is the first user of `alloc`; nothing in the crate allocates yet.
 #[cfg(feature = "alloc")]
@@ -23,3 +30,10 @@ extern crate alloc;
 
 #[cfg(feature = "std")]
 extern crate std;
+
+mod fixed;
+mod ieee;
+mod limbs;
+mod round;
+
+pub use fixed::{Fixed, Fixed256, OutOfWindow};
