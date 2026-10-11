@@ -109,11 +109,6 @@ handoff: |
   the Fixed commit; run them
   with `CARGO_TARGET_DIR` outside ~/Documents (this session used
   `~/.cache/cargo-target/float-abel`).
-  Standing finding to carry: the dbsp task fl-06sggdc has a comment with a
-  toolchain probe; dbsp
-  0.356.0 and 0.364.0 ICE on rustc 1.97/1.98 but build on 1.96.1 and
-  1.99.0, so the design's "only
-  1.96.1" is stale and the pin is the owner's call.
 ---
 `src/wide.rs` per DESIGN.md § Wide and § NaN and ±∞. The deposit follows bitrep's `FORMAT.md`
 section "Adding a finite f64", with the same limb positions. The counters `(n, p, q)` are signed, and
@@ -131,4 +126,5 @@ Tests `wide_*`:
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-wide @f63aa6108830
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-specials @addd4f3bbbdf
+- 2026-10-11T15:59Z handoff by claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)
 - 2026-10-11T15:59Z handoff by claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)
