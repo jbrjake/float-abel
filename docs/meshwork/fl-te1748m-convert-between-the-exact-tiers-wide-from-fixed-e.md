@@ -1,6 +1,6 @@
 ---
 id: fl-te1748m
-title: "Convert between the exact tiers — Wide: From<Fixed<..>>, Exact: From<Wide> and From<Fixed<..>> exact, Wide::try_from(&Exact) refused past the sum range"
+title: "Convert between the tiers — Wide: From<Fixed<..>> exact; Exact: TryFrom<&Wide> and TryFrom<&Fixed<..>> refused past the width; Wide::try_from(&Exact) refused past the sum range"
 status: open
 category: crate/types
 labels: [reproducible-floats]

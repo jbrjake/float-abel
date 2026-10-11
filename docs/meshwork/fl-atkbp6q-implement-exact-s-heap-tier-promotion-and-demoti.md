@@ -1,13 +1,13 @@
 ---
 id: fl-atkbp6q
-title: "Implement Exact's heap tier — promotion and demotion, the special-value algebra, Mul<Exact> and Mul<i64>, and the limb cap"
+title: "Redesign Exact as a 32-byte Copy plain word — the compact dyadic plus i32 special counts, total From<f64>, Mul<i64> and the integer-amount Mul<Exact>, the width, exponent and count caps, and no heap arm"
 category: crate/types
 labels: [reproducible-floats, rf-critical-path]
 docs: [docs/DESIGN.md#exact-sp-exact, docs/DESIGN.md#nan-and--sp-specials, docs/DESIGN.md#exactness-bounds-sp-bounds, docs/DESIGN.md#operations-and-conversions-sp-ops]
 needs: [fl-dwrey99, fl-6zvrgbr, fl-ezsfgkm]
-seq: 50
-verify: run cargo test package=float-abel exact_heap_
-status: open
+seq: 45
+verify: run cargo test package=float-abel exact_ring_
+status: doing
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-exact
@@ -124,33 +124,38 @@ handoff: |
   `CARGO_TARGET_DIR` is set outside ~/Documents by the repo's
   `.claude/settings.local.json` for Claude
   Code sessions; export it by hand elsewhere.
+claimed-by: claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
 ---
 
-`src/exact/wide.rs` and `src/exact/mod.rs` per DESIGN.md § Exact, § NaN and ±∞ and § Exactness
-bounds. `WideExact { sign, mant: Vec<u64>, exp, specials: [Dyadic; 3] }`, normalised, behind the
-`alloc` feature as `Tier::Wide(Box<WideExact>)`; `Exact`'s public surface already exists in its
-compact-only form (the no-alloc task) and this task extends it: promotion when the compact tier
-reports `Overflow::NeedsWide`, unconditional demotion after every heap op so that canonical form is
-the smallest tier that fits, the special-value algebra, and `Mul<Exact>` by the monoid-algebra
-product. `EXACT_MAX_LIMBS` is a `const` with the named cap panic past it, documented (DESIGN.md §
-Open questions), and the heap tier applies `EXACT_MAX_EXP` after every op that moves an exponent,
-through the same `PastCap` the compact tier and the operators already use. The checked API
-returns `PastCap::Width` and `PastCap::Exponent` from the heap tier as it does from the compact
-one, and `PastCap::Special` never occurs with `alloc` on.
+Owner's rulings, 2026-10-11: zero-copy is paramount and "copy/alloc has to be limited to only the
+bare necessities"; "in general i approve dropping the heap arm"; "we absolutely need exact
+multiplication. it's incredibly useful"; specials "counted and projected, never refused".
 
-Tests `exact_heap_*`:
-- the laws across tiers: a value built through the heap tier equals the same value built through
-  `Compact`, structurally;
-- distributivity on 10⁵ random triples, specials included;
-- `0 · ∞` and `0 · NaN` project `0` (the documented divergence), while `(+∞)·(−∞)` projects `−∞` and
-  `(−∞)·(−∞)` projects `+∞`, each asserted so that a change is deliberate;
+`Exact` is a 32-byte `Copy` plain word: `#[repr(C)] struct Exact { lo: u64, hi: u64, exp: i32,
+nan: i32, pos_inf: i32, neg_inf: i32 }`, no padding, pinned by `const` assertions. The finite part
+is the compact tier's canonical dyadic; the three counts are the special vector of DESIGN.md § NaN
+and ±∞, signed so that a retraction subtracts. `From<f64>` is total, `Mul<i64>` scales the finite
+part and the counts, `Mul<Exact>` is the monoid-algebra product with the amounts kept integer: a
+product whose special amount would stop being an integer, or would leave `i32`, is the cap. The
+caps are `PastCap { Width, Exponent, Count }`, named on the operators and returned by the checked
+API. There is no heap arm, no `alloc` feature and no limb cap; the `noalloc` member keeps pinning
+the no-feature build. `Ord` is numeric on the finite part, then `(n, p, q)`. Projection at read is
+`Wide`'s rule, shared.
+
+Tests `exact_ring_*` in `tests/exact_ring.rs`:
+- the group laws with specials in the multiset, and `Mul<i64>` on the counts;
+- distributivity and associativity of `Mul<Exact>` on 10⁵ random triples, specials included, on
+  inputs whose products fit the width;
+- `0 · ∞` and `0 · NaN` are the zero, `(+∞)·(−∞)` projects `−∞` and `(−∞)·(−∞)` projects `+∞`,
+  `2 · (one NaN)` is two NaN and `2.5 · (one NaN)` is `PastCap::Count`, each asserted so that a
+  change is deliberate;
 - the history `1e30`, `1e-10`, `−1e30` reads `1e-10` exactly;
-- an adversarial fold over magnitudes 2^±300 stays exact;
-- promotion and demotion observed through `is_compact`: `1e300 + 1e-300` promotes, `0.1 + 0.2` does
-  not, and `(1e300 + 1e-300) - 1e-300` demotes back to `Exact::from(1e300)` structurally and under
-  `hash`;
-- the limb cap and the exponent bound each panic by name one step past, in every build, and the
-  checked API returns them.
+- a fold over magnitudes `2^±300` is `PastCap::Width` from the checked API, and `Wide` holds it;
+- `size_of == 32`, `align_of == 8`, and `Exact` is `Copy`.
+
+Docs: DESIGN.md § Exact, § The trilemma, § NaN and ±∞, § Exactness bounds, § Operations and
+conversions, § Features, § Crate posture, § Wire format, § Open questions and § Non-goals; CLAUDE.md's
+standing decisions.
 
 ## log
 - 2026-10-11T15:02Z created
@@ -168,3 +173,4 @@ Tests `exact_heap_*`:
 - 2026-10-11T17:41Z cover docs/DESIGN.md#sp-specials @addd4f3bbbdf
 - 2026-10-11T17:41Z cover docs/DESIGN.md#sp-bounds @0124e19ca3d4
 - 2026-10-11T17:41Z cover docs/DESIGN.md#sp-ops @63e9572f1cf1
+- 2026-10-11T18:03Z open→doing — claimed by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)

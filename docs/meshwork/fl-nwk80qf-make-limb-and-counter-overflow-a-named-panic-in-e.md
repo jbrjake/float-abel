@@ -8,8 +8,9 @@ docs:
   - docs/DESIGN.md#wide-sp-wide
 verify: "all(lacks src/wide.rs /(?s)debug_assert!\\(\\s*!overflow/, lacks src/fixed.rs /(?s)debug_assert!\\(\\s*!overflow/, run cargo test package=float-abel every_build)"
 seq: 43
-status: open
+status: doing
 created: 2026-10-11T17:24Z
+claimed-by: claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
 ---
 Owner's ruling, 2026-10-11, asked whether the bounds ruling extends to `Wide`'s and `Fixed`'s
 headroom budgets and `Wide`'s special counters, which wrap silently in release: "Yes, check in
@@ -32,3 +33,4 @@ Docs: DESIGN.md § Fixed says "a `debug_assert!` guards the headroom" and § Wid
 
 ## log
 - 2026-10-11T17:24Z created
+- 2026-10-11T17:41Z open→doing — claimed by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
