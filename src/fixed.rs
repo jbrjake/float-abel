@@ -45,8 +45,8 @@ impl std::error::Error for OutOfWindow {}
 /// `CEILING_EXP = 64·LIMBS − 65 + LSB`: a sign bit and 64 bits of headroom come off the width.
 /// Everything else is refused by name as an [`OutOfWindow`], or rounded onto the grid first by
 /// [`Fixed::quantize`] for callers who declare a floor. Inside the window the group operations are
-/// infallible for a budget of `2^64` deposits at the ceiling; past that they wrap in release and
-/// hit a `debug_assert!` in debug builds.
+/// infallible for a budget of `2^64` deposits at the ceiling; past that they panic by name in every
+/// build, because a wrapped sum is silently wrong.
 ///
 /// Structural `Eq`, `Ord` and `Hash` are numeric: a two's-complement integer has one bit pattern
 /// per value, so there is nothing to canonicalise and the zero has no sign. No operation executes
@@ -138,7 +138,7 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
             limbs::negate(&mut term);
         }
         let overflow = limbs::add_assign(&mut self.limbs, &term);
-        debug_assert!(
+        assert!(
             !overflow,
             "Fixed: headroom exhausted, past 2^64 deposits at the ceiling"
         );
@@ -267,7 +267,7 @@ impl<const LSB: i32, const LIMBS: usize> Ord for Fixed<LSB, LIMBS> {
 impl<const LSB: i32, const LIMBS: usize> AddAssign for Fixed<LSB, LIMBS> {
     fn add_assign(&mut self, rhs: Self) {
         let overflow = limbs::add_assign(&mut self.limbs, &rhs.limbs);
-        debug_assert!(!overflow, "Fixed: headroom exhausted in an add");
+        assert!(!overflow, "Fixed: headroom exhausted in an add");
     }
 }
 
@@ -283,7 +283,7 @@ impl<const LSB: i32, const LIMBS: usize> Neg for Fixed<LSB, LIMBS> {
     type Output = Self;
     fn neg(mut self) -> Self {
         let overflow = limbs::negate(&mut self.limbs);
-        debug_assert!(!overflow, "Fixed: headroom exhausted in a negation");
+        assert!(!overflow, "Fixed: headroom exhausted in a negation");
         self
     }
 }
@@ -310,7 +310,7 @@ impl<const LSB: i32, const LIMBS: usize> Mul<i64> for Fixed<LSB, LIMBS> {
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);
         let carry = limbs::mul_assign_u64(&mut mag, k.unsigned_abs());
-        debug_assert!(
+        assert!(
             carry == 0 && !limbs::is_negative(&mag),
             "Fixed: headroom exhausted in a scalar multiply"
         );

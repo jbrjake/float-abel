@@ -395,17 +395,29 @@ fn fixed_subnormal_and_overflow_reads_round_correctly() {
 }
 
 #[test]
-#[cfg(debug_assertions)]
 #[should_panic(expected = "headroom")]
-fn fixed_exhausting_the_headroom_is_caught_in_debug() {
+fn fixed_exhausting_the_headroom_is_a_named_panic_in_every_build() {
     // 2^95 - ulp is the largest deposit; 2^64 of them would just fit. One past the signed limit
-    // wraps in release and is a named assertion in debug.
+    // is a named panic in every build, release included: the gate runs this under --release.
     let top = 2f64.powi(95) * (1.0 - f64::EPSILON / 2.0);
     let mut f = dep(top);
     for _ in 0..64 {
         f += f; // 2^k copies of the top value: 2^64 copies overflow the sign bit
     }
     let _ = f + f;
+}
+
+#[test]
+#[should_panic(expected = "scalar multiply")]
+fn fixed_overflowing_a_scalar_multiply_is_a_named_panic_in_every_build() {
+    // 2^63 copies of the top value sit just under 2^254 units, inside the 255 magnitude bits;
+    // three times that crosses 2^255 into the sign bit, and the multiply names itself.
+    let top = 2f64.powi(95) * (1.0 - f64::EPSILON / 2.0);
+    let mut f = dep(top);
+    for _ in 0..63 {
+        f += f;
+    }
+    let _ = f * 3i64;
 }
 
 #[test]

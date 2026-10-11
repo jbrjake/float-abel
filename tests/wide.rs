@@ -413,16 +413,28 @@ fn wide_reads_round_at_both_ends_of_the_double_range() {
 }
 
 #[test]
-#[cfg(debug_assertions)]
 #[should_panic(expected = "headroom")]
-fn wide_exhausting_the_headroom_is_caught_in_debug() {
+fn wide_exhausting_the_headroom_is_a_named_panic_in_every_build() {
     // f64::MAX is 2098 bits over the unit; 2^77 copies fill the 2175 magnitude bits, and one more
-    // doubling reaches the sign bit. That wraps in release and is a named assertion in debug.
+    // doubling reaches the sign bit. That is a named panic in every build, release included: the
+    // gate runs this under --release.
     let mut f = w(f64::MAX);
     for _ in 0..77 {
         f += f;
     }
     let _ = f + f;
+}
+
+#[test]
+#[should_panic(expected = "scalar multiply")]
+fn wide_overflowing_a_scalar_multiply_is_a_named_panic_in_every_build() {
+    // 2^77 copies of f64::MAX fill the magnitude bits; three times that carries out of the word,
+    // and the multiply names itself.
+    let mut f = w(f64::MAX);
+    for _ in 0..77 {
+        f += f;
+    }
+    let _ = f * 3i64;
 }
 
 #[test]

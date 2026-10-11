@@ -30,6 +30,9 @@ cargo clippy --quiet --workspace --all-targets -- -D warnings
 RUSTDOCFLAGS="-D warnings" cargo doc --quiet --no-deps
 
 cargo test --quiet -- --include-ignored >/dev/null
+# The headroom and counter overflow panics are asserted in every build, and only a release run can
+# show that: a debug run would pass with a `debug_assert!` too.
+cargo test --quiet --release --test main every_build >/dev/null
 # The no-feature build, which only a separate member reaches; see tests/noalloc/Cargo.toml.
 cargo test --quiet -p float-abel-noalloc >/dev/null
 

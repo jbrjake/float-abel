@@ -185,8 +185,9 @@ fn wide_order_is_numeric_then_lexicographic_on_the_counters() {
 }
 
 #[test]
-#[cfg(debug_assertions)]
 #[should_panic(expected = "counter")]
-fn wide_overflowing_a_special_counter_is_caught_in_debug() {
+fn wide_overflowing_a_special_counter_is_a_named_panic_in_every_build() {
+    // An i64 counter at its maximum plus one more NaN: a named panic in every build, release
+    // included, because a wrapped counter would project the wrong special.
     let _ = w(NAN) * i64::MAX + w(NAN);
 }

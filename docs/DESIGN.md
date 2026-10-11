@@ -233,8 +233,8 @@ slot, and not a per-update diff, where a batch of 10⁷ updates would carry 2.9 
 multiple of 2^LSB and |x| < 2^(64·LIMBS − 65 − (−LSB)). `quantize(x) -> f64` is round-to-nearest-even
 onto the grid, for callers who *declare* a floor. It is deterministic per input, so it applies
 identically on every engine before the deposit. Group ops are infallible inside the documented budget
-of 2⁶⁴ deposits at the ceiling, and a `debug_assert!` guards the headroom. `Fixed256 = Fixed<−96, 4>`
-is the named default.
+of 2⁶⁴ deposits at the ceiling, and exhausting the headroom is a named panic in every build, release
+included, because a wrapped sum is silently wrong. `Fixed256 = Fixed<−96, 4>` is the named default.
 
 ### Binned {#sp-binned}
 

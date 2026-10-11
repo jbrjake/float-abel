@@ -33,10 +33,11 @@ const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 /// finite part rounds to nearest-even. Every finite part is at least one unit, and the unit is the
 /// smallest subnormal, so a nonzero finite part never rounds to zero; the zero state reads `+0.0`.
 ///
-/// The group operations are infallible for `2^77` deposits of `f64::MAX`; past that they wrap in
-/// release and hit a `debug_assert!` in debug builds, as do the counters past `i64`. Structural
-/// `Eq`, `Ord` and `Hash` are numeric, because a two's-complement integer and three integers have
-/// one bit pattern per value. No operation executes a floating-point instruction.
+/// The group operations are infallible for `2^77` deposits of `f64::MAX`, and the counters for
+/// `i64`; past either budget they panic by name in every build, because a wrapped sum is silently
+/// wrong. Structural `Eq`, `Ord` and `Hash` are numeric, because a two's-complement integer and
+/// three integers have one bit pattern per value. No operation executes a floating-point
+/// instruction.
 ///
 /// [`Wide::deposit_product`] is the one fallible entry: the exact product of two doubles may lie
 /// below the unit or past `2^1037`, and then it is refused by name rather than rounded.
@@ -163,7 +164,7 @@ impl Wide {
             limbs::negate(&mut term);
         }
         let overflow = limbs::add_assign(&mut self.limbs, &term);
-        debug_assert!(
+        assert!(
             !overflow,
             "Wide: headroom exhausted, past 2^77 deposits of f64::MAX"
         );
@@ -171,7 +172,7 @@ impl Wide {
 
     fn bump(&mut self, which: usize, by: i64) {
         let (v, overflow) = self.specials[which].overflowing_add(by);
-        debug_assert!(!overflow, "Wide: a special counter overflowed in a deposit");
+        assert!(!overflow, "Wide: a special counter overflowed in a deposit");
         self.specials[which] = v;
     }
 
@@ -282,10 +283,10 @@ impl Ord for Wide {
 impl AddAssign for Wide {
     fn add_assign(&mut self, rhs: Self) {
         let overflow = limbs::add_assign(&mut self.limbs, &rhs.limbs);
-        debug_assert!(!overflow, "Wide: headroom exhausted in an add");
+        assert!(!overflow, "Wide: headroom exhausted in an add");
         for (s, &r) in self.specials.iter_mut().zip(&rhs.specials) {
             let (v, overflow) = s.overflowing_add(r);
-            debug_assert!(!overflow, "Wide: a special counter overflowed in an add");
+            assert!(!overflow, "Wide: a special counter overflowed in an add");
             *s = v;
         }
     }
@@ -303,10 +304,10 @@ impl Neg for Wide {
     type Output = Self;
     fn neg(mut self) -> Self {
         let overflow = limbs::negate(&mut self.limbs);
-        debug_assert!(!overflow, "Wide: headroom exhausted in a negation");
+        assert!(!overflow, "Wide: headroom exhausted in a negation");
         for s in &mut self.specials {
             let (v, overflow) = s.overflowing_neg();
-            debug_assert!(
+            assert!(
                 !overflow,
                 "Wide: a special counter overflowed in a negation"
             );
@@ -339,7 +340,7 @@ impl Mul<i64> for Wide {
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);
         let carry = limbs::mul_assign_u64(&mut mag, k.unsigned_abs());
-        debug_assert!(
+        assert!(
             carry == 0 && !limbs::is_negative(&mag),
             "Wide: headroom exhausted in a scalar multiply"
         );
@@ -349,7 +350,7 @@ impl Mul<i64> for Wide {
         let mut specials = [0i64; 3];
         for (s, &c) in specials.iter_mut().zip(&self.specials) {
             let (v, overflow) = c.overflowing_mul(k);
-            debug_assert!(
+            assert!(
                 !overflow,
                 "Wide: a special counter overflowed in a scalar multiply"
             );

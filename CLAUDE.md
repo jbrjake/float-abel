@@ -39,6 +39,9 @@ outside `~/Documents`.
   general-purpose, not one engine's.
 - No floating-point instruction in any group op or read (only `to_bits`, shifts, carries), because
   that is what makes the bits architecture-independent.
+- `Wide`'s and `Fixed`'s headroom budgets and `Wide`'s special counters are asserted in every build,
+  never only under `debug_assertions`, because a wrapped sum is silently wrong (owner: "Yes, check
+  in release"). The push gate runs those tests under `--release`.
 - Every op canonicalises and every decoder refuses non-canonical bytes, because structural `Eq` must
   be numeric equality for differential's consolidation.
 - Every type is a `Copy` plain word and nothing allocates (owner: "i cannot stress enough the
