@@ -13,10 +13,11 @@ cargo test                                             # what every task verify 
 cargo +1.96.1 test --features dbsp --test main dbsp_   # dbsp builds only on 1.96.1
 ./scripts/smoke.sh                                     # commit gate (pre-commit hook)
 ./scripts/regression.sh                                # push gate (pre-push hook)
+git config core.hooksPath .githooks                    # run the gates from git
 ```
 
-The bootstrap task creates these. A `run` verify dies at 300 s, so warm `target/` before
-`meshwork close`.
+A `run` verify dies at 300 s, so warm `target/` before `meshwork close`. Keep `CARGO_TARGET_DIR`
+outside `~/Documents`.
 
 ## Overrides
 

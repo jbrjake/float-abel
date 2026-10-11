@@ -1,0 +1,30 @@
+# cargo-deny: licenses, advisories and duplicate majors over every feature's dependency closure.
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = []
+
+# Only licences the tree actually carries; cargo-deny warns on an allowance nothing uses, so a new
+# dependency's licence is added here with it.
+[licenses]
+version = 2
+allow = ["MIT", "Apache-2.0"]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+# A duplicate major goes here with the crate that drags it in, never as a blanket skip.
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

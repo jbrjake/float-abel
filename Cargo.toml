@@ -1,0 +1,82 @@
+[package]
+name = "float-abel"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.74"
+license = "MIT OR Apache-2.0"
+description = "Exact abelian-group sums of f64, so an incremental engine lands the same bits under any order, worker count or architecture"
+repository = "https://github.com/jbrjake/float-abel"
+readme = "README.md"
+categories = ["no-std", "mathematics", "data-structures", "algorithms"]
+keywords = ["float", "reproducible", "abelian", "differential-dataflow", "dbsp"]
+include = ["src/**", "Cargo.toml", "README.md", "LICENSE-MIT", "LICENSE-APACHE"]
+# One integration-test target. Topics are flat files under tests/, each a `mod` of tests/main.rs;
+# discovery is off so a second file can never become a second binary.
+autotests = false
+
+# docs.rs builds every feature but `dbsp`, which needs rustc 1.96.1 and ICEs on anything newer.
+[package.metadata.docs.rs]
+features = ["std", "alloc", "serde", "differential", "laws", "simd", "arbitrary"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+# Zero required dependencies (DESIGN.md § Crate posture). Everything below is optional and owned by
+# exactly one feature.
+[dependencies]
+arbitrary = { version = "1", optional = true }
+serde = { version = "1", optional = true, default-features = false }
+
+# The crate lists itself with the test features on: the one Cargo spelling that turns them on for a
+# bare `cargo test` with no flag. `dbsp` stays out because it builds only on rustc 1.96.1.
+[dev-dependencies]
+float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", "arbitrary"] }
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+
+[features]
+default = ["std"]
+# `std::error::Error` impls and the bench harness.
+std = []
+# `Exact`: its heap arm needs a `Box`. `Fixed` and `Wide` work without it.
+alloc = []
+# `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
+serde = ["dep:serde"]
+# The differential-dataflow adapter. Wired by its own task.
+differential = []
+# The DBSP adapter. Builds only on rustc 1.96.1; wired by its own task.
+dbsp = []
+# The laws kit (proptest). Wired by its own task.
+laws = []
+# Runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate. Runtime
+# detection is `std::arch`'s macro, hence `std`.
+simd = ["std"]
+# Fuzz inputs.
+arbitrary = ["dep:arbitrary", "std"]
+
+# Debuginfo trimmed for the dev loop; the dependency graph carries none at all.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+debug = false
+
+# Lints warn here and fail only at the gate (`cargo clippy --all-targets -- -D warnings` and
+# `RUSTDOCFLAGS="-D warnings" cargo doc` in scripts/regression.sh). `unsafe_code` is denied in
+# src/lib.rs, where src/simd/ can lift it.
+[lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+missing_safety_doc = "deny"
+
+[lints.rustdoc]
+broken_intra_doc_links = "warn"

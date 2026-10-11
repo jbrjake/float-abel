@@ -1,0 +1,87 @@
+# The functional gate, in CI. The gate job runs the same scripts the git hooks run, so local and
+# remote green have one definition. The other jobs cover what a local run may skip: the MSRV build
+# on exactly the default features, cargo-deny, and the dbsp feature on the one toolchain it builds
+# on. Benchmarks and the golden hash have their own workflows.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  gate:
+    name: smoke + regression (stable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+          cargo --version && rustc --version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: gate-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: gate-${{ runner.os }}-
+      - run: ./scripts/smoke.sh
+      - run: ./scripts/regression.sh
+
+  msrv:
+    name: MSRV 1.74 on the default features
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rustc 1.74.0
+        run: |
+          rustup toolchain install 1.74.0 --profile minimal
+          rustup default 1.74.0
+          cargo --version && rustc --version
+      - run: cargo build --locked
+      - run: cargo build --locked --no-default-features
+      - run: cargo build --locked --no-default-features --features alloc
+
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
+  dbsp:
+    name: dbsp feature on rustc 1.96.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rustc 1.96.1
+        run: |
+          rustup toolchain install 1.96.1 --profile minimal
+          rustup default 1.96.1
+          cargo --version && rustc --version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: dbsp-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: dbsp-${{ runner.os }}-
+      - run: cargo test --locked --features dbsp --test main dbsp_
