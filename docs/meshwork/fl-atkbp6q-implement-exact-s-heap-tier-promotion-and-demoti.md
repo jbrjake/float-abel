@@ -4,18 +4,18 @@ title: "Implement Exact's heap tier — promotion and demotion, the special-valu
 category: crate/types
 labels: [reproducible-floats, rf-critical-path]
 docs: [docs/DESIGN.md#exact-sp-exact, docs/DESIGN.md#nan-and--sp-specials, docs/DESIGN.md#exactness-bounds-sp-bounds, docs/DESIGN.md#operations-and-conversions-sp-ops]
-needs: [fl-dwrey99]
+needs: [fl-dwrey99, fl-6zvrgbr, fl-ezsfgkm]
 seq: 50
-verify: run cargo test package=float-abel exact_
+verify: run cargo test package=float-abel exact_heap_
 status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-exact
-    sha: 37e69a8f5bc8790986626d0213167f858411aeb661df18d79b1bdcc02ffcca54
+    sha: 0600b5e7e406c068ecceabf3ee34f83ae2890fed4ec4f9b320c5d8ef76af6876
   - ref: docs/DESIGN.md#sp-specials
     sha: addd4f3bbbdf9d2ff253af0022364ac7d0702feb43c1a014a14161878ec9de0f
   - ref: docs/DESIGN.md#sp-bounds
-    sha: 943ce56af93ae6ee0abf6c13ab9323ade26f1afc1c47149b7ae4b45bbc2a8fcb
+    sha: 0124e19ca3d4e2178981169bdff1c916ab8cf3a75c536ea0e995bbcaf686a122
   - ref: docs/DESIGN.md#sp-ops
     sha: cf4faaa1f10025e5cd89f4a8883ed54ca023db8b7d4aa0472b24bc9fdf08e8ea
 handoff: |
@@ -125,19 +125,32 @@ handoff: |
   `.claude/settings.local.json` for Claude
   Code sessions; export it by hand elsewhere.
 ---
-`src/exact/wide.rs` and `src/exact/mod.rs` per DESIGN.md § Exact, § NaN and ±∞ and § Exactness
-bounds. `WideExact { sign, mant: Vec<u64>, exp, specials: [Dyadic; 3] }`, normalised. Canonical form
-is the smallest tier that fits. Multiplication follows the monoid-algebra product. `EXACT_MAX_LIMBS`
-is a `const` with a named panic past it, documented (DESIGN.md § Open questions).
 
-Tests `exact_*`:
+`src/exact/wide.rs` and `src/exact/mod.rs` per DESIGN.md § Exact, § NaN and ±∞ and § Exactness
+bounds. `WideExact { sign, mant: Vec<u64>, exp, specials: [Dyadic; 3] }`, normalised, behind the
+`alloc` feature as `Tier::Wide(Box<WideExact>)`; `Exact`'s public surface already exists in its
+compact-only form (the no-alloc task) and this task extends it: promotion when the compact tier
+reports `Overflow::NeedsWide`, unconditional demotion after every heap op so that canonical form is
+the smallest tier that fits, the special-value algebra, and `Mul<Exact>` by the monoid-algebra
+product. `EXACT_MAX_LIMBS` is a `const` with the named cap panic past it, documented (DESIGN.md §
+Open questions), and the heap tier applies `EXACT_MAX_EXP` after every op that moves an exponent,
+through the same `PastCap` the compact tier and the operators already use. The checked API
+returns `PastCap::Width` and `PastCap::Exponent` from the heap tier as it does from the compact
+one, and `PastCap::Special` never occurs with `alloc` on.
+
+Tests `exact_heap_*`:
 - the laws across tiers: a value built through the heap tier equals the same value built through
   `Compact`, structurally;
 - distributivity on 10⁵ random triples, specials included;
 - `0 · ∞` and `0 · NaN` project `0` (the documented divergence), while `(+∞)·(−∞)` projects `−∞` and
   `(−∞)·(−∞)` projects `+∞`, each asserted so that a change is deliberate;
 - the history `1e30`, `1e-10`, `−1e30` reads `1e-10` exactly;
-- an adversarial fold over magnitudes 2^±300 stays exact.
+- an adversarial fold over magnitudes 2^±300 stays exact;
+- promotion and demotion observed through `is_compact`: `1e300 + 1e-300` promotes, `0.1 + 0.2` does
+  not, and `(1e300 + 1e-300) - 1e-300` demotes back to `Exact::from(1e300)` structurally and under
+  `hash`;
+- the limb cap and the exponent bound each panic by name one step past, in every build, and the
+  checked API returns them.
 
 ## log
 - 2026-10-11T15:02Z created
@@ -147,3 +160,7 @@ Tests `exact_*`:
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-ops @cf4faaa1f100
 - 2026-10-11T16:56Z handoff by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
 - 2026-10-11T16:57Z handoff by claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)
+- 2026-10-11T17:30Z cover docs/DESIGN.md#sp-exact @0600b5e7e406
+- 2026-10-11T17:30Z cover docs/DESIGN.md#sp-specials @addd4f3bbbdf
+- 2026-10-11T17:30Z cover docs/DESIGN.md#sp-bounds @0124e19ca3d4
+- 2026-10-11T17:30Z cover docs/DESIGN.md#sp-ops @cf4faaa1f100
