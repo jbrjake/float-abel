@@ -10,96 +10,12 @@
 )]
 
 use core::cmp::Ordering;
-use core::hash::{Hash, Hasher};
 use std::vec::Vec;
 
-use super::{Compact, NeedsWide};
+use super::{Compact, Overflow};
+use crate::exact::testing::{add, c, hash, mul, pow2, product, widest, Rng};
 use crate::exact::Exact;
 use crate::Wide;
-
-/// splitmix64: the deterministic stream the integration tests also use, in `tests/support.rs`;
-/// unit tests cannot see that file.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    /// A normal double with its leading bit at 2^e for e in [lo, hi), a full random fraction,
-    /// and either sign. A pair drawn from a window of width w spans at most w + 52 bits.
-    fn on_grid(&mut self, lo: i32, hi: i32) -> f64 {
-        let e = lo + (self.next() % (hi - lo) as u64) as i32;
-        let frac = self.next() >> 12;
-        let x = f64::from_bits(((e + 1023) as u64) << 52 | frac);
-        if self.next() & 1 == 0 {
-            x
-        } else {
-            -x
-        }
-    }
-
-    /// A finite double with uniformly random bits: every exponent equally likely.
-    fn finite(&mut self) -> f64 {
-        loop {
-            let x = f64::from_bits(self.next());
-            if x.is_finite() {
-                return x;
-            }
-        }
-    }
-}
-
-fn hash<T: Hash>(t: &T) -> u64 {
-    let mut s = std::collections::hash_map::DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
-}
-
-/// 2^e as a double, by its bits: `powi` reciprocates, so it returns 0 for `e <= -1024` where the
-/// subnormals still reach down to -1074.
-fn pow2(e: i32) -> f64 {
-    assert!((-1074..=1023).contains(&e));
-    if e >= -1022 {
-        f64::from_bits(((e + 1023) as u64) << 52)
-    } else {
-        f64::from_bits(1u64 << (e + 1074))
-    }
-}
-
-fn c(x: f64) -> Compact {
-    Compact::from_f64(x).unwrap_or_else(|NeedsWide| panic!("{x:e} needs the heap tier"))
-}
-
-fn add(a: Compact, b: Compact) -> Compact {
-    a.checked_add(b)
-        .unwrap_or_else(|NeedsWide| panic!("{a:?} + {b:?} needs the heap tier"))
-}
-
-fn mul(a: Compact, b: Compact) -> Compact {
-    a.checked_mul(b)
-        .unwrap_or_else(|NeedsWide| panic!("{a:?} * {b:?} needs the heap tier"))
-}
-
-fn product(a: f64, b: f64) -> Compact {
-    Compact::from_product(a, b)
-        .unwrap_or_else(|NeedsWide| panic!("{a:e} * {b:e} needs the heap tier"))
-}
-
-/// `2^127 - 1`, the widest mantissa the tier holds, built through the adds that reach it:
-/// `2^126 + (2^126 - 1)`, with `2^126 - 1` itself `2^126 + (-1)`.
-fn widest() -> Compact {
-    let two126 = c(pow2(126));
-    let below = add(two126, c(-1.0));
-    assert_eq!(below.parts(), (u64::MAX, (1 << 62) - 1, 0));
-    let w = add(two126, below);
-    assert_eq!(w.parts(), (u64::MAX, u64::MAX >> 1, 0));
-    w
-}
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 24);
 
@@ -164,37 +80,52 @@ fn compact_from_f64_is_exact_on_finite_doubles_and_needs_wide_on_specials() {
     assert_eq!(c(-0.0).read().0.to_bits(), 0.0f64.to_bits());
     assert_eq!(Compact::ZERO.parts(), (0, 0, 0));
     // A special is the heap tier's, at construction.
-    assert_eq!(Compact::from_f64(f64::NAN), Err(NeedsWide));
-    assert_eq!(Compact::from_f64(-f64::NAN), Err(NeedsWide));
-    assert_eq!(Compact::from_f64(f64::INFINITY), Err(NeedsWide));
-    assert_eq!(Compact::from_f64(f64::NEG_INFINITY), Err(NeedsWide));
-    assert_eq!(Compact::from_product(f64::NAN, 0.0), Err(NeedsWide));
-    assert_eq!(Compact::from_product(2.0, f64::INFINITY), Err(NeedsWide));
+    assert_eq!(Compact::from_f64(f64::NAN), Err(Overflow::NeedsWide));
+    assert_eq!(Compact::from_f64(-f64::NAN), Err(Overflow::NeedsWide));
+    assert_eq!(Compact::from_f64(f64::INFINITY), Err(Overflow::NeedsWide));
+    assert_eq!(
+        Compact::from_f64(f64::NEG_INFINITY),
+        Err(Overflow::NeedsWide)
+    );
+    assert_eq!(
+        Compact::from_product(f64::NAN, 0.0),
+        Err(Overflow::NeedsWide)
+    );
+    assert_eq!(
+        Compact::from_product(2.0, f64::INFINITY),
+        Err(Overflow::NeedsWide)
+    );
 }
 
 #[test]
 fn compact_add_detects_promotion_at_the_127_bit_span() {
     // The classic fits; a span of 2000 bits does not.
     assert!(c(0.1).checked_add(c(0.2)).is_ok());
-    assert_eq!(c(1e300).checked_add(c(1e-300)), Err(NeedsWide));
-    assert_eq!(c(1e-300).checked_add(c(1e300)), Err(NeedsWide));
+    assert_eq!(c(1e300).checked_add(c(1e-300)), Err(Overflow::NeedsWide));
+    assert_eq!(c(1e-300).checked_add(c(1e300)), Err(Overflow::NeedsWide));
     // The edge: a raised operand may occupy 127 bits, not 128.
     let one_plus = add(c(1.0), c(pow2(126)));
     assert_eq!(one_plus.parts(), (1, 1 << 62, 0));
     assert_eq!(one_plus.read(), (pow2(126), true));
-    assert_eq!(c(1.0).checked_add(c(pow2(127))), Err(NeedsWide));
-    assert_eq!(c(pow2(127)).checked_add(c(1.0)), Err(NeedsWide));
-    assert_eq!(c(-1.0).checked_add(c(pow2(127))), Err(NeedsWide));
+    assert_eq!(c(1.0).checked_add(c(pow2(127))), Err(Overflow::NeedsWide));
+    assert_eq!(c(pow2(127)).checked_add(c(1.0)), Err(Overflow::NeedsWide));
+    assert_eq!(c(-1.0).checked_add(c(pow2(127))), Err(Overflow::NeedsWide));
     assert!(c(5e-324).checked_add(c(pow2(-948))).is_ok());
-    assert_eq!(c(5e-324).checked_add(c(pow2(-947))), Err(NeedsWide));
+    assert_eq!(
+        c(5e-324).checked_add(c(pow2(-947))),
+        Err(Overflow::NeedsWide)
+    );
     // A mantissa of 53 bits raised by 74 still fits; by 75 it does not.
     assert!(c(1.0).checked_add(c(f64::MAX * pow2(-897))).is_ok());
-    assert_eq!(c(1.0).checked_add(c(f64::MAX * pow2(-896))), Err(NeedsWide));
+    assert_eq!(
+        c(1.0).checked_add(c(f64::MAX * pow2(-896))),
+        Err(Overflow::NeedsWide)
+    );
     // The sum itself may carry into bit 127, and then it is refused, on either sign.
     let w = widest();
-    assert_eq!(w.checked_add(c(1.0)), Err(NeedsWide));
-    assert_eq!((-w).checked_add(c(-1.0)), Err(NeedsWide));
-    assert_eq!(c(1.0).checked_add(w), Err(NeedsWide));
+    assert_eq!(w.checked_add(c(1.0)), Err(Overflow::NeedsWide));
+    assert_eq!((-w).checked_add(c(-1.0)), Err(Overflow::NeedsWide));
+    assert_eq!(c(1.0).checked_add(w), Err(Overflow::NeedsWide));
     // The check is on the aligned frame: 2^127 is refused as (2^127 - 1) + 1 at exponent 0 and
     // computed as (2^127 - 2) + 2 at exponent 1, where it is 2^126 + 2^126. The heap tier's
     // demotion brings the first route back to the one-bit form the second lands on.
@@ -496,14 +427,26 @@ fn compact_mul_detects_overflow_and_negation_is_total_at_the_widest_mantissa() {
         mul(w, Compact::from_i64(2)).parts(),
         (u64::MAX, u64::MAX >> 1, 1)
     );
-    assert_eq!(w.checked_mul(Compact::from_i64(3)), Err(NeedsWide));
-    assert_eq!(w.checked_mul(Compact::from_i64(-3)), Err(NeedsWide));
-    assert_eq!((-w).checked_mul(Compact::from_i64(3)), Err(NeedsWide));
+    assert_eq!(
+        w.checked_mul(Compact::from_i64(3)),
+        Err(Overflow::NeedsWide)
+    );
+    assert_eq!(
+        w.checked_mul(Compact::from_i64(-3)),
+        Err(Overflow::NeedsWide)
+    );
+    assert_eq!(
+        (-w).checked_mul(Compact::from_i64(3)),
+        Err(Overflow::NeedsWide)
+    );
     assert_eq!(mul(w, Compact::from_i64(1)), w);
     assert_eq!(mul(w, Compact::from_i64(-1)), -w);
     assert_eq!(mul(w, Compact::ZERO), Compact::ZERO);
     let big = add(c(1.0), c(pow2(126)));
-    assert_eq!(big.checked_mul(Compact::from_i64(3)), Err(NeedsWide));
+    assert_eq!(
+        big.checked_mul(Compact::from_i64(3)),
+        Err(Overflow::NeedsWide)
+    );
     assert_eq!(mul(big, Compact::from_i64(2)).parts(), (1, 1 << 62, 1));
     assert_eq!(
         c(pow2(126)).checked_mul(Compact::from_i64(2)),
@@ -516,7 +459,7 @@ fn compact_mul_detects_overflow_and_negation_is_total_at_the_widest_mantissa() {
     let sqm = (1u128 << 106) - (1 << 54) + 1;
     assert_eq!(sq.parts(), (sqm as u64, (sqm >> 64) as u64, 1942));
     assert_eq!((sqm >> 64) as u64, (1 << 42) - 1);
-    assert_eq!(sq.checked_mul(full), Err(NeedsWide));
+    assert_eq!(sq.checked_mul(full), Err(Overflow::NeedsWide));
     assert_eq!(sq.read(), (f64::INFINITY, true));
     assert_eq!(
         mul(c(f64::MIN_POSITIVE), c(f64::MIN_POSITIVE)).parts(),

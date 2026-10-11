@@ -12,8 +12,18 @@
 #![cfg_attr(not(test), allow(dead_code))]
 
 mod compact;
+#[cfg(test)]
+pub(crate) mod testing;
 
 pub(crate) use compact::Compact;
+
+/// The exponent bound: every held value is `m · 2^exp` with `|exp| ≤ EXACT_MAX_EXP`, checked
+/// after every operation that moves an exponent, in every build. A sum's exponent stays inside its
+/// inputs' range plus the mantissa width, and a product of two doubles lies within `±2148`, so only
+/// a chain of nested products moves an exponent far: roughly a million products of the smallest
+/// subnormal reach the bound. Past it is the cap. The number keeps every intermediate inside `i64`
+/// and every stored exponent inside `i32`, with room to spare on both sides.
+pub(crate) const EXACT_MAX_EXP: i32 = 1 << 30;
 
 /// An exact abelian group of every `f64`, specials included, with a ring on top, in 24 bytes.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

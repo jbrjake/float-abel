@@ -129,6 +129,13 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   bounded by `k · 2148 + 64` bits for the deepest `float × float` join chain in a dataflow, and by
   2176 bits when weights only ever multiply integers. That bound is what makes the heap tier safe
   against adversarial input.
+- Every exponent is bounded: a held value is `m · 2^exp` with |exp| ≤ `EXACT_MAX_EXP` = 2³⁰, checked
+  after every operation that moves an exponent, in every build. A sum's exponent stays inside its
+  inputs' range plus the mantissa width, and a product of two doubles lies within 2^±2148, so only a
+  chain of nested products reaches the bound: about a million products of the smallest subnormal.
+  Past it is the cap, as past the limb cap. The limb cap bounds width and this bounds position; they
+  are independent, and the number is as large as keeps every intermediate inside `i64` and every
+  stored exponent inside `i32`, with room to spare on both sides.
 - A compact 127-bit mantissa holds any exact sum whose bit-span is ≤ 127. A column of 10⁷ terms
   whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never promotes
   (measured below). A uniform spread over 2^±300 is the adversary and promotes 77% of pairwise adds
@@ -201,10 +208,10 @@ it a total order.
 
 The compact add returns `Err(NeedsWide)` when the aligned span exceeds 127 bits or a special is
 present, and the caller promotes. The heap tier's limb count has a compile-time cap
-(`EXACT_MAX_LIMBS`, default 16 × 2148 bits ≈ 4.3 KB). Past it, `Exact` panics with a named
-invariant, because `plus_equals` can't return an error to differential-dataflow. The cap is reachable
-only through ≥ 16 nested `float × float` joins on extreme values, and is a `const` the consumer can
-raise.
+(`EXACT_MAX_LIMBS`, default 16 × 2148 bits ≈ 4.3 KB), and every exponent has one (`EXACT_MAX_EXP`,
+2³⁰, § Exactness bounds). Past either, `Exact` panics with a named invariant, because `plus_equals`
+can't return an error to differential-dataflow. The limb cap is reachable only through ≥ 16 nested
+`float × float` joins on extreme values, and is a `const` the consumer can raise.
 
 ### Wide {#sp-wide}
 
