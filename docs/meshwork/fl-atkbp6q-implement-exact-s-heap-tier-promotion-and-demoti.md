@@ -11,13 +11,13 @@ status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-exact
-    sha: 0600b5e7e406c068ecceabf3ee34f83ae2890fed4ec4f9b320c5d8ef76af6876
+    sha: 2bef72cba1cb6c69e8880106982a7f6b62670aca0c89556c1d1e908fbb772cc7
   - ref: docs/DESIGN.md#sp-specials
     sha: addd4f3bbbdf9d2ff253af0022364ac7d0702feb43c1a014a14161878ec9de0f
   - ref: docs/DESIGN.md#sp-bounds
     sha: 0124e19ca3d4e2178981169bdff1c916ab8cf3a75c536ea0e995bbcaf686a122
   - ref: docs/DESIGN.md#sp-ops
-    sha: cf4faaa1f10025e5cd89f4a8883ed54ca023db8b7d4aa0472b24bc9fdf08e8ea
+    sha: 63e9572f1cf144a73be825703e1b020e3cdbf1f4882dd181f76ef89dadfb91d9
 handoff: |
   The compact tier is in and proven; the heap tier is next, and it is
   where `Exact` becomes public.
@@ -164,3 +164,7 @@ Tests `exact_heap_*`:
 - 2026-10-11T17:30Z cover docs/DESIGN.md#sp-specials @addd4f3bbbdf
 - 2026-10-11T17:30Z cover docs/DESIGN.md#sp-bounds @0124e19ca3d4
 - 2026-10-11T17:30Z cover docs/DESIGN.md#sp-ops @cf4faaa1f100
+- 2026-10-11T17:41Z cover docs/DESIGN.md#sp-exact @2bef72cba1cb
+- 2026-10-11T17:41Z cover docs/DESIGN.md#sp-specials @addd4f3bbbdf
+- 2026-10-11T17:41Z cover docs/DESIGN.md#sp-bounds @0124e19ca3d4
+- 2026-10-11T17:41Z cover docs/DESIGN.md#sp-ops @63e9572f1cf1
