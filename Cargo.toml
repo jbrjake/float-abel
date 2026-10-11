@@ -28,7 +28,7 @@ serde = { version = "1", optional = true, default-features = false }
 # The crate lists itself with the test features on: the one Cargo spelling that turns them on for a
 # bare `cargo test` with no flag. `dbsp` stays out because it builds only on rustc 1.96.1.
 [dev-dependencies]
-float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", "arbitrary"] }
+float-abel = { path = ".", features = ["alloc", "serde", "differential", "laws", "simd", "arbitrary"] }
 # The differential oracle for `Wide`'s limbs: the same multiset must land the same 272 limb bytes.
 # Pinned to the version tests/data/bitrep/vectors.json was taken from.
 bitrep = "=0.5.1"

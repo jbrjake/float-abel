@@ -297,8 +297,9 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
   feature inherits differential-dataflow 0.24's declared `rust-version = "1.86"`. The `dbsp` feature
   builds on rustc 1.99.0 and on 1.96.1, which dbsp declares; 1.97 and 1.98 ICE inside it, so its CI
   job pins 1.99.0.
-- The crate lists **itself as a dev-dependency** with `serde`, `differential`, `laws`, `simd` and
-  `arbitrary` on: `float-abel = { path = ".", features = [...] }` under `[dev-dependencies]`. That is
+- The crate lists **itself as a dev-dependency** with `alloc`, `serde`, `differential`, `laws`,
+  `simd` and `arbitrary` on: `float-abel = { path = ".", features = [...] }` under
+  `[dev-dependencies]`. That is
   the one Cargo spelling that turns features on for a bare `cargo test` with no flag. `dbsp` stays out
   of that list because it needs its own toolchain.
 - One integration-test target, `tests/main.rs`, with each topic a `mod`.
