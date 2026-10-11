@@ -5,8 +5,8 @@ a ring on top, so an incremental engine can add, retract and re-merge floats and
 under any order, worker count, merge tree, consolidation timing or architecture. It ships three exact
 storage tiers and one batch-only lossy tier:
 
-- `Exact`: a 24-byte compact tier that carries the same-scale case without touching the heap, and
-  an exact heap tier for everything else.
+- `Exact`: a 32-byte plain word that carries the same-scale case and the special counts, and
+  the width cap, by name, for everything past it.
 - `Wide` and `Fixed`: two `Copy` fixed-width carriers for engines whose aggregate slot can't hold a
   pointer.
 - `Binned`: a batch-only adaptive accumulator on the same limb grid.
@@ -136,8 +136,8 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   are independent, and the number is as large as keeps every intermediate inside `i64` and every
   stored exponent inside `i32`, with room to spare on both sides.
 - A compact 127-bit mantissa holds any exact sum whose bit-span is ≤ 127. A column of 10⁷ terms
-  whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never promotes
-  (measured below). A uniform spread over 2^±300 is the adversary and promotes 77% of pairwise adds
+  whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never crosses the
+  width (measured below). A uniform spread over 2^±300 is the adversary, and 77% of its pairwise adds cross the width
   (measured). Real columns look like the former; the exact tier exists for the latter.
 - `Fixed<−96, 4>`: unit 2⁻⁹⁶ ≈ 1.3·10⁻²⁹. 64 bits of headroom leave a magnitude ceiling of
   2⁹⁵ ≈ 4·10²⁸. Every double with |x| ≥ 2⁻⁴⁴ ≈ 5.7·10⁻¹⁴ is on the grid, and a smaller one is on it
@@ -222,7 +222,7 @@ set, allocator or not.
 
 `Copy`: `[u64; 34]` two's complement in units of 2⁻¹⁰⁷⁴ plus `[i64; 3]` special counters, 296 bytes.
 Its limb layout is bitrep's, so bitrep's finite-only conformance vectors apply to `Wide`'s limbs
-directly. It is a group with `Mul<i64>`, and it never allocates, never promotes and never refuses.
+directly. It is a group with `Mul<i64>`, and it never allocates and never refuses.
 `Wide` has the *fastest* add of any tier; its cost is bytes, not time. That suits a per-key aggregate
 slot, and not a per-update diff, where a batch of 10⁷ updates would carry 2.9 GB of weights.
 
@@ -309,8 +309,8 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
   feature inherits differential-dataflow 0.24's declared `rust-version = "1.86"`. The `dbsp` feature
   builds on rustc 1.99.0 and on 1.96.1, which dbsp declares; 1.97 and 1.98 ICE inside it, so its CI
   job pins 1.99.0.
-- The crate lists **itself as a dev-dependency** with `alloc`, `serde`, `differential`, `laws`,
-  `simd` and `arbitrary` on: `float-abel = { path = ".", features = [...] }` under
+- The crate lists **itself as a dev-dependency** with `serde`, `differential`, `laws`, `simd` and
+  `arbitrary` on: `float-abel = { path = ".", features = [...] }` under
   `[dev-dependencies]`. That is
   the one Cargo spelling that turns features on for a bare `cargo test` with no flag. `dbsp` stays out
   of that list because it needs its own toolchain.
@@ -448,7 +448,7 @@ they are missed.
 
 - **No `unsafe` outside `src/simd/`, and no panics on input.** Every constructor is total or returns
   `Err`, and group ops never fail. `Fixed` states its deposit budget and `Exact` its memory bound. The
-  one panic is the named `EXACT_MAX_LIMBS` invariant.
+  one panic is the named `Exact` cap.
 - **Decode refuses non-canonical bytes**, and nothing allocates a size taken from untrusted input
   above the cap. `cargo-fuzz` targets cover the decoder (`decode_robustness`), sums against a
   `num-bigint` rational oracle (`sum_vs_oracle`), and subtraction round-trips (`sub_roundtrip`), run
@@ -511,7 +511,7 @@ baseline on the same-scale fixture. `BENCH.md` names the machine and the commit 
 
 | claim | measured by | kill / done |
 |---|---|---|
-| the compact tier carries same-scale data without the heap | promotion rate on the same-scale fixture | > 5% promotions → add a 48-byte medium tier before the adapters build on the type |
+| the compact tier carries same-scale data inside the width | width-cap rate on the same-scale fixture | > 5% caps → widen the word before the adapters build on the type |
 | the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | > 2× → revisit the layout; ≤ 1.3× → done |
 | SIMD earns its feature | bulk deposit, each kernel vs the scalar reference, same-scale fixture, NEON and AVX2 | < 3× over scalar → 0.1.0 ships scalar-only, and the kernels stay behind the feature as experimental |
 | `Binned` is worth a tier | `Binned<3>` bulk vs exact `Wide` bulk | < 2× faster → `Binned` remains a convenience, not a recommended default |
