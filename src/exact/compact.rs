@@ -5,8 +5,8 @@
 //!
 //! Every operation that could leave the tier says so. [`Compact::checked_add`] and
 //! [`Compact::checked_mul`] return [`Overflow::NeedsWide`] when the aligned result would not fit
-//! in the width, and the caller promotes; a non-finite double is `NeedsWide` at construction,
-//! because specials are counted on the heap tier. They return [`Overflow::Exponent`] when the
+//! in the width, and the caller promotes; a non-finite double is [`Overflow::Special`] at
+//! construction, because specials are counted on the heap tier. They return [`Overflow::Exponent`] when the
 //! result's exponent would leave `±EXACT_MAX_EXP`, which no tier holds. Every exponent is computed
 //! in `i64` and narrowed through that one check, so nothing here can wrap. Negation is total,
 //! because `|m| < 2^127` keeps `i128::MIN` out.
@@ -21,10 +21,12 @@ use crate::round;
 /// Why the compact tier could not hold a result.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Overflow {
-    /// The magnitude would reach `2^127`, or the input is a special: the heap tier's job.
+    /// The magnitude would reach `2^127`: the heap tier's job.
     NeedsWide,
     /// The exponent would leave `-EXACT_MAX_EXP..=EXACT_MAX_EXP`, which no tier holds.
     Exponent,
+    /// The input is NaN or ±∞, and the special counts live on the heap tier.
+    Special,
 }
 
 /// A canonical dyadic `m · 2^exp` with `|m| < 2^127` and `m` odd, or the zero `(0, 0)`.
@@ -63,9 +65,9 @@ impl Compact {
     ///
     /// # Errors
     ///
-    /// NaN and ±∞ are [`Overflow::NeedsWide`]: the compact tier holds no special counts.
+    /// NaN and ±∞ are [`Overflow::Special`]: the compact tier holds no special counts.
     pub(crate) fn from_f64(x: f64) -> Result<Self, Overflow> {
-        let d = ieee::decompose(x).ok_or(Overflow::NeedsWide)?;
+        let d = ieee::decompose(x).ok_or(Overflow::Special)?;
         Ok(Self::from_dyadic(d.negative, u128::from(d.mant), d.exp))
     }
 
@@ -74,10 +76,10 @@ impl Compact {
     ///
     /// # Errors
     ///
-    /// A non-finite factor is [`Overflow::NeedsWide`]: the special algebra lives on the heap tier.
+    /// A non-finite factor is [`Overflow::Special`]: the special algebra lives on the heap tier.
     pub(crate) fn from_product(a: f64, b: f64) -> Result<Self, Overflow> {
-        let da = ieee::decompose(a).ok_or(Overflow::NeedsWide)?;
-        let db = ieee::decompose(b).ok_or(Overflow::NeedsWide)?;
+        let da = ieee::decompose(a).ok_or(Overflow::Special)?;
+        let db = ieee::decompose(b).ok_or(Overflow::Special)?;
         Ok(Self::from_dyadic(
             da.negative != db.negative,
             u128::from(da.mant) * u128::from(db.mant),
@@ -91,7 +93,7 @@ impl Compact {
     }
 
     /// The storage form: `m` as two's-complement limbs, low first, and the exponent.
-    pub(crate) fn parts(self) -> (u64, u64, i32) {
+    pub(crate) const fn parts(self) -> (u64, u64, i32) {
         (self.m as u64, (self.m >> 64) as u64, self.exp)
     }
 

@@ -26,6 +26,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "float-abel-noalloc"
+version = "0.0.0"
+dependencies = [
+ "float-abel",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"

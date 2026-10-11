@@ -10,8 +10,10 @@
 //! No floating-point instruction executes in any group operation or read: only `to_bits`, shifts
 //! and adds with carry. That is what makes the bits architecture-independent.
 //!
-//! The crate is `no_std`. The `alloc` feature enables the heap tier, and `std` (on by default)
-//! enables `std::error::Error` impls and the bench harness.
+//! The crate is `no_std`, and every type builds on every feature set. The `alloc` feature is for
+//! `Exact`'s heap tier; without it `Exact` is its compact tier alone, with the inline width as its
+//! cap. `std` (on by default) implies `alloc` and adds `std::error::Error` impls and the bench
+//! harness.
 #![no_std]
 #![deny(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -31,7 +33,6 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-#[cfg(feature = "alloc")]
 mod exact;
 mod fixed;
 mod ieee;
@@ -39,5 +40,6 @@ mod limbs;
 mod round;
 mod wide;
 
+pub use exact::{Exact, PastCap, EXACT_MAX_EXP};
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
 pub use wide::Wide;

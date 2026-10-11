@@ -1,0 +1,22 @@
+# `float-abel` built with no features at all, as an allocator-free consumer sees it: no `std`, no
+# `alloc`, and so no heap tier. No `cargo test` of the main package can reach this build, because
+# the self dev-dependency's `simd` feature pulls `std`, which pulls `alloc`. This crate is a
+# workspace member so that `cargo test -p float-abel-noalloc` resolves the library's features from
+# this manifest alone.
+[package]
+name = "float-abel-noalloc"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.74"
+publish = false
+autotests = false
+
+[dependencies]
+float-abel = { path = "../..", default-features = false }
+
+[[test]]
+name = "main"
+path = "main.rs"
+
+[lints]
+workspace = true

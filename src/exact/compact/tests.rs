@@ -80,20 +80,14 @@ fn compact_from_f64_is_exact_on_finite_doubles_and_needs_wide_on_specials() {
     assert_eq!(c(-0.0).read().0.to_bits(), 0.0f64.to_bits());
     assert_eq!(Compact::ZERO.parts(), (0, 0, 0));
     // A special is the heap tier's, at construction.
-    assert_eq!(Compact::from_f64(f64::NAN), Err(Overflow::NeedsWide));
-    assert_eq!(Compact::from_f64(-f64::NAN), Err(Overflow::NeedsWide));
-    assert_eq!(Compact::from_f64(f64::INFINITY), Err(Overflow::NeedsWide));
-    assert_eq!(
-        Compact::from_f64(f64::NEG_INFINITY),
-        Err(Overflow::NeedsWide)
-    );
-    assert_eq!(
-        Compact::from_product(f64::NAN, 0.0),
-        Err(Overflow::NeedsWide)
-    );
+    assert_eq!(Compact::from_f64(f64::NAN), Err(Overflow::Special));
+    assert_eq!(Compact::from_f64(-f64::NAN), Err(Overflow::Special));
+    assert_eq!(Compact::from_f64(f64::INFINITY), Err(Overflow::Special));
+    assert_eq!(Compact::from_f64(f64::NEG_INFINITY), Err(Overflow::Special));
+    assert_eq!(Compact::from_product(f64::NAN, 0.0), Err(Overflow::Special));
     assert_eq!(
         Compact::from_product(2.0, f64::INFINITY),
-        Err(Overflow::NeedsWide)
+        Err(Overflow::Special)
     );
 }
 

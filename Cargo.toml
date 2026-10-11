@@ -41,9 +41,11 @@ path = "tests/main.rs"
 
 [features]
 default = ["std"]
-# `std::error::Error` impls and the bench harness.
-std = []
-# `Exact`: its heap arm needs a `Box`. `Fixed` and `Wide` work without it.
+# `std::error::Error` impls and the bench harness. A std build has an allocator, so this implies
+# `alloc`.
+std = ["alloc"]
+# `Exact`'s heap tier, which needs a `Box`. Without it `Exact` is its compact tier alone, with the
+# inline width as its cap; `Fixed` and `Wide` never need it.
 alloc = []
 # `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
 serde = ["dep:serde"]
@@ -67,21 +69,31 @@ split-debuginfo = "unpacked"
 [profile.dev.package."*"]
 debug = false
 
+[lints]
+workspace = true
+
+# The allocator-free test crate is a workspace member so that `cargo test -p float-abel-noalloc`
+# resolves the library's features from its own manifest, which no `cargo test` of this package
+# can: the self dev-dependency's `simd` pulls `std`, which pulls `alloc`. A bare `cargo test`
+# still runs this package alone, because a package at the workspace root is its default member.
+[workspace]
+members = ["tests/noalloc"]
+
 # Lints warn here and fail only at the gate (`cargo clippy --all-targets -- -D warnings` and
 # `RUSTDOCFLAGS="-D warnings" cargo doc` in scripts/regression.sh). `unsafe_code` is denied in
 # src/lib.rs, where src/simd/ can lift it.
-[lints.rust]
+[workspace.lints.rust]
 missing_docs = "warn"
 missing_debug_implementations = "warn"
 unreachable_pub = "warn"
 unsafe_op_in_unsafe_fn = "deny"
 rust_2018_idioms = { level = "warn", priority = -1 }
 
-[lints.clippy]
+[workspace.lints.clippy]
 all = { level = "deny", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
 undocumented_unsafe_blocks = "deny"
 missing_safety_doc = "deny"
 
-[lints.rustdoc]
+[workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"

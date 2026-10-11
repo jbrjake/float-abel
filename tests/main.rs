@@ -12,6 +12,7 @@
     clippy::unreadable_literal
 )]
 
+mod exact_cap;
 mod fixed;
 mod posture;
 mod support;

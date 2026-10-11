@@ -51,6 +51,17 @@ impl Rng {
     }
 }
 
+/// 2^e as a double, by its bits: `powi` reciprocates, so it returns 0 for `e <= -1024` where the
+/// subnormals still reach down to -1074.
+pub(crate) fn pow2(e: i32) -> f64 {
+    assert!((-1074..=1023).contains(&e));
+    if e >= -1022 {
+        f64::from_bits(((e + 1023) as u64) << 52)
+    } else {
+        f64::from_bits(1u64 << (e + 1074))
+    }
+}
+
 pub(crate) fn hash<T: Hash>(t: &T) -> u64 {
     let mut s = std::collections::hash_map::DefaultHasher::new();
     t.hash(&mut s);

@@ -15,6 +15,7 @@ The crate is under construction and not yet published.
 
 ```bash
 cargo test                                             # the self dev-dependency turns the test features on
+cargo test -p float-abel-noalloc                       # Exact with no features: the compact tier alone
 cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
 ./scripts/smoke.sh                                     # commit gate
 ./scripts/regression.sh                                # push gate
