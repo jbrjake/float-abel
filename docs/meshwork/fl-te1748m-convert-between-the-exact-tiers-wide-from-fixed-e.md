@@ -5,7 +5,7 @@ status: open
 category: crate/types
 labels: [reproducible-floats]
 needs: [fl-atkbp6q]
-relates: [fl-at6nh41]
+relates: [fl-at6nh41, fl-z91b7pq, fl-a2wrx7w, fl-6shtzpj, fl-v7t6xhz, fl-cfx001b]
 verify: run cargo test package=float-abel convert_
 docs:
   - docs/DESIGN.md#operations-and-conversions-sp-ops
