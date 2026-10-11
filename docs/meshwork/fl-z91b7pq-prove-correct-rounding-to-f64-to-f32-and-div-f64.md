@@ -21,8 +21,8 @@ handoff: |
   fetches the advisory database
   from github.com, which the Bash sandbox blocks, so run the gate with the
   sandbox off. Since the
-  last handoff fl-te1748m closed: `Wide: From<Fixed<LSB, LIMBS>>` in
-  `src/wide.rs` (sign-extend and
+  last handoff the tier conversions closed: `Wide: From<Fixed<LSB,
+  LIMBS>>` in `src/wide.rs` (sign-extend and
   shift through `limbs::shl_extended`, pinned by the `Embeds::<LSB,
   LIMBS>::OK` const assertion),
   and the three `TryFrom`s in `src/exact/convert.rs` over
@@ -119,4 +119,5 @@ random finite multisets inside `Fixed256`'s window.
 ## log
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-rounding @d2071b1880ed
+- 2026-10-11T19:01Z handoff by claude (9595457b-430f-4785-af6d-c23dc1a77cde)
 - 2026-10-11T19:01Z handoff by claude (9595457b-430f-4785-af6d-c23dc1a77cde)
