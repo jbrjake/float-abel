@@ -10,9 +10,9 @@ status: done
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-posture
-    sha: 4f94eb664c7ecd323b64de98af7089f1877907ad81e11ee1d8f2be1fa6020c8d
+    sha: 7c995c5ddc311a1c32787a52f6ec07c0ded368532713f167f27a7c428c62d247
   - ref: docs/DESIGN.md#sp-features
-    sha: a938e9e4c72ed22866f0bf4632c81cc3793c0e3efb99b0c78005824dfe64707e
+    sha: 83d2c476b853f007b99f67fa5bf2f15b54c62b2e9fdcdd01b14eff34b718e8a8
 ---
 Lay the crate down per DESIGN.md § Crate posture and § Features.
 
@@ -39,3 +39,5 @@ Not this task: reserving the crates.io name. Any publish is the owner's act.
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-features @a938e9e4c72e
 - 2026-10-11T15:32Z open→doing — claimed by claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)
 - 2026-10-11T15:37Z doing→done — verify exit 0 @ d2f29de+1
+- 2026-10-11T16:06Z cover docs/DESIGN.md#sp-posture @7c995c5ddc31
+- 2026-10-11T16:06Z cover docs/DESIGN.md#sp-features @83d2c476b853
