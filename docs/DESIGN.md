@@ -272,8 +272,10 @@ below the unit is `OutOfWindow::OffGrid`, a magnitude at or past the ceiling is
 is total there, with only the named cap, and `checked_deposit_product` returns the cap instead.
 `is_zero()`, `is_finite()` and `specials()` read the state.
 
-Conversions between tiers: `Wide: From<Fixed<..>>` is exact; `Exact: TryFrom<&Wide>` and
-`Exact: TryFrom<&Fixed<..>>` refuse past the width; `Wide::try_from(&Exact)` refuses past the sum range. `Binned<K>::into_wide`
+Conversions between tiers: `Wide: From<Fixed<..>>` is exact, pinned by a `const` assertion to the
+`(LSB, LIMBS)` pairs `Wide` holds; `Exact: TryFrom<&Wide>` and `Exact: TryFrom<&Fixed<..>>` refuse
+past the width; `Wide::try_from(&Exact)` refuses below the unit or at the ceiling, where
+`deposit_product` would. `Binned<K>::into_wide`
 (exact) and `Wide::to_binned::<K>` (lossy) are named methods, and nothing lossy has a `From`. Every
 tier has the bulk entry points `extend_from_slice(&[f64])` and `deposit_products(&[f64], &[f64])`;
 they are the SIMD surface.

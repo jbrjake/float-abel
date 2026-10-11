@@ -16,6 +16,7 @@ use core::ops::Neg;
 
 use super::EXACT_MAX_EXP;
 use crate::ieee::Dyadic;
+use crate::limbs;
 use crate::round;
 
 /// Why the compact tier could not hold a result.
@@ -100,6 +101,36 @@ impl Compact {
             (Some(da), Some(db)) => Ok(Self::from_finite_product(da, db)),
             _ => Err(Overflow::Special),
         }
+    }
+
+    /// `(-1)^negative · mag · 2^lsb` for a magnitude in limbs, as a fixed-width tier holds its
+    /// finite part: canonicalised, so only the span from the lowest set bit to the highest counts
+    /// against the width.
+    ///
+    /// # Errors
+    ///
+    /// [`Overflow::NeedsWide`] when that span is more than 127 bits, and [`Overflow::Exponent`]
+    /// when the canonical exponent, `lsb` plus the lowest set bit's index, leaves the bound.
+    pub(crate) fn from_magnitude(negative: bool, mag: &[u64], lsb: i32) -> Result<Self, Overflow> {
+        let (Some(top), Some(low)) = (limbs::top_bit(mag), limbs::low_bit(mag)) else {
+            return Ok(Self::ZERO);
+        };
+        if top - low >= u64::from(MAGNITUDE_BITS) {
+            return Err(Overflow::NeedsWide);
+        }
+        let m = u128::from(limbs::window(mag, low, 64))
+            | (u128::from(limbs::window(mag, low + 64, 64)) << 64);
+        let m = m as i128;
+        Ok(Self {
+            m: if negative { -m } else { m },
+            exp: bounded(i64::from(lsb) + low as i64)?,
+        })
+    }
+
+    /// The sign, the magnitude and the exponent: `(-1)^negative · mant · 2^exp`, with `mant` odd
+    /// or the zero as `(false, 0, 0)`.
+    pub(crate) const fn dyadic(self) -> (bool, u128, i32) {
+        (self.m < 0, self.m.unsigned_abs(), self.exp)
     }
 
     /// The value as an integer, if it is one that fits `i128`: the mantissa shifted up by a

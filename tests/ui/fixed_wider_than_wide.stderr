@@ -1,0 +1,28 @@
+error[E0080]: evaluation panicked: Wide: From<Fixed> is exact only for a grid at or above 2^-1074 whose width, shifted onto Wide's grid, fits Wide's 34 limbs
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `float_abel::wide::Embeds::<-96, 20>::OK` failed here
+  |
+ ::: src/wide.rs
+  |
+  |       const OK: () = assert!(
+  |  ____________________-
+  | |         LSB >= Wide::LSB
+  | |             && 64 * (LIMBS as i64) + (LSB as i64 - Wide::LSB as i64) <= 64 * (Wide::LIMBS as i64),
+  | |         "Wide: From<Fixed> is exact only for a grid at or above 2^-1074 whose width, shifted onto \
+  | |          Wide's grid, fits Wide's 34 limbs"
+  | |     );
+  | |_____- in this macro invocation
+
+note: erroneous constant encountered
+ --> src/wide.rs
+  |
+  |         let () = Embeds::<LSB, LIMBS>::OK;
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: the above error was encountered while instantiating `fn <Wide as From<Fixed<-96, 20>>>::from`
+ --> tests/ui/fixed_wider_than_wide.rs:7:14
+  |
+7 |     let _w = Wide::from(f);
+  |              ^^^^^^^^^^^^^

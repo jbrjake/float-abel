@@ -9,6 +9,7 @@
 //! ([`EXACT_MAX_EXP`]) and the counts (an `i32`, kept away from `i32::MIN` so negation is total).
 
 mod compact;
+mod convert;
 mod ops;
 mod ring;
 #[cfg(test)]
@@ -35,12 +36,14 @@ pub const EXACT_MAX_EXP: i32 = 1 << 30;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PastCap {
     /// The finite part's magnitude would reach `2^127`: the sum or product of the mantissas no
-    /// longer fits the 127-bit width at the aligned exponent.
+    /// longer fits the 127-bit width at the aligned exponent, or a `Wide` or `Fixed` state being
+    /// converted spans more than 127 bits.
     Width,
     /// The exponent would leave `-EXACT_MAX_EXP..=EXACT_MAX_EXP`.
     Exponent,
-    /// A special count would leave `i32` (or become `i32::MIN`), or a product would give a special
-    /// a non-integer amount, as `2.5 × NaN` does.
+    /// A special count would leave `i32` (or become `i32::MIN`), whether in an operation or in a
+    /// `Wide` counter being converted, or a product would give a special a non-integer amount, as
+    /// `2.5 × NaN` does.
     Count,
 }
 
@@ -77,7 +80,10 @@ impl PastCap {
 ///
 /// The operators are exact or they panic with the named cap; the checked methods return the same
 /// cap as a [`PastCap`] and leave the state as it was. No operation executes a floating-point
-/// instruction, and no operation allocates.
+/// instruction, and no operation allocates. A [`Wide`](crate::Wide) or [`Fixed`](crate::Fixed)
+/// state converts in through `TryFrom`, refused as [`PastCap::Width`] when its set bits span more
+/// than the width, and an `Exact` converts out through `Wide::try_from`, refused where a product
+/// would be.
 ///
 /// The layout is `repr(C)` with no padding: two limbs, the exponent, three counts. The bytes are
 /// the little-endian wire form on a little-endian machine, so an engine may cast a column of them

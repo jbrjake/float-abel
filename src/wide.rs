@@ -6,7 +6,7 @@ use core::fmt;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
-use crate::fixed::{Hex, OutOfWindow};
+use crate::fixed::{Fixed, Hex, OutOfWindow};
 use crate::ieee::{
     self, factor, special_times_finite, special_times_special, Dyadic, Factor, NAN, NEG_INF,
     POS_INF,
@@ -39,8 +39,10 @@ const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 /// three integers have one bit pattern per value. No operation executes a floating-point
 /// instruction.
 ///
-/// [`Wide::deposit_product`] is the one fallible entry: the exact product of two doubles may lie
-/// below the unit or past `2^1037`, and then it is refused by name rather than rounded.
+/// [`Wide::deposit_product`] and `TryFrom<&Exact>` are the fallible entries: the exact product of
+/// two doubles, or an [`Exact`](crate::Exact), may lie below the unit or past `2^1037`, and then it
+/// is refused by name rather than rounded. `From<Fixed>` is exact, pinned at compile time to the
+/// `(LSB, LIMBS)` pairs `Wide` holds, and `TryFrom<&Wide>` into `Exact` refuses past its width.
 ///
 /// A plain word: `repr(C)`, the limbs then the counters, with no padding and no invalid bit
 /// pattern, so on a little-endian machine the in-memory bytes are the wire body and an engine may
@@ -160,11 +162,31 @@ impl Wide {
     }
 
     fn deposit_finite_product(&mut self, da: Dyadic, db: Dyadic) -> Result<(), OutOfWindow> {
-        if da.mant == 0 || db.mant == 0 {
+        self.try_deposit_dyadic(
+            da.negative != db.negative,
+            u128::from(da.mant) * u128::from(db.mant),
+            da.exp + db.exp,
+        )
+    }
+
+    /// Adds `(-1)^negative · mant · 2^exp` if it lies in the window: the one check a product and
+    /// an [`Exact`](crate::Exact) share. A zero mantissa adds nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`OutOfWindow::OffGrid`] when a set bit would lie below the unit, and
+    /// [`OutOfWindow::AboveCeiling`] when the magnitude reaches `2^CEILING_EXP`; the state is then
+    /// unchanged.
+    pub(crate) fn try_deposit_dyadic(
+        &mut self,
+        negative: bool,
+        mant: u128,
+        exp: i32,
+    ) -> Result<(), OutOfWindow> {
+        if mant == 0 {
             return Ok(());
         }
-        let mant = u128::from(da.mant) * u128::from(db.mant);
-        let shift = i64::from(da.exp) + i64::from(db.exp) - i64::from(LSB);
+        let shift = i64::from(exp) - i64::from(LSB);
         if shift < 0 {
             return Err(OutOfWindow::OffGrid);
         }
@@ -172,7 +194,7 @@ impl Wide {
         if bits > CEILING_BITS {
             return Err(OutOfWindow::AboveCeiling);
         }
-        self.deposit_finite(da.negative != db.negative, mant, shift as u32);
+        self.deposit_finite(negative, mant, shift as u32);
         Ok(())
     }
 
@@ -283,6 +305,35 @@ impl From<f64> for Wide {
     fn from(x: f64) -> Self {
         let mut w = Self::ZERO;
         w.deposit(x);
+        w
+    }
+}
+
+/// The `(LSB, LIMBS)` pairs of a [`Fixed`] that `Wide` holds exactly: the grid at or above the
+/// unit, so a `Fixed` unit is a whole number of `Wide` units, and the width shifted onto `Wide`'s
+/// grid inside `Wide`'s width, so no state is cut. Both ceilings carry the same 65 bits of sign
+/// and headroom, so the second condition is also `Fixed`'s ceiling lying inside `Wide`'s.
+struct Embeds<const LSB: i32, const LIMBS: usize>;
+
+impl<const LSB: i32, const LIMBS: usize> Embeds<LSB, LIMBS> {
+    const OK: () = assert!(
+        LSB >= Wide::LSB
+            && 64 * (LIMBS as i64) + (LSB as i64 - Wide::LSB as i64) <= 64 * (Wide::LIMBS as i64),
+        "Wide: From<Fixed> is exact only for a grid at or above 2^-1074 whose width, shifted onto \
+         Wide's grid, fits Wide's 34 limbs"
+    );
+}
+
+impl<const LSB: i32, const LIMBS: usize> From<Fixed<LSB, LIMBS>> for Wide {
+    /// The same finite value, exactly, with no specials: the limbs sign-extended and shifted
+    /// `LSB + 1074` bits up onto `Wide`'s grid. The impl is pinned at compile time to the
+    /// `(LSB, LIMBS)` pairs it is exact for, by a `const` assertion rather than a runtime refusal:
+    /// `Fixed<-1076, 20>` does not build.
+    fn from(f: Fixed<LSB, LIMBS>) -> Self {
+        #[allow(clippy::let_unit_value)] // evaluates the const assertion on the pair
+        let () = Embeds::<LSB, LIMBS>::OK;
+        let mut w = Self::ZERO;
+        limbs::shl_extended(f.limbs(), &mut w.limbs, (LSB - Wide::LSB) as u32);
         w
     }
 }

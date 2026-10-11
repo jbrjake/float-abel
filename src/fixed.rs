@@ -9,8 +9,9 @@ use crate::ieee;
 use crate::limbs;
 use crate::round;
 
-/// Why [`Fixed`] refused an input. Its contract is *exact or refused*: a value it cannot hold
-/// bit for bit never changes the state.
+/// Why [`Fixed`] refused an input, and why [`Wide`](crate::Wide) refused a product or an
+/// [`Exact`](crate::Exact). The contract is *exact or refused*: a value the tier cannot hold bit
+/// for bit never changes the state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum OutOfWindow {
     /// NaN or ±∞. `Fixed` holds finite values only.
@@ -57,7 +58,9 @@ impl std::error::Error for OutOfWindow {}
 /// to `Fixed` without a copy. [`Fixed256`]'s size and alignment are pinned by a `const` assertion,
 /// and [`Fixed::from_limbs`] is the safe inverse of [`Fixed::limbs`].
 ///
-/// [`Fixed256`] is the named default.
+/// [`Fixed256`] is the named default. `Wide: From<Fixed>` is exact and total for every
+/// `(LSB, LIMBS)` whose grid and width `Wide` holds, pinned by a `const` assertion, and
+/// `Exact: TryFrom<&Fixed>` refuses a state whose set bits span more than `Exact`'s width.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct Fixed<const LSB: i32, const LIMBS: usize> {

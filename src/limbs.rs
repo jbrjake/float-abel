@@ -101,11 +101,49 @@ pub(crate) fn set_shifted(dst: &mut [u64], mag: u128, shift: u32) {
     }
 }
 
+/// `a <<= shift` across limbs, as a bit pattern: what shifts out of the top is lost, so the caller
+/// has checked that the two's-complement value times `2^shift` still fits the width.
+pub(crate) fn shl_assign(a: &mut [u64], shift: u32) {
+    let words = (shift / 64) as usize;
+    let bits = shift % 64;
+    if words >= a.len() {
+        a.fill(0);
+        return;
+    }
+    a.copy_within(..a.len() - words, words);
+    a[..words].fill(0);
+    if bits != 0 {
+        let mut carry = 0u64;
+        for x in a.iter_mut() {
+            let out = *x >> (64 - bits);
+            *x = (*x << bits) | carry;
+            carry = out;
+        }
+    }
+}
+
+/// `dst = src << shift` as two's complement: `src` is sign-extended to `dst`'s width and then
+/// shifted. The caller has checked that `src` times `2^shift` fits `dst` as a signed value.
+pub(crate) fn shl_extended(src: &[u64], dst: &mut [u64], shift: u32) {
+    debug_assert!(src.len() <= dst.len());
+    let fill = if is_negative(src) { u64::MAX } else { 0 };
+    dst.fill(fill);
+    dst[..src.len()].copy_from_slice(src);
+    shl_assign(dst, shift);
+}
+
 /// The index of the highest set bit, with bit 0 the lowest bit of limb 0, or `None` for zero.
 pub(crate) fn top_bit(a: &[u64]) -> Option<u64> {
     a.iter()
         .rposition(|&x| x != 0)
         .map(|i| 64 * i as u64 + u64::from(a[i].ilog2()))
+}
+
+/// The index of the lowest set bit, on the same scale as [`top_bit`], or `None` for zero.
+pub(crate) fn low_bit(a: &[u64]) -> Option<u64> {
+    a.iter()
+        .position(|&x| x != 0)
+        .map(|i| 64 * i as u64 + u64::from(a[i].trailing_zeros()))
 }
 
 /// Bits `[lo, lo + n)` as an integer, for `n ≤ 64`; bits past the top read as zero.
@@ -214,10 +252,45 @@ mod tests {
     }
 
     #[test]
+    fn shl_assign_matches_i128_across_limb_boundaries() {
+        for v in [1i128, -1, 0x1234_5678_9abc_def0, -(1 << 70), i128::MAX >> 3] {
+            for s in [0u32, 1, 7, 63, 64, 65, 100, 127] {
+                let mut a = from_i128(v);
+                shl_assign(&mut a, s);
+                assert_eq!(a, from_i128(v.wrapping_shl(s)), "{v} << {s}");
+            }
+        }
+        let mut gone = from_i128(-1);
+        shl_assign(&mut gone, 128);
+        assert_eq!(gone, [0, 0]);
+    }
+
+    #[test]
+    fn shl_extended_sign_extends_then_shifts() {
+        let mut dst = [0u64; 3];
+        shl_extended(&[5], &mut dst, 0);
+        assert_eq!(dst, [5, 0, 0]);
+        shl_extended(&[-5i64 as u64], &mut dst, 0);
+        assert_eq!(dst, [-5i64 as u64, u64::MAX, u64::MAX]);
+        shl_extended(&[-5i64 as u64], &mut dst, 70);
+        let want = from_i128(-5i128 << 70);
+        assert_eq!(dst, [want[0], want[1], u64::MAX]);
+        shl_extended(&from_i128(1 << 100), &mut dst, 64);
+        assert_eq!(dst, [0, 0, 1 << 36]);
+        // The most negative input at the shift that lands its sign bit on the top: still exact.
+        shl_extended(&[1 << 63], &mut dst, 128);
+        assert_eq!(dst, [0, 0, 1 << 63]);
+    }
+
+    #[test]
     fn top_bit_window_and_any_below() {
         assert_eq!(top_bit(&[0, 0]), None);
         assert_eq!(top_bit(&[1, 0]), Some(0));
         assert_eq!(top_bit(&[0, 1 << 5]), Some(69));
+        assert_eq!(low_bit(&[0, 0]), None);
+        assert_eq!(low_bit(&[1 << 63, 1 << 5]), Some(63));
+        assert_eq!(low_bit(&[0, 1 << 5]), Some(69));
+        assert_eq!(low_bit(&[0, 0, 6]), Some(129));
         let a = [0xFFFF_FFFF_FFFF_FFFF, 0x1234];
         assert_eq!(window(&a, 0, 64), u64::MAX);
         assert_eq!(window(&a, 60, 8), 0b0100_1111);

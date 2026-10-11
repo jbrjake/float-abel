@@ -34,6 +34,10 @@ float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", 
 bitrep = "=0.5.1"
 # Reads the committed conformance vectors.
 serde_json = "1"
+# Compile-fail cases under tests/ui/: the `const` assertions that pin a conversion or a trait to
+# the types it is sound for. Pinned because the `.stderr` files are matched against its
+# normalisation of the compiler's output.
+trybuild = "=1.0.122"
 
 [[test]]
 name = "main"

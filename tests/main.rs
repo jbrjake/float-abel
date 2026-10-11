@@ -12,6 +12,7 @@
     clippy::unreadable_literal
 )]
 
+mod convert;
 mod exact_cap;
 mod exact_ring;
 mod fixed;
