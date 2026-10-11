@@ -10,10 +10,8 @@
 //! No floating-point instruction executes in any group operation or read: only `to_bits`, shifts
 //! and adds with carry. That is what makes the bits architecture-independent.
 //!
-//! The crate is `no_std`, and every type builds on every feature set. The `alloc` feature is for
-//! `Exact`'s heap tier; without it `Exact` is its compact tier alone, with the inline width as its
-//! cap. `std` (on by default) implies `alloc` and adds `std::error::Error` impls and the bench
-//! harness.
+//! The crate is `no_std` and never allocates: every type is a `Copy` plain word on every feature
+//! set. `std` (on by default) adds `std::error::Error` impls and the bench harness.
 #![no_std]
 #![deny(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -24,11 +22,6 @@
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap
 )]
-
-// The heap tier of `Exact` is the first user of `alloc`; nothing in the crate allocates yet.
-#[cfg(feature = "alloc")]
-#[allow(unused_extern_crates)]
-extern crate alloc;
 
 #[cfg(feature = "std")]
 extern crate std;

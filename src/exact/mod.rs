@@ -1,20 +1,16 @@
-//! [`Exact`]: the engine weight, a dyadic held in the smallest tier that represents it. The
-//! compact tier is 127 bits of mantissa inline, in `compact`; the heap tier, behind the `alloc`
-//! feature, is where a wider mantissa and the special counts go. This tree holds the compact tier,
-//! so the inline width is the cap on every feature set.
-//!
-//! The tier enum sits behind a newtype because an enum's variant fields are as visible as the
-//! enum, and a hand-built `Compact { lo: 2, .. }` would be a non-canonical value, which structural
-//! `Eq` cannot afford. The layout is load-bearing: a struct variant lets the discriminant share the
-//! word that `exp: i32` half fills, so the whole is 24 bytes where a nested struct or an `i128`
-//! would make it 32.
+//! [`Exact`]: the engine weight, a 32-byte plain word. The finite part is the compact tier's
+//! canonical dyadic, 127 bits of mantissa and an exponent; beside it sit three signed counts of
+//! the NaN, +∞ and −∞ inputs. `Copy`, `repr(C)`, no padding, no pointer: a column of them is a
+//! column of words, and a sum or a product is a fresh word, never an allocation.
 //!
 //! Past the cap, the operators panic with a named invariant, because an engine's `plus_equals`
 //! cannot return an error; the checked methods return the same cap as [`PastCap`] and leave the
-//! state as it was.
+//! state as it was. The caps are the width (a magnitude at `2^127`), the exponent bound
+//! ([`EXACT_MAX_EXP`]) and the counts (an `i32`, kept away from `i32::MIN` so negation is total).
 
 mod compact;
 mod ops;
+mod ring;
 #[cfg(test)]
 pub(crate) mod testing;
 
@@ -24,6 +20,7 @@ use core::fmt;
 use compact::{Compact, Overflow};
 
 use crate::fixed::Hex;
+use crate::ieee::{self, Special};
 
 /// The exponent bound: every held value is `m · 2^exp` with `|exp| ≤ EXACT_MAX_EXP`, checked
 /// after every operation that moves an exponent, in every build. A sum's exponent stays inside its
@@ -37,21 +34,22 @@ pub const EXACT_MAX_EXP: i32 = 1 << 30;
 /// the checked methods return it with the state untouched.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PastCap {
-    /// The mantissa would need more width than this build holds. With no heap tier, that is the
-    /// inline 127 bits.
+    /// The finite part's magnitude would reach `2^127`: the sum or product of the mantissas no
+    /// longer fits the 127-bit width at the aligned exponent.
     Width,
     /// The exponent would leave `-EXACT_MAX_EXP..=EXACT_MAX_EXP`.
     Exponent,
-    /// A NaN or ±∞ arrived, and this build has no heap tier, which is where specials are counted.
-    Special,
+    /// A special count would leave `i32` (or become `i32::MIN`), or a product would give a special
+    /// a non-integer amount, as `2.5 × NaN` does.
+    Count,
 }
 
 impl fmt::Display for PastCap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Width => "the mantissa needs more width than this build holds",
+            Self::Width => "the mantissa needs more than the 127-bit width",
             Self::Exponent => "the exponent would leave ±EXACT_MAX_EXP, 2^30",
-            Self::Special => "a NaN or ±∞ needs the heap tier, which this build does not have",
+            Self::Count => "a NaN or ±∞ count would leave i32 or stop being an integer",
         })
     }
 }
@@ -68,86 +66,165 @@ impl PastCap {
     }
 }
 
-/// An exact abelian group of `f64` sums with a ring on top, in 24 bytes: the engine weight.
+/// An exact abelian group of every `f64`, specials included, with `Mul<i64>` and `Mul<Exact>` on
+/// top, in a 32-byte plain word: the engine weight.
 ///
-/// A value is a dyadic `m · 2^exp` in canonical form, so structural `Eq` is numeric equality and
-/// `Hash` and `Ord` agree with it. The operators are exact or they panic with the named cap; the
-/// checked methods ([`Exact::checked_add`] and its kin) return the same cap as a [`PastCap`] and
-/// leave the state as it was. On a build without the heap tier the cap is the inline 127-bit
-/// width, and a NaN or ±∞ input is past it. No operation executes a floating-point instruction.
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct Exact(Tier);
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-enum Tier {
-    /// `m = (hi:lo)` as a signed 128-bit integer and the value `m · 2^exp`, with `m` odd, or the
-    /// zero `(0, 0, 0)`.
-    Compact { lo: u64, hi: u64, exp: i32 },
+/// The finite part is a dyadic `m · 2^exp` in canonical form (`m` odd, or the zero form), and the
+/// three counts say how many NaN, +∞ and −∞ inputs are in the multiset, signed so that a
+/// retraction subtracts. Structural `Eq` is numeric equality, and `Hash` and `Ord` agree with it.
+/// Projection happens once, at read: a nonzero NaN count or both infinities read NaN, one infinity
+/// reads by the sign of its count, and otherwise the finite part rounds to nearest-even.
+///
+/// The operators are exact or they panic with the named cap; the checked methods return the same
+/// cap as a [`PastCap`] and leave the state as it was. No operation executes a floating-point
+/// instruction, and no operation allocates.
+///
+/// The layout is `repr(C)` with no padding: two limbs, the exponent, three counts. The bytes are
+/// the little-endian wire form on a little-endian machine, so an engine may cast a column of them
+/// in place. A byte pattern with an even mantissa is not a value, so bytes from outside go through
+/// the validating decoder.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(C)]
+pub struct Exact {
+    lo: u64,
+    hi: u64,
+    exp: i32,
+    nan: i32,
+    pos_inf: i32,
+    neg_inf: i32,
 }
 
 const _: () = assert!(
-    core::mem::size_of::<Exact>() == 24,
-    "Exact's layout moved: a tier moved"
+    core::mem::size_of::<Exact>() == 32 && core::mem::align_of::<Exact>() == 8,
+    "Exact's layout moved"
 );
 
 impl Exact {
     /// The zero, which is the only zero.
-    pub const ZERO: Self = Self::from_compact(Compact::ZERO);
+    pub const ZERO: Self = Self {
+        lo: 0,
+        hi: 0,
+        exp: 0,
+        nan: 0,
+        pos_inf: 0,
+        neg_inf: 0,
+    };
 
-    const fn from_compact(c: Compact) -> Self {
-        let (lo, hi, exp) = c.parts();
-        Self(Tier::Compact { lo, hi, exp })
+    /// The finite part in its working form.
+    fn finite(self) -> Compact {
+        Compact::from_parts(self.lo, self.hi, self.exp)
     }
 
-    /// The value in its working form.
-    fn compact(&self) -> Compact {
-        let Tier::Compact { lo, hi, exp } = self.0;
-        Compact::from_parts(lo, hi, exp)
+    /// The counts as `[n, p, q]`.
+    const fn counts(self) -> [i32; 3] {
+        [self.nan, self.pos_inf, self.neg_inf]
     }
 
-    /// What the compact tier's refusal means on this build: with no heap tier, each is the cap.
+    fn assemble(finite: Compact, counts: [i32; 3]) -> Self {
+        let (lo, hi, exp) = finite.parts();
+        Self {
+            lo,
+            hi,
+            exp,
+            nan: counts[0],
+            pos_inf: counts[1],
+            neg_inf: counts[2],
+        }
+    }
+
     fn cap(overflow: Overflow) -> PastCap {
         match overflow {
             Overflow::NeedsWide => PastCap::Width,
             Overflow::Exponent => PastCap::Exponent,
-            Overflow::Special => PastCap::Special,
+            #[cfg(test)]
+            Overflow::Special => unreachable!("Exact counts a special before the tier sees it"),
         }
     }
 
-    /// A fresh state holding `x`: the checked form of `From<f64>`.
-    ///
-    /// # Errors
-    ///
-    /// [`PastCap::Special`] for NaN or ±∞ on a build without the heap tier.
-    pub fn try_from_f64(x: f64) -> Result<Self, PastCap> {
-        Compact::from_f64(x)
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+    /// A count from a wider intermediate: inside `i32`, and never `i32::MIN`, so that negation
+    /// stays total.
+    pub(crate) fn narrow(v: i128) -> Result<i32, PastCap> {
+        match i32::try_from(v) {
+            Ok(c) if c != i32::MIN => Ok(c),
+            _ => Err(PastCap::Count),
+        }
+    }
+
+    /// One count of a special.
+    fn one(s: Special) -> Self {
+        let mut v = Self::ZERO;
+        match s {
+            Special::Nan => v.nan = 1,
+            Special::PosInf => v.pos_inf = 1,
+            Special::NegInf => v.neg_inf = 1,
+        }
+        v
+    }
+
+    /// A fresh state holding `x`: a finite value exactly, or one count of its special.
+    #[must_use]
+    pub fn from_f64(x: f64) -> Self {
+        match ieee::decompose(x) {
+            Some(d) => Self::assemble(Compact::from_finite(d), [0; 3]),
+            None => Self::one(ieee::special(x)),
+        }
     }
 
     /// A fresh state holding the exact product of two doubles, the full 106-bit mantissa product,
-    /// without a floating-point multiply: the checked form of a product deposit on the zero.
+    /// without a floating-point multiply: a product deposit on the zero. Total, and bit for bit
+    /// what [`crate::Wide::deposit_product`] deposits.
     ///
-    /// # Errors
-    ///
-    /// [`PastCap::Special`] for a non-finite factor on a build without the heap tier.
-    pub fn checked_product(a: f64, b: f64) -> Result<Self, PastCap> {
-        Compact::from_product(a, b)
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+    /// A special factor follows the NaN algebra of the design with a unit count, as on `Wide`: a
+    /// NaN factor is one NaN; two infinities are one +∞ when their signs agree and one −∞ when
+    /// they differ; an infinity times a nonzero finite factor is `±1` on that infinity's count by
+    /// the finite factor's sign, so a negative factor flips it through the projection rule; and a
+    /// zero factor makes the exact zero whatever the other factor is, as bilinearity requires. This
+    /// is a row's contribution, counted once per row; the ring product of two weights,
+    /// [`Exact::checked_mul`], is the one that scales a count by the other weight.
+    #[must_use]
+    pub fn product(a: f64, b: f64) -> Self {
+        match (ieee::factor(a), ieee::factor(b)) {
+            (ieee::Factor::Finite(da), ieee::Factor::Finite(db)) => {
+                Self::assemble(Compact::from_finite_product(da, db), [0; 3])
+            }
+            (ieee::Factor::Finite(d), ieee::Factor::Special(_))
+            | (ieee::Factor::Special(_), ieee::Factor::Finite(d))
+                if d.mant == 0 =>
+            {
+                Self::ZERO
+            }
+            (ieee::Factor::Finite(d), ieee::Factor::Special(s))
+            | (ieee::Factor::Special(s), ieee::Factor::Finite(d)) => {
+                let (which, by) = ieee::special_times_finite(s, d.negative);
+                let mut counts = [0i32; 3];
+                counts[which] = by as i32;
+                Self::assemble(Compact::ZERO, counts)
+            }
+            (ieee::Factor::Special(s), ieee::Factor::Special(t)) => {
+                let mut counts = [0i32; 3];
+                counts[ieee::special_times_special(s, t)] = 1;
+                Self::assemble(Compact::ZERO, counts)
+            }
+        }
     }
 
     /// The sum, or the cap it would cross. Neither operand changes either way.
     ///
     /// # Errors
     ///
-    /// [`PastCap::Width`] when the aligned sum needs more than the inline width on a build without
-    /// the heap tier, and [`PastCap::Exponent`] when its exponent would leave the bound.
+    /// [`PastCap::Width`] when the aligned sum of the finite parts needs more than the width,
+    /// [`PastCap::Exponent`] when its exponent would leave the bound, and [`PastCap::Count`] when a
+    /// count would leave `i32`.
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, PastCap> {
-        self.compact()
-            .checked_add(rhs.compact())
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+        let finite = self.finite().checked_add(rhs.finite()).map_err(Self::cap)?;
+        let mut counts = [0i32; 3];
+        for (c, (a, b)) in counts
+            .iter_mut()
+            .zip(self.counts().into_iter().zip(rhs.counts()))
+        {
+            *c = Self::narrow(i128::from(a) + i128::from(b))?;
+        }
+        Ok(Self::assemble(finite, counts))
     }
 
     /// The difference, as [`Exact::checked_add`] of the negation.
@@ -156,45 +233,46 @@ impl Exact {
     ///
     /// As [`Exact::checked_add`].
     pub fn checked_sub(&self, rhs: &Self) -> Result<Self, PastCap> {
-        self.compact()
-            .checked_add(-rhs.compact())
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+        self.checked_add(&-*rhs)
     }
 
-    /// The product, or the cap it would cross.
+    /// The product, or the cap it would cross: the finite parts multiply exactly, and the counts
+    /// follow the monoid algebra of DESIGN.md § NaN and ±∞ with integer amounts, so `0 · ∞` and
+    /// `0 · NaN` are the zero, `(+∞)(−∞)` is one −∞, and `−1 · (+∞)` is a count of −1 on +∞.
     ///
     /// # Errors
     ///
-    /// [`PastCap::Width`] when the product's mantissa needs more than the inline width on a build
-    /// without the heap tier, and [`PastCap::Exponent`] when its exponent would leave the bound.
+    /// [`PastCap::Width`] or [`PastCap::Exponent`] from the finite product, and [`PastCap::Count`]
+    /// when a special amount would leave `i32` or stop being an integer, as `2.5 · NaN` would.
     pub fn checked_mul(&self, rhs: &Self) -> Result<Self, PastCap> {
-        self.compact()
-            .checked_mul(rhs.compact())
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+        ring::product(*self, *rhs)
     }
 
-    /// Integer scaling, as an engine applies a multiplicity or a retraction, or the cap it would
-    /// cross.
+    /// Integer scaling of the finite part and the counts alike, as an engine applies a
+    /// multiplicity or a retraction, or the cap it would cross.
     ///
     /// # Errors
     ///
-    /// As [`Exact::checked_mul`].
+    /// As [`Exact::checked_mul`] by the integer.
     pub fn checked_mul_i64(&self, k: i64) -> Result<Self, PastCap> {
-        self.compact()
+        let finite = self
+            .finite()
             .checked_mul(Compact::from_i64(k))
-            .map(Self::from_compact)
-            .map_err(Self::cap)
+            .map_err(Self::cap)?;
+        let mut counts = [0i32; 3];
+        for (c, a) in counts.iter_mut().zip(self.counts()) {
+            *c = Self::narrow(i128::from(a) * i128::from(k))?;
+        }
+        Ok(Self::assemble(finite, counts))
     }
 
     /// Adds a double, or leaves the state as it was.
     ///
     /// # Errors
     ///
-    /// As [`Exact::try_from_f64`] then [`Exact::checked_add`].
+    /// As [`Exact::checked_add`].
     pub fn checked_deposit(&mut self, x: f64) -> Result<(), PastCap> {
-        *self = self.checked_add(&Self::try_from_f64(x)?)?;
+        *self = self.checked_add(&Self::from_f64(x))?;
         Ok(())
     }
 
@@ -203,9 +281,9 @@ impl Exact {
     ///
     /// # Errors
     ///
-    /// As [`Exact::checked_product`] then [`Exact::checked_add`].
+    /// As [`Exact::checked_add`] of [`Exact::product`].
     pub fn checked_deposit_product(&mut self, a: f64, b: f64) -> Result<(), PastCap> {
-        *self = self.checked_add(&Self::checked_product(a, b)?)?;
+        *self = self.checked_add(&Self::product(a, b))?;
         Ok(())
     }
 
@@ -228,34 +306,44 @@ impl Exact {
             .unwrap_or_else(|cap| cap.exceed());
     }
 
-    /// Whether the state is the zero.
+    /// Whether the state is the zero: no finite part and no counts.
     #[must_use]
     pub fn is_zero(&self) -> bool {
-        self.compact().is_zero()
+        *self == Self::ZERO
     }
 
-    /// Whether the value sits on the compact tier: 127 bits of mantissa inline. On a build without
-    /// the heap tier, every value does.
+    /// Whether every count is zero, so a read rounds the finite part. The finite part may still
+    /// round to `±∞` when it lies past `f64::MAX`.
     #[must_use]
-    pub fn is_compact(&self) -> bool {
-        matches!(self.0, Tier::Compact { .. })
+    pub const fn is_finite(&self) -> bool {
+        self.nan == 0 && self.pos_inf == 0 && self.neg_inf == 0
     }
 
-    /// Whether no special is counted, so a read rounds the finite value. The compact tier holds
-    /// no specials, so every compact value is finite.
+    /// The counts `(n, p, q)`: how many NaN, +∞ and −∞ inputs are in the multiset, each negative
+    /// when more were retracted than inserted.
     #[must_use]
-    pub fn is_finite(&self) -> bool {
-        self.is_compact()
+    pub const fn specials(&self) -> (i32, i32, i32) {
+        (self.nan, self.pos_inf, self.neg_inf)
     }
 
-    /// The value rounded to nearest-even as a double, in integer arithmetic, with subnormals and
-    /// overflow to ±∞. The zero reads `+0.0`.
+    fn projection(&self) -> Option<f64> {
+        ieee::project(
+            i64::from(self.nan),
+            i64::from(self.pos_inf),
+            i64::from(self.neg_inf),
+        )
+    }
+
+    /// The value as a double: the special projection if the counts say so, else the finite part
+    /// rounded to nearest-even in integer arithmetic, with subnormals and overflow to ±∞. The zero
+    /// reads `+0.0`.
     #[must_use]
     pub fn to_f64(&self) -> f64 {
         self.read().0
     }
 
-    /// The value as a double if it is exactly one, else `None`.
+    /// The value as a double if it is exactly one, else `None`. A special projection passes
+    /// through: nothing was rounded to reach it.
     #[must_use]
     pub fn try_to_f64(&self) -> Option<f64> {
         match self.read() {
@@ -265,15 +353,22 @@ impl Exact {
     }
 
     fn read(&self) -> (f64, bool) {
-        self.compact().read()
+        match self.projection() {
+            Some(special) => (special, false),
+            None => self.finite().read(),
+        }
     }
 
     /// The correctly rounded quotient of the exact value by an integer: what an `AVG` calls, so
-    /// every engine divides the same exact numerator once. Division by zero follows IEEE: `0/0`
-    /// is NaN and `x/0` is `±∞`.
+    /// every engine divides the same exact numerator once. A special projection is returned as it
+    /// is, as IEEE divides it; a finite part follows IEEE for a zero divisor too, `0/0` NaN and
+    /// `x/0` `±∞`.
     #[must_use]
     pub fn div_f64(&self, n: u64) -> f64 {
-        self.compact().div_f64(n)
+        match self.projection() {
+            Some(special) => special,
+            None => self.finite().div_f64(n),
+        }
     }
 }
 
@@ -287,12 +382,15 @@ impl fmt::Debug for Exact {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (value, inexact) = self.read();
         let about = if inexact { "≈" } else { "" };
-        let Tier::Compact { lo, hi, exp } = self.0;
         write!(
             f,
-            "Exact({about}{value:e}; compact {:?}:{:?} · 2^{exp})",
-            Hex(hi),
-            Hex(lo)
+            "Exact({about}{value:e}; nan {}, +inf {}, -inf {}; {:?}:{:?} · 2^{})",
+            self.nan,
+            self.pos_inf,
+            self.neg_inf,
+            Hex(self.hi),
+            Hex(self.lo),
+            self.exp
         )
     }
 }
@@ -304,8 +402,10 @@ impl PartialOrd for Exact {
 }
 
 impl Ord for Exact {
-    /// Numeric, and total.
+    /// Numeric on the finite part, then `(n, p, q)` lexicographic: a total order.
     fn cmp(&self, other: &Self) -> Ordering {
-        self.compact().cmp(&other.compact())
+        self.finite()
+            .cmp(&other.finite())
+            .then_with(|| self.counts().cmp(&other.counts()))
     }
 }

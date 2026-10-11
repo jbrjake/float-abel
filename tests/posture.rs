@@ -8,7 +8,6 @@
 fn a_bare_cargo_test_turns_the_test_features_on() {
     let on = [
         ("std", cfg!(feature = "std")),
-        ("alloc", cfg!(feature = "alloc")),
         ("serde", cfg!(feature = "serde")),
         ("differential", cfg!(feature = "differential")),
         ("laws", cfg!(feature = "laws")),

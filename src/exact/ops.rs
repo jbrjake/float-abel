@@ -8,14 +8,9 @@ use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 use super::Exact;
 
 impl From<f64> for Exact {
-    /// A fresh state holding `x`.
-    ///
-    /// # Panics
-    ///
-    /// With the named cap when `x` is NaN or ±∞ on a build without the heap tier, where
-    /// [`Exact::try_from_f64`] returns [`PastCap::Special`](super::PastCap::Special) instead.
+    /// A fresh state holding `x`: its finite value, or one count of its special. Total.
     fn from(x: f64) -> Self {
-        Self::try_from_f64(x).unwrap_or_else(|cap| cap.exceed())
+        Self::from_f64(x)
     }
 }
 
@@ -29,7 +24,7 @@ impl Add<&Exact> for &Exact {
 impl Add for Exact {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        &self + &rhs
+        self.checked_add(&rhs).unwrap_or_else(|cap| cap.exceed())
     }
 }
 
@@ -47,16 +42,16 @@ impl AddAssign for Exact {
 
 impl Neg for &Exact {
     type Output = Exact;
-    /// Total on every tier: a canonical mantissa is never the most negative value.
+    /// Total: a canonical mantissa is never `i128::MIN`, and a count is never `i32::MIN`.
     fn neg(self) -> Exact {
-        Exact::from_compact(-self.compact())
+        Exact::assemble(-self.finite(), self.counts().map(|c| -c))
     }
 }
 
 impl Neg for Exact {
     type Output = Self;
     fn neg(self) -> Self {
-        -&self
+        Self::assemble(-self.finite(), self.counts().map(|c| -c))
     }
 }
 
@@ -70,7 +65,7 @@ impl Sub<&Exact> for &Exact {
 impl Sub for Exact {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        &self - &rhs
+        self.checked_sub(&rhs).unwrap_or_else(|cap| cap.exceed())
     }
 }
 
@@ -96,7 +91,7 @@ impl Mul<&Exact> for &Exact {
 impl Mul for Exact {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self {
-        &self * &rhs
+        self.checked_mul(&rhs).unwrap_or_else(|cap| cap.exceed())
     }
 }
 
@@ -111,7 +106,7 @@ impl Mul<i64> for &Exact {
 impl Mul<i64> for Exact {
     type Output = Self;
     fn mul(self, k: i64) -> Self {
-        &self * k
+        self.checked_mul_i64(k).unwrap_or_else(|cap| cap.exceed())
     }
 }
 
@@ -125,7 +120,7 @@ impl Mul<isize> for &Exact {
 impl Mul<isize> for Exact {
     type Output = Self;
     fn mul(self, k: isize) -> Self {
-        &self * (k as i64)
+        self * (k as i64)
     }
 }
 

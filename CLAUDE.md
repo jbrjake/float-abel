@@ -41,12 +41,14 @@ outside `~/Documents`.
   that is what makes the bits architecture-independent.
 - Every op canonicalises and every decoder refuses non-canonical bytes, because structural `Eq` must
   be numeric equality for differential's consolidation.
-- `Exact` builds without `alloc` (owner: "i don't believe we should require alloc"); the feature
-  adds its heap tier, and `std` implies `alloc`.
-- `From<f64>` is total on `Wide`, and on `Exact` with `alloc`: NaN and ±∞ are counted and projected,
-  never refused. The only panic is the named `Exact` cap: the limb cap, the exponent bound at 2³⁰
-  (owner: "exponents need bounds if they can roll over"), and without `alloc` the inline width and a
-  special. The checked methods return the cap instead (owner: "Cap panic plus checked API").
+- Every type is a `Copy` plain word and nothing allocates (owner: "i cannot stress enough the
+  paramount importance of zero-copy here"; "in general i approve dropping the heap arm"). `Exact` is
+  32 bytes with `i32` special counts, and there is no `alloc` feature.
+- `From<f64>` is total on `Wide` and `Exact`: NaN and ±∞ are counted and projected, never refused.
+  The only panic is the named `Exact` cap: the width, the exponent bound at 2³⁰ (owner: "exponents
+  need bounds if they can roll over"), and the counts. The checked methods return the cap instead
+  (owner: "Cap panic plus checked API"). `Mul<Exact>` stays, with integer special amounts (owner:
+  "we absolutely need exact multiplication").
 - `Binned<K>` never implements an incremental trait, because it is not a group. A `trybuild` test
   pins that.
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design

@@ -7,7 +7,10 @@ use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 use crate::fixed::{Hex, OutOfWindow};
-use crate::ieee::{self, Dyadic, Special};
+use crate::ieee::{
+    self, factor, special_times_finite, special_times_special, Dyadic, Factor, NAN, NEG_INF,
+    POS_INF,
+};
 use crate::limbs;
 use crate::round;
 
@@ -17,11 +20,6 @@ const LSB: i32 = -1074;
 /// Bits a product's magnitude may occupy, in units: the width less a sign bit and 64 bits of
 /// headroom. A finite double needs at most 2098, so only products can reach it.
 const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
-
-/// Positions in the counter array.
-const NAN: usize = 0;
-const POS_INF: usize = 1;
-const NEG_INF: usize = 2;
 
 /// An exact abelian group of every `f64`, specials included: `[u64; 34]` two's complement in
 /// units of `2^-1074` for the finite sum, and `[i64; 3]` signed counts of the NaN, +∞ and −∞
@@ -100,7 +98,7 @@ impl Wide {
             Some(d) if d.mant == 0 => {}
             // A finite double's lowest bit is at or above the unit, so the shift is never negative.
             Some(d) => self.deposit_finite(d.negative, u128::from(d.mant), (d.exp - LSB) as u32),
-            None => self.bump(counter(ieee::special(x)), 1),
+            None => self.bump(ieee::counter(ieee::special(x)), 1),
         }
     }
 
@@ -180,14 +178,7 @@ impl Wide {
     /// The special the counters project to, or `None` when they are all zero.
     fn projection(&self) -> Option<f64> {
         let [n, p, q] = self.specials;
-        if n != 0 || (p != 0 && q != 0) {
-            return Some(f64::NAN);
-        }
-        match (p.signum(), q.signum()) {
-            (0, 0) => None,
-            (1, _) | (_, -1) => Some(f64::INFINITY),
-            _ => Some(f64::NEG_INFINITY),
-        }
+        ieee::project(n, p, q)
     }
 
     /// The value as a double: the special projection if the counters say so, else the finite part
@@ -230,46 +221,6 @@ impl Wide {
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);
         round::div_f64(negative, &mag, LSB, n)
-    }
-}
-
-/// One factor of a product, taken apart.
-enum Factor {
-    Finite(Dyadic),
-    Special(Special),
-}
-
-fn factor(x: f64) -> Factor {
-    match ieee::decompose(x) {
-        Some(d) => Factor::Finite(d),
-        None => Factor::Special(ieee::special(x)),
-    }
-}
-
-const fn counter(s: Special) -> usize {
-    match s {
-        Special::Nan => NAN,
-        Special::PosInf => POS_INF,
-        Special::NegInf => NEG_INF,
-    }
-}
-
-/// Which counter a special times a nonzero finite factor lands in, and by how much: `g · P` is
-/// `sign(g)` of `P`, and NaN absorbs.
-const fn special_times_finite(s: Special, finite_negative: bool) -> (usize, i64) {
-    match s {
-        Special::Nan => (NAN, 1),
-        _ => (counter(s), if finite_negative { -1 } else { 1 }),
-    }
-}
-
-/// Which counter the product of two specials lands in: NaN absorbs, and the infinities follow the
-/// sign rule, `(+∞)(+∞) = (−∞)(−∞) = +∞` and `(+∞)(−∞) = −∞`.
-const fn special_times_special(s: Special, t: Special) -> usize {
-    match (s, t) {
-        (Special::Nan, _) | (_, Special::Nan) => NAN,
-        (Special::PosInf, Special::PosInf) | (Special::NegInf, Special::NegInf) => POS_INF,
-        _ => NEG_INF,
     }
 }
 

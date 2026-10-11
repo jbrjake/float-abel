@@ -17,27 +17,22 @@ use crate::exact::testing::{add, c, hash, mul, pow2, product, widest, Rng};
 use crate::exact::Exact;
 use crate::Wide;
 
-const _: () = assert!(core::mem::size_of::<Exact>() == 24);
+const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 
 #[test]
-fn compact_exact_is_24_bytes_and_round_trips_its_storage_form() {
-    assert_eq!(core::mem::size_of::<Exact>(), 24);
+fn compact_storage_form_round_trips_and_exact_is_32_bytes() {
+    assert_eq!(core::mem::size_of::<Exact>(), 32);
     assert_eq!(
         core::mem::size_of::<Compact>(),
         32,
-        "the working form, not the storage"
+        "the working form, with i128's alignment"
     );
-    assert_eq!(Exact::ZERO.compact(), Compact::ZERO);
-    assert_eq!(Exact::from_compact(Compact::ZERO), Exact::ZERO);
     let mut rng = Rng(20);
     for _ in 0..10_000 {
         let v = add(c(rng.on_grid(-20, 20)), c(rng.on_grid(-20, 20)));
-        let e = Exact::from_compact(v);
-        assert_eq!(e.compact(), v);
-        assert_eq!(e.clone(), e);
-        assert_eq!(hash(&e), hash(&Exact::from_compact(v)));
         let (lo, hi, exp) = v.parts();
         assert_eq!(Compact::from_parts(lo, hi, exp), v);
+        assert_eq!(hash(&Compact::from_parts(lo, hi, exp)), hash(&v));
     }
     // The storage form is the value's two's complement: -1 is all ones at exponent 0.
     assert_eq!(c(-1.0).parts(), (u64::MAX, u64::MAX, 0));

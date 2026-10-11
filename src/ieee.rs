@@ -40,6 +40,20 @@ pub(crate) fn special(x: f64) -> Special {
     }
 }
 
+/// The special that signed counts of NaN, +∞ and −∞ inputs project to, or `None` when they are
+/// all zero: a NaN count, or both infinities present, is NaN; one infinity reads by the sign of its
+/// count. Every tier that counts specials reads through this.
+pub(crate) fn project(n: i64, p: i64, q: i64) -> Option<f64> {
+    if n != 0 || (p != 0 && q != 0) {
+        return Some(f64::NAN);
+    }
+    match (p.signum(), q.signum()) {
+        (0, 0) => None,
+        (1, _) | (_, -1) => Some(f64::INFINITY),
+        _ => Some(f64::NEG_INFINITY),
+    }
+}
+
 /// The dyadic a finite double denotes, or `None` for NaN and ±∞.
 pub(crate) fn decompose(x: f64) -> Option<Dyadic> {
     let bits = x.to_bits();
@@ -67,6 +81,51 @@ pub(crate) fn decompose(x: f64) -> Option<Dyadic> {
         mant: mant >> tz,
         exp: exp + tz as i32,
     })
+}
+
+/// Positions of the NaN, +∞ and −∞ counts in a counter array, shared by every tier that counts.
+pub(crate) const NAN: usize = 0;
+pub(crate) const POS_INF: usize = 1;
+pub(crate) const NEG_INF: usize = 2;
+
+/// One factor of a product, taken apart.
+pub(crate) enum Factor {
+    Finite(Dyadic),
+    Special(Special),
+}
+
+pub(crate) fn factor(x: f64) -> Factor {
+    match decompose(x) {
+        Some(d) => Factor::Finite(d),
+        None => Factor::Special(special(x)),
+    }
+}
+
+pub(crate) const fn counter(s: Special) -> usize {
+    match s {
+        Special::Nan => NAN,
+        Special::PosInf => POS_INF,
+        Special::NegInf => NEG_INF,
+    }
+}
+
+/// Which counter a special times a nonzero finite factor lands in, and by how much: `g · P` is
+/// `sign(g)` of `P`, and NaN absorbs.
+pub(crate) const fn special_times_finite(s: Special, finite_negative: bool) -> (usize, i64) {
+    match s {
+        Special::Nan => (NAN, 1),
+        _ => (counter(s), if finite_negative { -1 } else { 1 }),
+    }
+}
+
+/// Which counter the product of two specials lands in: NaN absorbs, and the infinities follow the
+/// sign rule, `(+∞)(+∞) = (−∞)(−∞) = +∞` and `(+∞)(−∞) = −∞`.
+pub(crate) const fn special_times_special(s: Special, t: Special) -> usize {
+    match (s, t) {
+        (Special::Nan, _) | (_, Special::Nan) => NAN,
+        (Special::PosInf, Special::PosInf) | (Special::NegInf, Special::NegInf) => POS_INF,
+        _ => NEG_INF,
+    }
 }
 
 #[cfg(test)]

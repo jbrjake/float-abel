@@ -53,7 +53,6 @@ jobs:
           cargo --version && rustc --version
       - run: cargo build --locked
       - run: cargo build --locked --no-default-features
-      - run: cargo build --locked --no-default-features --features alloc
 
   deny:
     name: cargo-deny

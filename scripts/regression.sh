@@ -23,7 +23,6 @@ cargo fmt --all -- --check
 
 # The lib alone, on each feature set a consumer can pick without the test features.
 cargo clippy --quiet --lib --no-default-features -- -D warnings
-cargo clippy --quiet --lib --no-default-features --features alloc -- -D warnings
 cargo clippy --quiet --lib -- -D warnings
 # Every target of every member: the self dev-dependency turns the test features on here.
 cargo clippy --quiet --workspace --all-targets -- -D warnings
@@ -31,8 +30,7 @@ cargo clippy --quiet --workspace --all-targets -- -D warnings
 RUSTDOCFLAGS="-D warnings" cargo doc --quiet --no-deps
 
 cargo test --quiet -- --include-ignored >/dev/null
-# `Exact` with no features: the compact tier alone, with the inline width as its cap. Only a
-# separate member reaches that build; see tests/noalloc/Cargo.toml.
+# The no-feature build, which only a separate member reaches; see tests/noalloc/Cargo.toml.
 cargo test --quiet -p float-abel-noalloc >/dev/null
 
 if rustup run "$MSRV" cargo --version >/dev/null 2>&1; then

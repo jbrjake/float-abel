@@ -13,6 +13,7 @@
 )]
 
 mod exact_cap;
+mod exact_ring;
 mod fixed;
 mod posture;
 mod support;

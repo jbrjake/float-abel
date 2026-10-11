@@ -16,7 +16,7 @@ autotests = false
 
 # docs.rs builds every feature but `dbsp`, which needs rustc 1.96.1 and ICEs on anything newer.
 [package.metadata.docs.rs]
-features = ["std", "alloc", "serde", "differential", "laws", "simd", "arbitrary"]
+features = ["std", "serde", "differential", "laws", "simd", "arbitrary"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # Zero required dependencies (DESIGN.md § Crate posture). Everything below is optional and owned by
@@ -28,7 +28,7 @@ serde = { version = "1", optional = true, default-features = false }
 # The crate lists itself with the test features on: the one Cargo spelling that turns them on for a
 # bare `cargo test` with no flag. `dbsp` stays out because it builds only on rustc 1.96.1.
 [dev-dependencies]
-float-abel = { path = ".", features = ["alloc", "serde", "differential", "laws", "simd", "arbitrary"] }
+float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", "arbitrary"] }
 # The differential oracle for `Wide`'s limbs: the same multiset must land the same 272 limb bytes.
 # Pinned to the version tests/data/bitrep/vectors.json was taken from.
 bitrep = "=0.5.1"
@@ -41,12 +41,9 @@ path = "tests/main.rs"
 
 [features]
 default = ["std"]
-# `std::error::Error` impls and the bench harness. A std build has an allocator, so this implies
-# `alloc`.
-std = ["alloc"]
-# `Exact`'s heap tier, which needs a `Box`. Without it `Exact` is its compact tier alone, with the
-# inline width as its cap; `Fixed` and `Wide` never need it.
-alloc = []
+# `std::error::Error` impls and the bench harness. Nothing in the crate allocates, so there is no
+# `alloc` feature: every type is a plain word on every feature set.
+std = []
 # `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
 serde = ["dep:serde"]
 # The differential-dataflow adapter. Wired by its own task.
@@ -74,7 +71,7 @@ workspace = true
 
 # The allocator-free test crate is a workspace member so that `cargo test -p float-abel-noalloc`
 # resolves the library's features from its own manifest, which no `cargo test` of this package
-# can: the self dev-dependency's `simd` pulls `std`, which pulls `alloc`. A bare `cargo test`
+# can: the self dev-dependency's `simd` pulls `std`. A bare `cargo test`
 # still runs this package alone, because a package at the workspace root is its default member.
 [workspace]
 members = ["tests/noalloc"]

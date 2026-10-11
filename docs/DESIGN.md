@@ -107,7 +107,7 @@ and the crate ships each:
 
 | corner | type | size | domain | `Copy` | ring |
 |---|---|---|---|---|---|
-| exact + full range | `Exact` | 24 B inline; heap past a 127-bit span or on a non-finite input | every `f64` | no | yes: `×Exact`, `×i64` |
+| exact + full range for a value; a sum or product within a 127-bit span | `Exact` | 32 B, a plain word | every `f64`, specials counted; past the width it is the cap, by name | yes | yes: `×Exact` with integer special amounts, `×i64` |
 | exact + constant size (wide) | `Wide` | 296 B | every `f64` | yes | `×i64` only |
 | exact + constant size (window) | `Fixed<const LSB: i32, const LIMBS: usize>` | 8·LIMBS B (32 at the default) | finite doubles exactly on the 2^LSB grid inside the window; the rest **refused at the door**, or **quantised** by declaration | yes | `×i64` only |
 | constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 8·K B + index + counters (56 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
@@ -125,15 +125,14 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   34 × 64 = 2176 gives 78 bits of headroom, i.e. ≥ 2⁶³ additions of the largest finite value
   (bitrep's bound, reused as-is).
 - A product of two doubles has a 106-bit mantissa and spans 2⁻²¹⁴⁸ … 2²⁰⁴⁸: 4196 bits (Kulisch's
-  4288 = 4196 + 92 headroom). A product of *k* sums grows linearly in *k*. So `Exact`'s memory is
-  bounded by `k · 2148 + 64` bits for the deepest `float × float` join chain in a dataflow, and by
-  2176 bits when weights only ever multiply integers. That bound is what makes the heap tier safe
-  against adversarial input.
+  4288 = 4196 + 92 headroom). `Exact` holds any single product, and a product of sums while the
+  mantissas' product fits 127 bits; past that it is the cap, so its memory is 32 bytes whatever the
+  input, which is what makes it safe against adversarial input.
 - Every exponent is bounded: a held value is `m · 2^exp` with |exp| ≤ `EXACT_MAX_EXP` = 2³⁰, checked
   after every operation that moves an exponent, in every build. A sum's exponent stays inside its
   inputs' range plus the mantissa width, and a product of two doubles lies within 2^±2148, so only a
   chain of nested products reaches the bound: about a million products of the smallest subnormal.
-  Past it is the cap, as past the limb cap. The limb cap bounds width and this bounds position; they
+  Past it is the cap, as past the width. The limb cap bounds width and this bounds position; they
   are independent, and the number is as large as keeps every intermediate inside `i64` and every
   stored exponent inside `i32`, with room to spare on both sides.
 - A compact 127-bit mantissa holds any exact sum whose bit-span is ≤ 127. A column of 10⁷ terms
@@ -164,7 +163,7 @@ Specials are counted and projected, never refused, on `Wide` and `Exact`. So a s
 containing NaN reads NaN, as SQL engines answer, and retracting the NaN row restores the finite sum
 exactly.
 
-For `Exact`, which multiplies, the special amounts are dyadic, and the product is the monoid algebra
+For `Exact`, which multiplies, the product is the monoid algebra
 D[M] of the four-element commutative monoid M = {1, P, Q, N}. `1` is the finite unit; `P·P = Q·Q = P`
 and `P·Q = Q` (the sign group of the infinities, with `P` its identity); `N` absorbs. On the
 coefficients `(f, n, p, q)`:
@@ -178,7 +177,10 @@ coefficients `(f, n, p, q)`:
 ```
 
 A monoid algebra is associative, commutative and bilinear by construction, so
-`(a+b)·c = a·c + b·c`, and a retraction's product cancels its insertion's. A finite negative factor
+`(a+b)·c = a·c + b·c`, and a retraction's product cancels its insertion's. `Exact` keeps the amounts
+as `i32` counts, so that it stays a 32-byte word: `f·n′` is defined when `f` is an integer, and a
+product that would give a special a non-integer amount, as `2.5 · NaN` would, is the cap, by name.
+A row's product deposit, `product(a, b)`, counts once per row by the sign rule, as `Wide` does. A finite negative factor
 flips an infinity's sign through the projection rule above. The one divergence from IEEE follows from
 bilinearity: an exact zero annihilates, so `0 · ∞` and `0 · NaN` project as `0`, not NaN. `Wide`
 scales its integer counters by `i64` only. `Fixed` refuses non-finite input outright, because its
@@ -188,39 +190,33 @@ contract is *exact or refused*.
 
 ### Exact {#sp-exact}
 
-The engine weight: a differential-dataflow diff, a DBSP weight, and the carrier for an exact
-reference oracle.
+The engine weight: a differential-dataflow diff, a DBSP weight, the carrier for an exact reference
+oracle, and a plain word an engine can keep in a column and cast from a mapping.
 
 ```
-struct Exact(Tier);                           // a newtype, so the variant fields stay private
-enum Tier {
-    Compact { lo: u64, hi: u64, exp: i32 },   // m = (hi:lo) as signed 128-bit, value = m · 2^exp
-    Wide(Box<WideExact>),                     // { sign, mant: Vec<u64> normalised, exp: i32,
-}                                             //   specials: [Dyadic; 3] }  — reached by promotion only
+#[repr(C)] struct Exact {               // 32 bytes, Copy, no padding, no pointer
+    lo: u64, hi: u64, exp: i32,         // m = (hi:lo) as signed 128-bit, value = m · 2^exp
+    nan: i32, pos_inf: i32, neg_inf: i32,   // the special vector (n, p, q), signed counts
+}
 ```
 
-`size_of::<Exact>() == 24` with this layout, because the discriminant lives in the `Compact`
-variant's padding, and the newtype adds nothing. `(i128, i32)` would be 32 bytes, with or without
-the `Box` arm, and so would a nested `Compact` struct, since padding is never a niche. The layout is
-load-bearing and gets a `const` assertion. The tier enum is private because an enum's variant fields
-are as visible as the enum, and a hand-built variant would be a non-canonical value. Canonical form
-is **the smallest tier that represents the
-value**: mantissa odd or zero (zero is `Compact{0,0,0}`), no leading zero limbs, and specials all zero
-in `Compact`. Every operation canonicalises, so structural `Eq` is numeric equality, and `Hash` and
-`Ord` are consistent. `Ord` is numeric on the finite part, then `(n, p, q)` lexicographic, which makes
-it a total order.
+The layout is load-bearing and gets a `const` assertion: six fields, 32 bytes, 8-aligned, and the
+bytes are the little-endian wire form on a little-endian machine. Canonical form is mantissa odd or
+the zero form `(0, 0, 0)`, with the counts as they are. Every operation canonicalises, so structural
+`Eq` is numeric equality, and `Hash` and `Ord` are consistent. `Ord` is numeric on the finite part,
+then `(n, p, q)` lexicographic, which makes it a total order. The fields are private because a word
+with an even mantissa is not a value: bytes from outside go through the validating decoder, while a
+column the crate wrote casts in place.
 
-The compact add returns `Err(NeedsWide)` when the aligned span exceeds 127 bits or a special is
-present, and the caller promotes. The heap tier's limb count has a compile-time cap
-(`EXACT_MAX_LIMBS`, default 16 × 2148 bits ≈ 4.3 KB), and every exponent has one (`EXACT_MAX_EXP`,
-2³⁰, § Exactness bounds). Past either, `Exact` panics with a named invariant, because `plus_equals`
-can't return an error to differential-dataflow. The limb cap is reachable only through ≥ 16 nested
-`float × float` joins on extreme values, and is a `const` the consumer can raise. The checked
-methods (`checked_add`, `checked_sub`, `checked_mul`, `checked_mul_i64`, `checked_deposit`,
-`checked_deposit_product`, `checked_product` and `try_from_f64`) return the same cap as
-`PastCap { Width, Exponent, Special }` and leave the state as it was. `Exact` builds on every
-feature set: without `alloc` there is no heap tier, so the inline width is the cap and a special
-input is past it; `From<f64>` is total with `alloc`.
+There is no heap arm and nothing allocates: a sum or a product is a fresh word. The caps are the
+width (a finite magnitude at `2^127` in the aligned frame), the exponent bound (`EXACT_MAX_EXP`, 2³⁰,
+§ Exactness bounds) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a product
+that would give a special a non-integer amount, § NaN and ±∞). Past any of them the operators panic
+with a named invariant, because `plus_equals` can't return an error to differential-dataflow, and
+the checked methods (`checked_add`, `checked_sub`, `checked_mul`, `checked_mul_i64`,
+`checked_deposit`, `checked_deposit_product`) return it as `PastCap { Width, Exponent, Count }`
+with the state as it was. `From<f64>` and `product(a, b)` are total. `Exact` builds on every feature
+set, allocator or not.
 
 ### Wide {#sp-wide}
 
@@ -259,15 +255,14 @@ no `Neg`, no `Sub`, no `Semigroup` and no `HasZero`, and a `trybuild` compile-fa
 ## Operations and conversions {#sp-ops}
 
 `Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash`; `Add, AddAssign, Sub, SubAssign, Neg,
-Sum`; `Mul<i64>`, `Mul<isize>`; for `Exact` also `Mul<Exact>`. `From<f64>` is total on `Wide`, and on
-`Exact` with `alloc`, with specials counted; without `alloc` a special is past `Exact`'s cap, and
-`Exact::try_from_f64` says so. `TryFrom<f64>` on `Fixed`. `deposit_product(a: f64, b: f64)` deposits
+Sum`; `Mul<i64>`, `Mul<isize>`; for `Exact` also `Mul<Exact>`. `From<f64>` is total on `Exact` and `Wide`, with
+specials counted; `TryFrom<f64>` on `Fixed`. `deposit_product(a: f64, b: f64)` deposits
 the exact 106-bit product on every tier (refused on `Fixed` when it is off-grid). That is the
 join-fold and dot-product shape, without a float multiply anywhere. `is_zero()`, `is_finite()` and
 `specials()` read the state.
 
-Conversions between tiers: `Wide: From<Fixed<..>>`, `Exact: From<Wide>` and `Exact: From<Fixed<..>>`
-are all exact. `Wide::try_from(&Exact)` returns `Err` past the sum range. `Binned<K>::into_wide`
+Conversions between tiers: `Wide: From<Fixed<..>>` is exact; `Exact: TryFrom<&Wide>` and
+`Exact: TryFrom<&Fixed<..>>` refuse past the width; `Wide::try_from(&Exact)` refuses past the sum range. `Binned<K>::into_wide`
 (exact) and `Wide::to_binned::<K>` (lossy) are named methods, and nothing lossy has a `From`. Every
 tier has the bulk entry points `extend_from_slice(&[f64])` and `deposit_products(&[f64], &[f64])`;
 they are the SIMD surface.
@@ -291,7 +286,7 @@ and bitrep itself is a dev-dependency differential oracle for `Exact::to_f64` on
 One canonical little-endian encoding per type, with a version byte, emitted both by the `serde`
 feature and by `to_bytes`/`from_bytes` without it:
 
-- `Exact` as `(tag, exp, sign, limb count, limbs, specials)` in normalised form;
+- `Exact` as its 32 bytes, two limbs, the exponent and three counts, which is its in-memory layout;
 - `Wide` as 272 limb bytes plus 24 counter bytes;
 - `Fixed` as its limbs.
 
@@ -307,8 +302,8 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
 - `#![deny(unsafe_code)]` crate-wide, lifted only inside `src/simd/`, where the intrinsics live, with
   a `// SAFETY:` line on every block. With the `simd` feature off, the crate is `unsafe`-free end to
   end.
-- `#![no_std]`, with every type on every feature set: `alloc` adds `Exact`'s heap tier, and `std`
-  (the default, which implies `alloc`) adds the test kit and `std::error::Error`.
+- `#![no_std]`, and nothing allocates: every type is a `Copy` plain word on every feature set. `std`
+  (the default) adds the test kit and `std::error::Error`.
 - **Zero required dependencies.** Everything else is a feature.
 - MSRV **1.74** for the default feature set, asserted in CI on exactly that set. The `differential`
   feature inherits differential-dataflow 0.24's declared `rust-version = "1.86"`. The `dbsp` feature
@@ -325,8 +320,7 @@ format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with 
 
 | feature | pulls in | provides |
 |---|---|---|
-| `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
-| `alloc` | — | `Exact`'s heap tier (its arm needs a `Box`); without it `Exact` is its compact tier alone, with the inline width as its cap, and `Fixed` and `Wide` never need it |
+| `std` (default) | — | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
 | `differential` | differential-dataflow 0.24 + `serde` | the differential-dataflow adapter |
 | `dbsp` | dbsp 0.364, feldera-macros, rkyv 0.7 (`size_64`), feldera-size-of 0.1.7 | the DBSP adapter |
@@ -382,7 +376,7 @@ zero. Three deliberate breaks failed on `IsNone`/`SupportsRoaring`, `OrdRepr`, a
 |---|---|---|
 | `Clone + Default + Debug + Eq + Ord + Hash + Send + Sync + 'static` | `DBData` | already |
 | `SizeOf` | feldera-size-of 0.1.7 (`package = "feldera-size-of"`) | derive |
-| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | derive on the enum (rkyv 0.7 archives `Box` and `Vec`); `Ord` on the archived form by the same numeric compare |
+| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | derive on the struct, a `Copy` word of six integers; `Ord` on the archived form by the same numeric compare |
 | `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written, because `Ord` is hand-written; property-tested against `Ord` on mixed tiers and specials |
 | `IsNone` + `SupportsRoaring` | `utils/{is_none,supports_roaring}.rs` | `#[derive(feldera_macros::IsNone)]` emits both; it requires the dependency to be named `dbsp` |
 | `HasZero` (exact `is_zero`), `AddByRef`/`AddAssignByRef` | `algebra.rs`; blankets over `&T: Add` and `T: AddAssign<&T>` | std ops |
@@ -548,12 +542,14 @@ owner's act; so is any announcement.
 - **Arbitrary float arithmetic.** Division, `exp`/`log` and non-dyadic constants stay outside the
   group.
 - **GPU kernels.**
+- **A heap tier past `Exact`'s width.** A `Box` arm would make the weight non-`Copy`, which the
+  engines' slots refuse and which allocates on every clone a spine makes. Arms when a consumer needs
+  a float × float join weight past a 127-bit span and tolerates allocation; `Wide` holds every sum
+  without it.
 
 ## Open questions
 
-- **The `Exact` limb cap.** The design takes a named panic at `EXACT_MAX_LIMBS`, because
-  `plus_equals` can't return an error. The alternative refuses at `deposit_product` and makes
-  `Multiply` saturate to a sticky NaN amount: that is total, but non-linear.
+- None.
 
 ## References
 

@@ -5,8 +5,8 @@
 //!
 //! Every operation that could leave the tier says so. [`Compact::checked_add`] and
 //! [`Compact::checked_mul`] return [`Overflow::NeedsWide`] when the aligned result would not fit
-//! in the width, and the caller promotes; a non-finite double is [`Overflow::Special`] at
-//! construction, because specials are counted on the heap tier. They return [`Overflow::Exponent`] when the
+//! in the width; the special counts live beside the tier in `Exact`, which never hands it a
+//! non-finite double. They return [`Overflow::Exponent`] when the
 //! result's exponent would leave `±EXACT_MAX_EXP`, which no tier holds. Every exponent is computed
 //! in `i64` and narrowed through that one check, so nothing here can wrap. Negation is total,
 //! because `|m| < 2^127` keeps `i128::MIN` out.
@@ -15,7 +15,7 @@ use core::cmp::Ordering;
 use core::ops::Neg;
 
 use super::EXACT_MAX_EXP;
-use crate::ieee;
+use crate::ieee::Dyadic;
 use crate::round;
 
 /// Why the compact tier could not hold a result.
@@ -25,7 +25,8 @@ pub(crate) enum Overflow {
     NeedsWide,
     /// The exponent would leave `-EXACT_MAX_EXP..=EXACT_MAX_EXP`, which no tier holds.
     Exponent,
-    /// The input is NaN or ±∞, and the special counts live on the heap tier.
+    /// The input is NaN or ±∞, which the tier does not hold: the counts live beside it.
+    #[cfg(test)]
     Special,
 }
 
@@ -61,30 +62,56 @@ impl Compact {
         Self::within(if negative { -m } else { m }, i64::from(exp))
     }
 
-    /// The finite double `x`, exactly. A zero of either sign is the zero.
+    /// A finite double, taken apart: exactly, with a zero of either sign the zero.
+    pub(crate) fn from_finite(d: Dyadic) -> Self {
+        Self::from_dyadic(d.negative, u128::from(d.mant), d.exp)
+    }
+
+    /// The exact product of two finite doubles, taken apart: the full 106-bit mantissa product,
+    /// without a floating-point multiply. A zero factor makes the zero.
+    pub(crate) fn from_finite_product(da: Dyadic, db: Dyadic) -> Self {
+        Self::from_dyadic(
+            da.negative != db.negative,
+            u128::from(da.mant) * u128::from(db.mant),
+            da.exp + db.exp,
+        )
+    }
+
+    /// The finite double `x`, exactly.
     ///
     /// # Errors
     ///
     /// NaN and ±∞ are [`Overflow::Special`]: the compact tier holds no special counts.
+    #[cfg(test)]
     pub(crate) fn from_f64(x: f64) -> Result<Self, Overflow> {
-        let d = ieee::decompose(x).ok_or(Overflow::Special)?;
-        Ok(Self::from_dyadic(d.negative, u128::from(d.mant), d.exp))
+        crate::ieee::decompose(x)
+            .map(Self::from_finite)
+            .ok_or(Overflow::Special)
     }
 
-    /// The exact product of two finite doubles: the full 106-bit mantissa product, without a
-    /// floating-point multiply. A zero factor makes the zero.
+    /// The exact product of two finite doubles.
     ///
     /// # Errors
     ///
-    /// A non-finite factor is [`Overflow::Special`]: the special algebra lives on the heap tier.
+    /// A non-finite factor is [`Overflow::Special`]: the counts live beside the tier, not in it.
+    #[cfg(test)]
     pub(crate) fn from_product(a: f64, b: f64) -> Result<Self, Overflow> {
-        let da = ieee::decompose(a).ok_or(Overflow::Special)?;
-        let db = ieee::decompose(b).ok_or(Overflow::Special)?;
-        Ok(Self::from_dyadic(
-            da.negative != db.negative,
-            u128::from(da.mant) * u128::from(db.mant),
-            da.exp + db.exp,
-        ))
+        match (crate::ieee::decompose(a), crate::ieee::decompose(b)) {
+            (Some(da), Some(db)) => Ok(Self::from_finite_product(da, db)),
+            _ => Err(Overflow::Special),
+        }
+    }
+
+    /// The value as an integer, if it is one that fits `i128`: the mantissa shifted up by a
+    /// non-negative exponent that leaves its magnitude below `2^127`.
+    pub(crate) fn to_i128(self) -> Option<i128> {
+        if self.m == 0 {
+            return Some(0);
+        }
+        if self.exp < 0 {
+            return None;
+        }
+        raise(self.m, i64::from(self.exp)).ok()
     }
 
     /// The integer `k`, canonicalised: an even `k` moves its trailing zeros into the exponent.
@@ -107,6 +134,7 @@ impl Compact {
         Self { m, exp }
     }
 
+    #[cfg(test)]
     pub(crate) fn is_zero(self) -> bool {
         self.m == 0
     }

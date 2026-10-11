@@ -1,18 +1,15 @@
-//! `Exact` through its public surface on the compact tier: the operators by value and by
-//! reference, their checked twins, the named cap, canonical equality, order, and the reads against
-//! IEEE, `Wide` and `Fixed256`. Every test is named `exact_cap_*` so the task verify can filter on
-//! it; the heap tier's tests are `exact_heap_*`.
-//!
-//! The width cap and the special cap are reachable only on a build without the heap tier, which
-//! no test of this package runs on; `tests/noalloc` pins those. The exponent bound is the same on
-//! every build and is pinned here.
+//! `Exact` through its public surface: the operators by value and by reference, their checked
+//! twins, the named cap, canonical equality, order, and the reads against IEEE, `Wide` and
+//! `Fixed256`, on finite inputs. Every test is named `exact_cap_*` so the task verify can filter
+//! on it; `tests/exact_ring.rs` holds the specials and the ring, and `tests/noalloc` the
+//! no-feature build.
 
 use core::cmp::Ordering;
 use float_abel::{Exact, Fixed256, PastCap, Wide, EXACT_MAX_EXP};
 
 use crate::support::{hash, pow2, Rng};
 
-const _: () = assert!(core::mem::size_of::<Exact>() == 24);
+const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 
 fn e(x: f64) -> Exact {
     Exact::from(x)
@@ -20,29 +17,27 @@ fn e(x: f64) -> Exact {
 
 /// `2^(2^30)`, the value at the exponent bound, by squaring `2` thirty times.
 fn at_bound() -> Exact {
-    (0..30).fold(e(2.0), |x, _| &x * &x)
+    (0..30).fold(e(2.0), |x, _| x * x)
 }
 
 #[test]
 fn exact_cap_size_zero_and_constants() {
-    assert_eq!(core::mem::size_of::<Exact>(), 24);
+    assert_eq!(core::mem::size_of::<Exact>(), 32);
     assert_eq!(EXACT_MAX_EXP, 1 << 30);
     assert_eq!(Exact::default(), Exact::ZERO);
     assert!(Exact::ZERO.is_zero());
-    assert!(Exact::ZERO.is_compact());
     assert!(Exact::ZERO.is_finite());
     assert_eq!(Exact::ZERO.to_f64().to_bits(), 0.0f64.to_bits());
     assert_eq!(e(0.0), Exact::ZERO);
     assert_eq!(e(-0.0), Exact::ZERO);
-    assert_eq!(Exact::try_from_f64(1.5), Ok(e(1.5)));
-    assert_eq!(Exact::checked_product(3.0, 0.5), Ok(e(1.5)));
+    assert_eq!(Exact::product(3.0, 0.5), e(1.5));
 }
 
 #[test]
 #[should_panic(expected = "exponent")]
 fn exact_cap_an_operator_past_the_exponent_bound_panics_by_name() {
     let top = at_bound();
-    let _ = &top * &top;
+    let _ = top * top;
 }
 
 #[test]
@@ -54,8 +49,7 @@ fn exact_cap_a_scalar_multiply_past_the_exponent_bound_panics_by_name() {
 #[test]
 fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
     let top = at_bound();
-    let bottom = (0..30).fold(e(0.5), |x, _| &x * &x);
-    assert!(top.is_compact());
+    let bottom = (0..30).fold(e(0.5), |x, _| x * x);
     assert_eq!(top.to_f64(), f64::INFINITY);
     assert_eq!(bottom.to_f64().to_bits(), 0.0f64.to_bits());
     assert_eq!(top.try_to_f64(), None);
@@ -65,22 +59,19 @@ fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
     assert_eq!(top.checked_mul_i64(2), Err(PastCap::Exponent));
     assert_eq!(top.checked_mul_i64(-2), Err(PastCap::Exponent));
     assert_eq!(top.checked_add(&top), Err(PastCap::Exponent));
-    assert_eq!(top.checked_sub(&-top.clone()), Err(PastCap::Exponent));
+    assert_eq!(top.checked_sub(&-top), Err(PastCap::Exponent));
     assert_eq!(bottom.checked_mul(&e(0.5)), Err(PastCap::Exponent));
     // At the bottom a doubling moves the canonical exponent toward zero, so it stays inside.
-    assert_eq!(
-        bottom.checked_add(&bottom).map(|v| v.is_compact()),
-        Ok(true)
-    );
+    assert_eq!(bottom.checked_add(&bottom).map(|v| v.is_finite()), Ok(true));
     // Nothing moved, and the same shapes one step inside the bound hold.
     assert_eq!(top, at_bound());
-    assert_eq!(top.checked_mul(&e(0.5)).map(|v| v.is_compact()), Ok(true));
+    assert_eq!(top.checked_mul(&e(0.5)).map(|v| v.is_finite()), Ok(true));
     assert_eq!(
         top.checked_mul_i64(3).map(|v| v.to_f64()),
         Ok(f64::INFINITY)
     );
     assert_eq!(top.checked_mul(&bottom), Ok(e(1.0)));
-    assert_eq!(&top * &bottom, e(1.0));
+    assert_eq!(top * bottom, e(1.0));
     assert_eq!(top.checked_sub(&top), Ok(Exact::ZERO));
     // A deposit that fits changes the state; one that does not leaves it.
     let mut s = e(1.5);
@@ -90,12 +81,13 @@ fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
     // The cap names itself, and is an error type under std.
     assert!(PastCap::Exponent.to_string().contains("exponent"));
     assert!(PastCap::Width.to_string().contains("width"));
-    assert!(PastCap::Special.to_string().contains("NaN or ±∞"));
+    assert!(PastCap::Count.to_string().contains("count"));
     let _: &dyn std::error::Error = &PastCap::Exponent;
 }
 
 #[test]
 #[allow(clippy::erasing_op)] // scaling by a literal zero is one of the cases under test
+#[allow(clippy::op_ref)] // the reference operators are the surface under test here
 fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
     let mut rng = Rng(30);
     for _ in 0..20_000 {
@@ -111,21 +103,21 @@ fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
         assert_eq!(&(&a + &b) - &b, a);
         assert_eq!(-(-&a), a);
         assert_eq!(&a - &b, &a + &-&b);
-        assert_eq!(a.clone() + b.clone(), &a + &b);
-        assert_eq!(a.clone() - b.clone(), &a - &b);
-        assert_eq!(-a.clone(), -&a);
-        let mut aa = a.clone();
+        assert_eq!(a + b, &a + &b);
+        assert_eq!(a - b, &a - &b);
+        assert_eq!(-a, -&a);
+        let mut aa = a;
         aa += &b;
         aa -= &b;
         assert_eq!(aa, a);
-        aa += b.clone();
-        aa -= b.clone();
+        aa += b;
+        aa -= b;
         assert_eq!(aa, a);
         // Integer scaling is repeated addition.
         assert_eq!(&a * 3i64, &(&a + &a) + &a);
         assert_eq!(&a * -1i64, -&a);
         assert_eq!(&a * 0i64, Exact::ZERO);
-        assert_eq!(a.clone() * 2isize, &a + &a);
+        assert_eq!(a * 2isize, &a + &a);
         assert_eq!(&a * 2isize, &a + &a);
         assert_eq!(&(&a + &b) * 5i64, &(&a * 5i64) + &(&b * 5i64));
         // The ring laws, with 30-bit integer factors so that three products stay inside the
@@ -135,13 +127,13 @@ fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
             e(((rng.next() >> 34) as i64 - (1 << 29)) as f64),
         );
         assert_eq!(&a * &b, &b * &a);
-        assert_eq!(a.clone() * b.clone(), &a * &b);
+        assert_eq!(a * b, &a * &b);
         assert_eq!(&(&a * &p) * &q, &a * &(&p * &q));
         assert_eq!(&a * &(&p + &q), &(&a * &p) + &(&a * &q));
         assert_eq!(&(&a + &b) * &p, &(&a * &p) + &(&b * &p));
         // Sum by value and by reference are the fold.
-        let xs = [a.clone(), b.clone(), cc.clone()];
-        let by_value: Exact = xs.iter().cloned().sum();
+        let xs = [a, b, cc];
+        let by_value: Exact = xs.iter().copied().sum();
         let by_ref: Exact = xs.iter().sum();
         assert_eq!(by_value, &(&a + &b) + &cc);
         assert_eq!(by_ref, by_value);
@@ -153,7 +145,7 @@ fn exact_cap_a_plus_b_minus_b_is_a_on_random_pairs() {
     let mut rng = Rng(31);
     for _ in 0..200_000 {
         let (a, b) = (e(rng.on_grid(-20, 20)), e(rng.on_grid(-20, 20)));
-        assert_eq!(&(&a + &b) - &b, a, "{a:?} + {b:?} - {b:?}");
+        assert_eq!((a + b) - b, a, "{a:?} + {b:?} - {b:?}");
     }
 }
 
@@ -237,7 +229,7 @@ fn exact_cap_reads_round_like_ieee_and_agree_with_wide_and_fixed() {
         let mut p = Exact::ZERO;
         p.deposit_product(a, b);
         assert_eq!(p.to_f64().to_bits(), (a * b).to_bits(), "{a:e} * {b:e}");
-        assert_eq!(p, Exact::checked_product(a, b).unwrap());
+        assert_eq!(p, Exact::product(a, b));
         assert_eq!(p, e(a) * e(b));
         let mut w = Wide::ZERO;
         w.deposit_product(a, b).unwrap();
@@ -266,16 +258,16 @@ fn exact_cap_reads_round_like_ieee_and_agree_with_wide_and_fixed() {
 #[test]
 fn exact_cap_debug_names_the_value_and_the_tier() {
     let s = format!("{:?}", e(1.5));
-    assert!(s.starts_with("Exact(1.5e0; compact"), "{s}");
+    assert!(s.starts_with("Exact(1.5e0; nan 0, +inf 0, -inf 0;"), "{s}");
     assert!(s.contains("0x0:0x3"), "{s}");
     assert!(s.ends_with("2^-1)"), "{s}");
     let n = format!("{:?}", e(-1.5));
     assert!(
-        n.starts_with("Exact(-1.5e0; compact 0xffffffffffffffff:0xfffffffffffffffd"),
+        n.starts_with("Exact(-1.5e0; nan 0, +inf 0, -inf 0; 0xffffffffffffffff:0xfffffffffffffffd"),
         "{n}"
     );
     let x = format!("{:?}", e(0.1) + e(0.2));
     assert!(x.starts_with("Exact(≈3.0000000000000004e-1;"), "{x}");
     let z = format!("{:?}", Exact::ZERO);
-    assert_eq!(z, "Exact(0e0; compact 0x0:0x0 · 2^0)");
+    assert_eq!(z, "Exact(0e0; nan 0, +inf 0, -inf 0; 0x0:0x0 · 2^0)");
 }
