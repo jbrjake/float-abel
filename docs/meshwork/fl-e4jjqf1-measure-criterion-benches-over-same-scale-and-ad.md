@@ -11,7 +11,7 @@ status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-kills
-    sha: 841c721487cc9edb6fb1a507996729b4d649fbe6f26f64245e7e810785d153b5
+    sha: 266f6a0fde1bc6b41fb9520cfa5ae45a331824afea6a57dc86591c019f7edd5c
   - ref: docs/DESIGN.md#sp-measured
     sha: 89ea84a0312ebdcc5029dad6491cfdafdf63357bd90ce2e32b1f7ef460c515ec
 ---
@@ -26,3 +26,5 @@ Advisory, never a gate. The kill conditions read from here.
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-kills @841c721487cc
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-measured @89ea84a0312e
+- 2026-10-11T18:13Z cover docs/DESIGN.md#sp-kills @266f6a0fde1b
+- 2026-10-11T18:13Z cover docs/DESIGN.md#sp-measured @89ea84a0312e

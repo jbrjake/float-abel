@@ -11,7 +11,7 @@ status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-dbsp
-    sha: 5900331b1262f50cbb19571412ad658f7b8c33091137bb635e9fc6f7b0edf875
+    sha: 333ac4495b0d8de25950bbf75aa10f3ad8bcae9ad69833a7e81a47581f01f083
 ---
 
 The impls per DESIGN.md § DBSP, against dbsp 0.364.0 on rustc 1.99.0. The design's recorded probe ran
@@ -29,6 +29,7 @@ The verify is shell because the DSL's `run` takes no toolchain and no `--feature
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-dbsp @89f0f9880ba8
 - 2026-10-11T16:06Z cover docs/DESIGN.md#sp-dbsp @5900331b1262
+- 2026-10-11T18:13Z cover docs/DESIGN.md#sp-dbsp @333ac4495b0d
 
 ## comments
 - 2026-10-11T15:55Z [claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)] Toolchain probe, 2026-10-11, scratch crate depending on dbsp with a one-line lib: dbsp 0.356.0 and 0.364.0 (current; both declare rust-version 1.96.1) ICE in rustc 1.97.1 and 1.98.0-beta.6 at rustc_next_trait_solver/src/solve/assembly/structural_traits.rs:1005 ('could not replace AliasTerm', vtable slot of operator::dynamic::multijoin::star_join::StarJoinFuncTrait). dbsp 0.364.0 builds on 1.96.1 and on 1.99.0 (current stable; Feldera's own rust-toolchain.toml pins 1.99.0). So DESIGN.md § Crate posture's 'builds only on rustc 1.96.1' is stale: 1.97 and 1.98 ICE, 1.96.1 and 1.99 build. Owner's call whether the dbsp CI job and CLAUDE.md move the pin to 1.99.0; the 0.356.0 probe was run on 1.96.1 and would be re-run there first.

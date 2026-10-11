@@ -75,6 +75,7 @@ handoff: |
   `CARGO_TARGET_DIR` is set outside
   ~/Documents by the repo's `.claude/settings.local.json`; export it by
   hand elsewhere.
+relates: [fl-zs79ct9, fl-nna1djz, fl-te1748m, fl-cfx001b]
 ---
 Owner's ruling, 2026-10-11, asked whether the bounds ruling extends to `Wide`'s and `Fixed`'s
 headroom budgets and `Wide`'s special counters, which wrap silently in release: "Yes, check in

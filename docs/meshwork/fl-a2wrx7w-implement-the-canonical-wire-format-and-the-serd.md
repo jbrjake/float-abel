@@ -11,7 +11,7 @@ status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-wire
-    sha: 29c92597605490927ffd107afd12b7afd03641bdb17d98526a3f7cc7ae4c02f4
+    sha: ed67fb6c74a2f5d25395ee4cc391ead8d530b72592a9d5ea223a9ce4123ad2f3
 ---
 Per DESIGN.md § Wire format: `FORMAT.md` in bitrep's style; `to_bytes` and `from_bytes` on all three
 exact types; `serde` behind its feature, encoding the same bytes.
@@ -25,3 +25,4 @@ Tests `wire_*`:
 ## log
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-wire @29c925976054
+- 2026-10-11T18:13Z cover docs/DESIGN.md#sp-wire @ed67fb6c74a2
