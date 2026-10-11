@@ -35,5 +35,7 @@ mod fixed;
 mod ieee;
 mod limbs;
 mod round;
+mod wide;
 
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
+pub use wide::Wide;

@@ -116,6 +116,24 @@ fn compose(kept: u64, weight: i32, fmt: Format) -> (u64, bool) {
     }
 }
 
+/// The correctly rounded quotient `(-1)^negative · mag · 2^exp / n` as a double, with IEEE's
+/// answers for a zero divisor: `0/0` is NaN and `x/0` is `±∞`. Every tier's `div_f64` ends here.
+pub(crate) fn div_f64(negative: bool, mag: &[u64], exp: i32, n: u64) -> f64 {
+    if limbs::is_zero(mag) {
+        return if n == 0 { f64::NAN } else { 0.0 };
+    }
+    if n == 0 {
+        return if negative {
+            f64::NEG_INFINITY
+        } else {
+            f64::INFINITY
+        };
+    }
+    let (window, exp, sticky) = div_window(mag, exp, n);
+    let (bits, _) = round(negative, &window, exp, sticky, F64);
+    f64::from_bits(bits)
+}
+
 /// The three-limb quotient window of `mag / n` with its exponent and sticky bit, ready for
 /// [`round`]: `(window, exp, sticky)` with `window · 2^exp` the truncated quotient and `sticky`
 /// whether anything was truncated. `mag` is nonzero and `n` is nonzero.

@@ -8,42 +8,10 @@
 use core::cmp::Ordering;
 use float_abel::{Fixed, Fixed256, OutOfWindow};
 
-/// splitmix64: a deterministic stream for the randomised tests.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    /// A normal double with its leading bit at 2^e for e in [lo, hi), a full random fraction, and
-    /// either sign. Its lowest bit is at or above 2^(lo - 52), so lo ≥ -44 keeps it on
-    /// `Fixed256`'s grid.
-    fn on_grid(&mut self, lo: i32, hi: i32) -> f64 {
-        let e = lo + (self.next() % (hi - lo) as u64) as i32;
-        let frac = self.next() >> 12;
-        let x = f64::from_bits(((e + 1023) as u64) << 52 | frac);
-        if self.next() & 1 == 0 {
-            x
-        } else {
-            -x
-        }
-    }
-}
+use crate::support::{hash, Rng};
 
 fn dep(x: f64) -> Fixed256 {
     Fixed256::try_from(x).unwrap_or_else(|e| panic!("{x:e} refused: {e}"))
-}
-
-fn h<T: core::hash::Hash>(t: &T) -> u64 {
-    use core::hash::Hasher;
-    let mut s = std::collections::hash_map::DefaultHasher::new();
-    t.hash(&mut s);
-    s.finish()
 }
 
 const _: () = assert!(core::mem::size_of::<Fixed256>() == 32);
@@ -326,7 +294,7 @@ fn fixed_order_is_numeric_and_total() {
     // Structural Eq is numeric equality: two routes to one value are one state.
     assert_eq!(dep(0.5) + dep(0.25), dep(0.75));
     assert_eq!(dep(3.0) - dep(1.0), dep(1.0) + dep(1.0));
-    assert_eq!(h(&(dep(0.5) + dep(0.25))), h(&dep(0.75)));
+    assert_eq!(hash(&(dep(0.5) + dep(0.25))), hash(&dep(0.75)));
 }
 
 #[test]

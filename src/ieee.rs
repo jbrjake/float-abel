@@ -17,6 +17,29 @@ const FRAC_BITS: u32 = 52;
 const FRAC_MASK: u64 = (1 << FRAC_BITS) - 1;
 const EXP_MASK: u64 = 0x7FF;
 
+/// Which non-finite value a double is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Special {
+    /// Any NaN, whatever its sign or payload.
+    Nan,
+    PosInf,
+    NegInf,
+}
+
+/// The special a non-finite double is, by its bits. The caller has seen [`decompose`] return
+/// `None` for it.
+pub(crate) fn special(x: f64) -> Special {
+    let bits = x.to_bits();
+    debug_assert_eq!((bits >> FRAC_BITS) & EXP_MASK, EXP_MASK, "{x} is finite");
+    if bits & FRAC_MASK != 0 {
+        Special::Nan
+    } else if bits >> 63 != 0 {
+        Special::NegInf
+    } else {
+        Special::PosInf
+    }
+}
+
 /// The dyadic a finite double denotes, or `None` for NaN and ±∞.
 pub(crate) fn decompose(x: f64) -> Option<Dyadic> {
     let bits = x.to_bits();
@@ -64,10 +87,15 @@ mod tests {
     }
 
     #[test]
-    fn specials_are_none() {
+    fn specials_are_none_and_classified_by_their_bits() {
         assert_eq!(decompose(f64::NAN), None);
         assert_eq!(decompose(f64::INFINITY), None);
         assert_eq!(decompose(f64::NEG_INFINITY), None);
+        assert_eq!(special(f64::NAN), Special::Nan);
+        assert_eq!(special(-f64::NAN), Special::Nan);
+        assert_eq!(special(f64::from_bits(0x7FF0_0000_0000_0001)), Special::Nan);
+        assert_eq!(special(f64::INFINITY), Special::PosInf);
+        assert_eq!(special(f64::NEG_INFINITY), Special::NegInf);
     }
 
     #[test]

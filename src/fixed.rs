@@ -210,19 +210,7 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
     pub fn div_f64(&self, n: u64) -> f64 {
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);
-        if limbs::is_zero(&mag) {
-            return if n == 0 { f64::NAN } else { 0.0 };
-        }
-        if n == 0 {
-            return if negative {
-                f64::NEG_INFINITY
-            } else {
-                f64::INFINITY
-            };
-        }
-        let (window, exp, sticky) = round::div_window(&mag, LSB, n);
-        let (bits, _) = round::round(negative, &window, exp, sticky, round::F64);
-        f64::from_bits(bits)
+        round::div_f64(negative, &mag, LSB, n)
     }
 }
 
@@ -233,7 +221,7 @@ impl<const LSB: i32, const LIMBS: usize> Default for Fixed<LSB, LIMBS> {
 }
 
 /// A limb printed in hex inside a `Debug` list.
-struct Hex(u64);
+pub(crate) struct Hex(pub(crate) u64);
 
 impl fmt::Debug for Hex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
