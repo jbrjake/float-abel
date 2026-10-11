@@ -9,15 +9,15 @@ docs:
   - docs/DESIGN.md#wire-format-sp-wire
 verify: "all(contains src/wide.rs /#\\[repr\\(C\\)\\]/, contains src/fixed.rs /#\\[repr\\(C\\)\\]/, run cargo test package=float-abel layout_)"
 seq: 46
-status: open
+status: done
 created: 2026-10-11T18:00Z
 covers:
   - ref: docs/DESIGN.md#sp-wide
-    sha: 29ff969fbdb9994b87f98cdf5047fc40d02a85e7365f89961f6ec757d3ac0938
+    sha: 042c936808fad8b65d4e13c22945487a7f2064e4a1dea970ffb36bd27229639c
   - ref: docs/DESIGN.md#sp-fixed
-    sha: 385c1a5a6100ff95663098763fc307bd8803a39c59961b6ba457d51b20c82302
+    sha: 3410003c5e12f3113eea477968636054bd867d83f6b11d2f6c472c5c6aa56b95
   - ref: docs/DESIGN.md#sp-wire
-    sha: ed67fb6c74a2f5d25395ee4cc391ead8d530b72592a9d5ea223a9ce4123ad2f3
+    sha: 10a66b73f9bdbcdef33cbfaca33d2deeff1e32a52775100d4759890a318552f6
 ---
 Owner's ruling, 2026-10-11: "i cannot stress enough the paramount importance of zero-copy here";
 "copy/alloc has to be limited to only the bare necessities. the normal path needs to be zero copy
@@ -46,3 +46,8 @@ it structurally.
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wire @ed67fb6c74a2
 - 2026-10-11T18:26Z cover docs/DESIGN.md#sp-fixed @385c1a5a6100
 - 2026-10-11T18:28Z cover docs/DESIGN.md#sp-wide @29ff969fbdb9
+- 2026-10-11T18:30Z open→doing — claimed by claude (0f58a8d2-1e20-4d5a-ab10-caf961d3912f)
+- 2026-10-11T18:33Z cover docs/DESIGN.md#sp-fixed @3410003c5e12
+- 2026-10-11T18:33Z cover docs/DESIGN.md#sp-wide @042c936808fa
+- 2026-10-11T18:33Z cover docs/DESIGN.md#sp-wire @10a66b73f9bd
+- 2026-10-11T18:33Z doing→done — verify exit 0 @ 0db8f46+2
