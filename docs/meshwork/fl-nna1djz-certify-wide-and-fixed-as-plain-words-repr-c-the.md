@@ -15,7 +15,7 @@ covers:
   - ref: docs/DESIGN.md#sp-wide
     sha: f9cd0e6f7109063e08dd1b3fcadc03a4951424efd48c72a6412ff3e1cfdebdb8
   - ref: docs/DESIGN.md#sp-fixed
-    sha: 8fa2eadaab9aab115d1312b30e795f024b3b0fcdf571a7817f12502a4690e1ae
+    sha: 385c1a5a6100ff95663098763fc307bd8803a39c59961b6ba457d51b20c82302
   - ref: docs/DESIGN.md#sp-wire
     sha: ed67fb6c74a2f5d25395ee4cc391ead8d530b72592a9d5ea223a9ce4123ad2f3
 ---
@@ -44,3 +44,4 @@ it structurally.
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wide @f9cd0e6f7109
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-fixed @8fa2eadaab9a
 - 2026-10-11T18:12Z cover docs/DESIGN.md#sp-wire @ed67fb6c74a2
+- 2026-10-11T18:26Z cover docs/DESIGN.md#sp-fixed @385c1a5a6100
