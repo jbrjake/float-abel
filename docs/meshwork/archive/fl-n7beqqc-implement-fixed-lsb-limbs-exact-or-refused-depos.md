@@ -7,7 +7,7 @@ docs: [docs/DESIGN.md#fixed-sp-fixed]
 needs: [fl-1dw33g3]
 seq: 20
 verify: run cargo test package=float-abel fixed_
-status: open
+status: done
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-fixed
@@ -26,3 +26,5 @@ Tests `fixed_*`:
 ## log
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-fixed @8fa2eadaab9a
+- 2026-10-11T15:44Z open→doing — claimed by claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)
+- 2026-10-11T15:59Z doing→done — verify exit 0 @ d597ae5+2

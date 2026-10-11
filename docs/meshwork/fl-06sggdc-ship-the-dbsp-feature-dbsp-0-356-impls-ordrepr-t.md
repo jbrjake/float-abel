@@ -24,3 +24,6 @@ The verify is shell because the DSL's `run` takes no toolchain and no `--feature
 ## log
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-dbsp @89f0f9880ba8
+
+## comments
+- 2026-10-11T15:55Z [claude (85c2609c-6abc-4455-b7f3-6c1c79eda92c)] Toolchain probe, 2026-10-11, scratch crate depending on dbsp with a one-line lib: dbsp 0.356.0 and 0.364.0 (current; both declare rust-version 1.96.1) ICE in rustc 1.97.1 and 1.98.0-beta.6 at rustc_next_trait_solver/src/solve/assembly/structural_traits.rs:1005 ('could not replace AliasTerm', vtable slot of operator::dynamic::multijoin::star_join::StarJoinFuncTrait). dbsp 0.364.0 builds on 1.96.1 and on 1.99.0 (current stable; Feldera's own rust-toolchain.toml pins 1.99.0). So DESIGN.md § Crate posture's 'builds only on rustc 1.96.1' is stale: 1.97 and 1.98 ICE, 1.96.1 and 1.99 build. Owner's call whether the dbsp CI job and CLAUDE.md move the pin to 1.99.0; the 0.356.0 probe was run on 1.96.1 and would be re-run there first.
