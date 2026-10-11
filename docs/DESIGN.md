@@ -222,9 +222,12 @@ set, allocator or not.
 
 `Copy`: `[u64; 34]` two's complement in units of 2⁻¹⁰⁷⁴ plus `[i64; 3]` special counters, 296 bytes.
 Its limb layout is bitrep's, so bitrep's finite-only conformance vectors apply to `Wide`'s limbs
-directly. It is a group with `Mul<i64>`, and it never allocates and never refuses.
-`Wide` has the *fastest* add of any tier; its cost is bytes, not time. That suits a per-key aggregate
-slot, and not a per-update diff, where a batch of 10⁷ updates would carry 2.9 GB of weights.
+directly. It is a group with `Mul<i64>`, and it never allocates; `From<f64>` is total, and the one
+refusal is `deposit_product` on a product outside its window, by name: a set bit below 2⁻¹⁰⁷⁴ is
+`OutOfWindow::OffGrid`, a magnitude at or past 2¹⁰³⁷ is `OutOfWindow::AboveCeiling`, and the state is
+untouched. `Wide` has the *fastest* add of any tier; its cost is bytes, not time. That suits a
+per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates would carry 2.9 GB
+of weights.
 
 ### Fixed {#sp-fixed}
 
@@ -256,10 +259,14 @@ no `Neg`, no `Sub`, no `Semigroup` and no `HasZero`, and a `trybuild` compile-fa
 
 `Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash`; `Add, AddAssign, Sub, SubAssign, Neg,
 Sum`; `Mul<i64>`, `Mul<isize>`; for `Exact` also `Mul<Exact>`. `From<f64>` is total on `Exact` and `Wide`, with
-specials counted; `TryFrom<f64>` on `Fixed`. `deposit_product(a: f64, b: f64)` deposits
-the exact 106-bit product on every tier (refused on `Fixed` when it is off-grid). That is the
-join-fold and dot-product shape, without a float multiply anywhere. `is_zero()`, `is_finite()` and
-`specials()` read the state.
+specials counted; `TryFrom<f64>` on `Fixed`. `deposit_product(a: f64, b: f64)` deposits the exact
+106-bit product, the join-fold and dot-product shape, without a float multiply anywhere. It is
+refused by name on `Fixed` and `Wide` when the product lies outside the tier's window: a set bit
+below the unit is `OutOfWindow::OffGrid`, a magnitude at or past the ceiling is
+`OutOfWindow::AboveCeiling`, and the state is untouched. `Fixed` also refuses a special factor as
+`NotFinite`, where `Wide` counts it. `Exact` is the tier that holds every product: `deposit_product`
+is total there, with only the named cap, and `checked_deposit_product` returns the cap instead.
+`is_zero()`, `is_finite()` and `specials()` read the state.
 
 Conversions between tiers: `Wide: From<Fixed<..>>` is exact; `Exact: TryFrom<&Wide>` and
 `Exact: TryFrom<&Fixed<..>>` refuse past the width; `Wide::try_from(&Exact)` refuses past the sum range. `Binned<K>::into_wide`
