@@ -106,6 +106,7 @@ handoff: |
   portfolio ask fl-cfx001b is still open. `CARGO_TARGET_DIR` is set
   outside ~/Documents by the
   repo's `.claude/settings.local.json`.
+relates: [fl-a2wrx7w, fl-6shtzpj, fl-v7t6xhz, fl-cfx001b]
 ---
 Per DESIGN.md § Reads and rounding. `scripts/gen_rounding_vectors.py` (committed; it uses
 `fractions.Fraction`, `float()`, and `struct` for `f32`) writes `tests/data/rounding_vectors.json`.
