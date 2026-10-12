@@ -7,7 +7,13 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+# An ignore names one advisory with the crate it is about and why it stands, never a blanket skip.
+ignore = [
+    # bincode 1.3.3 is "unmaintained": its team stopped and calls 1.3.3 complete. It is the encoding
+    # the differential-dataflow adapter rides (DESIGN.md § Wire format), and here a dev-dependency
+    # whose fixed-int bytes tests/wire.rs asserts equal `to_bytes`.
+    { id = "RUSTSEC-2025-0141", reason = "bincode 1.3.3 is complete and is the adapter's wire; dev-dependency" },
+]
 
 # Only licences the tree actually carries; cargo-deny warns on an allowance nothing uses, so a new
 # dependency's licence is added here with it.
