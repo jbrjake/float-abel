@@ -29,7 +29,7 @@ fn noalloc_a_binned_fold_lands_in_wide_without_std() {
     assert_eq!(forward.index(), 18);
     assert_eq!(w.to_binned::<3>().index(), 16);
     let mut finite = forward;
-    finite = finite + Binned::from(0.0);
+    finite += Binned::from(0.0);
     assert_eq!(finite, forward);
     assert_eq!(
         Wide::from(0.5).to_binned::<3>().into_wide(),
