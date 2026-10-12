@@ -62,7 +62,7 @@ fn fold<const K: usize>(xs: &[f64]) -> Binned<K> {
     b
 }
 
-fn shuffle(rng: &mut Rng, xs: &mut [f64]) {
+pub(crate) fn shuffle<T>(rng: &mut Rng, xs: &mut [T]) {
     for i in (1..xs.len()).rev() {
         let j = (rng.next() % (i as u64 + 1)) as usize;
         xs.swap(i, j);
@@ -70,7 +70,7 @@ fn shuffle(rng: &mut Rng, xs: &mut [f64]) {
 }
 
 /// Same bits, by every reading the type offers.
-fn assert_same_bits<const K: usize>(a: &Binned<K>, b: &Binned<K>, what: &str) {
+pub(crate) fn assert_same_bits<const K: usize>(a: &Binned<K>, b: &Binned<K>, what: &str) {
     assert_eq!(a.index(), b.index(), "{what}: index");
     assert_eq!(a.specials(), b.specials(), "{what}: specials");
     assert_eq!(a, b, "{what}: structural");

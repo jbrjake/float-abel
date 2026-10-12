@@ -13,6 +13,7 @@
 )]
 
 mod binned;
+mod binned_product;
 mod convert;
 mod differential;
 mod exact_cap;

@@ -17,10 +17,13 @@ use core::fmt;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign};
 
-use crate::fixed::Hex;
-use crate::ieee::{self, NAN, NEG_INF, POS_INF};
+use crate::fixed::{Hex, OutOfWindow};
+use crate::ieee::{
+    self, factor, special_times_finite, special_times_special, Dyadic, Factor, NAN, NEG_INF,
+    POS_INF,
+};
 use crate::limbs;
-use crate::wide::Wide;
+use crate::wide::{Wide, CEILING_BITS};
 
 /// The batch-only adaptive tier: `K` bins on [`Wide`]'s limb grid, an index and the special
 /// counters. Constant size and the full `f64` range, at the price of the group laws: a fold is
@@ -42,10 +45,18 @@ use crate::wide::Wide;
 /// the bits, not the value, because the zero is not unique: a fold that cancelled keeps the
 /// index its largest input set.
 ///
+/// [`Binned::deposit_product`] and [`Binned::deposit_products`] slice the exact 106-bit product
+/// onto the bins the same way, with the product's sign: the dot-product shape on the batch tier.
+/// The unit is the floor of every window, so the bits below `2^-1074` that `Wide` refuses are
+/// dropped here like any other below the lowest bin, and the one refusal is the ceiling, `Wide`'s
+/// `2^1037`, by name.
+///
 /// The error: `|S − Σxⱼ| ≤ n · 2^(−64(K−1)) · max|xⱼ|`, plus one rounding on the read. The
 /// lowest kept bit lies at most `64(K−1)` below the top bit of the largest input, and each input
-/// loses less than one unit of it. [`Binned::into_wide`] is exact, and the read goes through
-/// `Wide`. There is no wire form: a batch result crosses a boundary as the `Wide` it converts to.
+/// loses less than one unit of it. For products the lowest kept bit is also never below the
+/// unit, so the term has a floor: `n · max(2^(−64(K−1)) · max|aⱼbⱼ|, 2^-1074)`.
+/// [`Binned::into_wide`] is exact, and the read goes through `Wide`. There is no wire form: a
+/// batch result crosses a boundary as the `Wide` it converts to.
 ///
 /// A plain word: `Copy`, `repr(C)`, `16·K + 32` bytes (the `i16` index is padded to a word) with
 /// alignment 8, pinned by a `const` assertion, and nothing allocates. The carries are the one
@@ -138,7 +149,9 @@ impl<const K: usize> Binned<K> {
         match ieee::decompose(x) {
             Some(d) if d.mant == 0 => {}
             // A finite double's lowest bit is at or above the unit, so the shift is never negative.
-            Some(d) => self.deposit_finite(d.negative, d.mant, (d.exp - Wide::LSB) as u32),
+            Some(d) => {
+                self.deposit_finite(d.negative, u128::from(d.mant), (d.exp - Wide::LSB) as u32);
+            }
             None => self.bump(ieee::counter(ieee::special(x)), 1),
         }
     }
@@ -150,22 +163,82 @@ impl<const K: usize> Binned<K> {
         }
     }
 
-    /// Adds `(-1)^negative · mant · 2^(shift + Wide::LSB)`, `mant` odd and below `2⁵³`.
-    fn deposit_finite(&mut self, negative: bool, mant: u64, shift: u32) {
-        let top = (shift + 63 - mant.leading_zeros()) / 64;
+    /// Adds the exact product of two doubles, truncated below the window: the full 106-bit
+    /// mantissa product, without a floating-point multiply, taken apart at `Wide`'s limb
+    /// boundaries into up to three slices and added to their bins with the product's sign. This
+    /// is the join-fold and dot-product shape on the batch tier.
+    ///
+    /// The unit is the floor of every window, so a product with set bits below `2^-1074`, which
+    /// [`Wide::deposit_product`] refuses as `OffGrid`, drops those bits here like any other below
+    /// the lowest bin and keeps the rest; one wholly below the unit deposits nothing and moves
+    /// nothing. A special factor follows `Wide`'s rule with a unit count: a NaN factor adds one
+    /// NaN, two infinities add one `+∞` when their signs agree and one `−∞` when they differ, and
+    /// an infinity times a nonzero finite factor adds `±1` to that infinity's counter by the
+    /// finite factor's sign. A zero factor makes the product an exact zero whatever the other
+    /// factor is, so `0 · ∞` and `0 · NaN` deposit nothing.
+    ///
+    /// # Errors
+    ///
+    /// A finite product at or beyond `2^Wide::CEILING_EXP` is [`OutOfWindow::AboveCeiling`],
+    /// and the state is unchanged. The ceiling is `Wide`'s because it is what keeps
+    /// [`Binned::into_wide`] inside `Wide`'s width: under it the top bin is `Wide` limb 32 at
+    /// most, and `2⁶⁴` such products, where that bin's carry runs out, stay under `2²¹⁷⁵` units.
+    /// `OffGrid` and `NotFinite` never occur.
+    pub fn deposit_product(&mut self, a: f64, b: f64) -> Result<(), OutOfWindow> {
+        if let Some(p) = product(a, b)? {
+            self.apply(p);
+        }
+        Ok(())
+    }
+
+    /// Adds every product `a[i] · b[i]`, as [`Binned::deposit_product`] would one pair at a
+    /// time, or none of them: every pair is checked against the ceiling first, so a refusal
+    /// leaves the state as it was.
+    ///
+    /// # Errors
+    ///
+    /// [`OutOfWindow::AboveCeiling`] if any product reaches the ceiling, and nothing is deposited.
+    ///
+    /// # Panics
+    ///
+    /// If the slices differ in length.
+    pub fn deposit_products(&mut self, a: &[f64], b: &[f64]) -> Result<(), OutOfWindow> {
+        assert_eq!(
+            a.len(),
+            b.len(),
+            "Binned: deposit_products takes two slices of one length"
+        );
+        for (&x, &y) in a.iter().zip(b) {
+            product(x, y)?;
+        }
+        for (&x, &y) in a.iter().zip(b) {
+            // Every pair passed the check above, so this never returns early.
+            self.deposit_product(x, y)?;
+        }
+        Ok(())
+    }
+
+    fn apply(&mut self, p: Product) {
+        match p {
+            Product::Finite(negative, mant, shift) => self.deposit_finite(negative, mant, shift),
+            Product::Special(which, by) => self.bump(which, by),
+        }
+    }
+
+    /// Adds `(-1)^negative · mant · 2^(shift + Wide::LSB)`, `mant` nonzero and under the ceiling.
+    /// The magnitude occupies `Wide` limb `shift / 64` and up to two above it: a double crosses at
+    /// most one boundary, a 106-bit product at most two.
+    fn deposit_finite(&mut self, negative: bool, mant: u128, shift: u32) {
+        let top = (shift + 127 - mant.leading_zeros()) / 64;
         if top as i16 > self.index {
             self.raise(top as i16);
         }
-        // The magnitude occupies Wide limb `q`, and `q + 1` when its 53 bits cross the boundary.
-        let q = shift / 64;
-        let off = shift % 64;
-        let (low, high) = if off == 0 {
-            (mant, 0)
-        } else {
-            (mant << off, mant >> (64 - off))
-        };
+        let mut words = [0u64; 3];
+        limbs::set_shifted(&mut words, mant, shift % 64);
+        let q = (shift / 64) as i32;
         let bottom = i32::from(self.index) - K as i32 + 1;
-        for (limb, word) in [(q as i32, low), (q as i32 + 1, high)] {
+        for (i, &word) in words.iter().enumerate() {
+            let limb = q + i as i32;
             // Below the window is dropped; above it cannot happen, since `top ≤ index`.
             if word != 0 && limb >= bottom {
                 self.add_to_bin((limb - bottom) as usize, word, negative);
@@ -218,7 +291,8 @@ impl<const K: usize> Binned<K> {
     ///
     /// If the value does not fit `Wide`'s width. A fold of doubles never reaches that: its value
     /// is at most the count times the largest magnitude, inside `Wide`'s budget of `2⁷⁷` deposits
-    /// of `f64::MAX`, and the carries cap the count at `2⁶³`.
+    /// of `f64::MAX`, and the carries cap the count at `2⁶³`. Nor does a fold of products: `2⁶⁴`
+    /// of them under the ceiling fit the width, and the top bin's carry is spent by then.
     #[must_use]
     pub fn into_wide(self) -> Wide {
         // One limb more than Wide, so that the top bin's carry has a slot and the fit is checked
@@ -251,6 +325,59 @@ impl<const K: usize> Binned<K> {
         wide.copy_from_slice(&acc[..Wide::LIMBS]);
         Wide::from_parts(wide, self.specials)
     }
+}
+
+/// What one product deposits once taken apart: `Finite(negative, mant, shift)`, a magnitude on
+/// the grid with its sign, or `Special(which, by)`, an amount for a counter.
+#[derive(Clone, Copy)]
+enum Product {
+    Finite(bool, u128, u32),
+    Special(usize, i64),
+}
+
+/// The product of two doubles as `Binned` deposits it: `None` when a zero factor or a product
+/// wholly below the unit leaves nothing to add, and the ceiling refused by name.
+fn product(a: f64, b: f64) -> Result<Option<Product>, OutOfWindow> {
+    match (factor(a), factor(b)) {
+        (Factor::Finite(da), Factor::Finite(db)) => finite_product(da, db),
+        (Factor::Finite(d), Factor::Special(_)) | (Factor::Special(_), Factor::Finite(d))
+            if d.mant == 0 =>
+        {
+            Ok(None)
+        }
+        (Factor::Finite(d), Factor::Special(s)) | (Factor::Special(s), Factor::Finite(d)) => {
+            let (which, by) = special_times_finite(s, d.negative);
+            Ok(Some(Product::Special(which, by)))
+        }
+        (Factor::Special(s), Factor::Special(t)) => {
+            Ok(Some(Product::Special(special_times_special(s, t), 1)))
+        }
+    }
+}
+
+/// The 106-bit product on the grid: the bits below the unit dropped, then the ceiling checked.
+fn finite_product(da: Dyadic, db: Dyadic) -> Result<Option<Product>, OutOfWindow> {
+    let mant = u128::from(da.mant) * u128::from(db.mant);
+    // A finite double's exponent lies within ±1074, so the sum less the unit's is well inside i32.
+    let shift = da.exp + db.exp - Wide::LSB;
+    // Below the unit is below every window: those bits go the way of any bit below the lowest
+    // bin, and a shift past the width leaves nothing.
+    let (mant, shift) = if shift < 0 {
+        (mant.checked_shr(shift.unsigned_abs()).unwrap_or(0), 0)
+    } else {
+        (mant, shift as u32)
+    };
+    if mant == 0 {
+        return Ok(None);
+    }
+    if u64::from(128 - mant.leading_zeros()) + u64::from(shift) > CEILING_BITS {
+        return Err(OutOfWindow::AboveCeiling);
+    }
+    Ok(Some(Product::Finite(
+        da.negative != db.negative,
+        mant,
+        shift,
+    )))
 }
 
 impl Wide {

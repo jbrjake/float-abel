@@ -4,8 +4,9 @@
 //! sets and 10⁴ seeded random multisets from the stream frozen in stream.rs. Each multiset goes
 //! through every tier: `Wide` with its group ops, its reads and its view as a `Binned`; a `Binned`
 //! fold with its bins and the `Wide` it converts to, since `Binned` has no wire form; `Fixed256`
-//! and `Exact` with every input accepted or refused by name; the conversions between them; and the
-//! 106-bit product on each. Every integer enters the digest little-endian, every double as its
+//! and `Exact` with every input accepted or refused by name; the conversions between them; the
+//! 106-bit product on each; and the batch tier's dot product of the multiset with its own reverse.
+//! Every integer enters the digest little-endian, every double as its
 //! bits and every refusal as one tag byte, so a difference on a big-endian target is the crate's,
 //! never this file's. Every test is named `golden_*`.
 //!
@@ -37,7 +38,7 @@ const MULTISETS: u64 = 10_000;
 /// seed and the record layout, and both are asserted before the hash because a different count of
 /// records is a more legible finding than a different hash.
 const ELEMENTS: u64 = 325_745;
-const BYTES: u64 = 54_447_214;
+const BYTES: u64 = 60_470_210;
 /// The batch tier's width here: three bins, the design's default.
 const K: usize = 3;
 
@@ -202,12 +203,14 @@ struct Stats {
     cases: usize,
     multisets: u64,
     elements: u64,
-    /// Inputs `Fixed256` refused, products `Wide` and `Fixed256` refused, and inputs `Exact`
-    /// refused: each path must have been taken, so each is asserted positive. A product deposit
-    /// on `Exact::ZERO` never refuses (two doubles' product fits the width) and is not counted.
+    /// Inputs `Fixed256` refused, products `Wide`, `Fixed256` and `Binned` refused, and inputs
+    /// `Exact` refused: each path must have been taken, so each is asserted positive. A product
+    /// deposit on `Exact::ZERO` never refuses (two doubles' product fits the width) and is not
+    /// counted.
     fixed_refused: u64,
     wide_products_refused: u64,
     fixed_products_refused: u64,
+    binned_products_refused: u64,
     exact_refused: u64,
     bytes: u64,
 }
@@ -374,6 +377,18 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         Some(()) => t.fixed(&fixed_product),
         None => s.fixed_products_refused += 1,
     }
+    let mut binned_product = Binned::<K>::ZERO;
+    match t.result(binned_product.deposit_product(first, last)) {
+        Some(()) => t.binned(&binned_product),
+        None => s.binned_products_refused += 1,
+    }
+    // The multiset's dot product with its own reverse through the bulk entry, or its refusal.
+    let reversed: Vec<f64> = xs.iter().rev().copied().collect();
+    let mut dot = Binned::<K>::ZERO;
+    match t.result(dot.deposit_products(xs, &reversed)) {
+        Some(()) => t.binned(&dot),
+        None => s.binned_products_refused += 1,
+    }
     let mut exact_product = Exact::ZERO;
     if t.result(exact_product.checked_deposit_product(first, last))
         .is_some()
@@ -412,6 +427,7 @@ fn golden_hash_matches_the_committed_claim() {
         s.fixed_refused > 0
             && s.wide_products_refused > 0
             && s.fixed_products_refused > 0
+            && s.binned_products_refused > 0
             && s.exact_refused > 0,
         "every refusal path is in the transcript: {s:?}"
     );

@@ -18,8 +18,9 @@ const LIMBS: usize = 34;
 /// The unit is the smallest subnormal, so every finite double is a whole number of units.
 const LSB: i32 = -1074;
 /// Bits a product's magnitude may occupy, in units: the width less a sign bit and 64 bits of
-/// headroom. A finite double needs at most 2098, so only products can reach it.
-const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
+/// headroom. A finite double needs at most 2098, so only products can reach it. `Binned` shares
+/// it, because it is also what keeps a fold of products inside this width.
+pub(crate) const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 
 /// An exact abelian group of every `f64`, specials included: `[u64; 34]` two's complement in
 /// units of `2^-1074` for the finite sum, and `[i64; 3]` signed counts of the NaN, +∞ and −∞

@@ -264,7 +264,16 @@ The error bound, derived the way the paper derives its own, is
 `|S − Σxⱼ| ≤ n · 2^(−64(K−1)) · max|xⱼ|` plus one final rounding: the lowest kept bit lies at most
 64(K−1) below the top bit of the largest input, and each input loses less than one unit of it. At
 K=3 that is `n·2⁻¹²⁸·max|xⱼ|`, tighter than the paper's `n·2⁻⁸⁰` at the same three words, because a
-limb is 64 bits where a double bin is 40. `into_wide()` places the K bins at `index`, exactly.
+limb is 64 bits where a double bin is 40. `deposit_product(a, b)` and
+`deposit_products(&[f64], &[f64])` slice the exact 106-bit product onto the bins the same way, with
+the product's sign, into up to three bins. The unit is the floor of every window, so the bits below
+2⁻¹⁰⁷⁴ that `Wide` refuses as `OffGrid` are dropped here like any other below the lowest bin, a
+product wholly below the unit deposits nothing, and the bound for products carries that floor:
+`n · max(2^(−64(K−1)) · max|aⱼbⱼ|, 2⁻¹⁰⁷⁴)`. The one refusal is the ceiling, `Wide`'s 2¹⁰³⁷, as
+`AboveCeiling` with the state untouched, because under it the top bin is `Wide` limb 32 at most and
+2⁶⁴ such products, where that bin's carry runs out, still fit `Wide`'s width; `deposit_products`
+checks every pair first, so a refusal deposits nothing. `into_wide()` places the K bins at `index`,
+exactly.
 `Wide::to_binned::<K>()` keeps the top K limbs of the magnitude; it is lossy, and named so. There is
 no `Neg`, no `Sub`, no `Semigroup` and no `HasZero`, and a `trybuild` compile-fail test pins that.
 There is no wire form: a batch result crosses a boundary as the `Wide` it converts to.
@@ -278,7 +287,9 @@ specials counted; `TryFrom<f64>` on `Fixed`. `deposit_product(a: f64, b: f64)` d
 refused by name on `Fixed` and `Wide` when the product lies outside the tier's window: a set bit
 below the unit is `OutOfWindow::OffGrid`, a magnitude at or past the ceiling is
 `OutOfWindow::AboveCeiling`, and the state is untouched. `Fixed` also refuses a special factor as
-`NotFinite`, where `Wide` counts it. `Exact` is the tier that holds every product: `deposit_product`
+`NotFinite`, where `Wide` counts it. `Binned` truncates below the unit as it truncates below its
+window and refuses only the ceiling, `Wide`'s, by the same name, with `deposit_products` checking
+every pair before it deposits any. `Exact` is the tier that holds every product: `deposit_product`
 is total there, with only the named cap, and `checked_deposit_product` returns the cap instead.
 `is_zero()`, `is_finite()` and `specials()` read the state.
 
