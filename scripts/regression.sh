@@ -46,6 +46,17 @@ else
   echo "regression: SKIPPED the MSRV build (rustup toolchain $MSRV is not installed; CI runs it)" >&2
 fi
 
+# The dbsp feature on its own toolchain (CLAUDE.md § Commands): the clippy above never sees it,
+# because it is out of the self dev-dependency's list, and `--test main` never builds its example.
+DBSP_TOOLCHAIN=1.99.0
+if rustup run "$DBSP_TOOLCHAIN" cargo --version >/dev/null 2>&1; then
+  cargo "+$DBSP_TOOLCHAIN" test --quiet --features dbsp --test main dbsp_ >/dev/null
+  cargo "+$DBSP_TOOLCHAIN" build --quiet --features dbsp --example dbsp_uda
+  echo "regression: dbsp feature tests and example on rustc $DBSP_TOOLCHAIN"
+else
+  echo "regression: SKIPPED the dbsp feature (rustup toolchain $DBSP_TOOLCHAIN is not installed; CI runs it)" >&2
+fi
+
 if command -v cargo-deny >/dev/null 2>&1; then
   cargo deny --log-level warn check
 else

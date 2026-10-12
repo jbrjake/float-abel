@@ -1,0 +1,241 @@
+error[E0277]: the trait bound `Binned<3>: feldera_size_of::SizeOf` is not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `feldera_size_of::SizeOf` is not implemented for `Binned<3>`
+   |
+   = help: the following other types implement trait `feldera_size_of::SizeOf`:
+             &T
+             &mut T
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+           and $N others
+   = note: required for `Binned<3>` to implement `DBData`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: the trait bound `Binned<3>: IsNone` is not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `IsNone` is not implemented for `Binned<3>`
+   |
+   = help: the following other types implement trait `IsNone`:
+             ()
+             (A,)
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             Arc<T>
+           and $N others
+   = note: required for `Binned<3>` to implement `DBData`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: the trait bound `Binned<3>: SupportsRoaring` is not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `SupportsRoaring` is not implemented for `Binned<3>`
+   |
+   = help: the following other types implement trait `SupportsRoaring`:
+             ()
+             (A,)
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             Arc<T>
+           and $N others
+   = note: required for `Binned<3>` to implement `DBData`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: the trait bound `Binned<3>: HasZero` is not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `HasZero` is not implemented for `Binned<3>`
+   |
+   = help: the following other types implement trait `HasZero`:
+             Avg<T, R>
+             CheckedInt<T>
+             Exact
+             F32
+             F64
+             Option<T>
+             Present
+             Tup0
+           and $N others
+   = note: required for `Binned<3>` to implement `MonoidValue`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: the trait bound `for<'a> Binned<3>: rkyv::Serialize<DbspSerializer<'a>>` is not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `for<'a> rkyv::Serialize<DbspSerializer<'a>>` is not implemented for `Binned<3>`
+   |
+   = help: the following other types implement trait `rkyv::Serialize<S>`:
+             `()` implements `rkyv::Serialize<S>`
+             `(T0,)` implements `rkyv::Serialize<S>`
+             `(T1, T0)` implements `rkyv::Serialize<S>`
+             `(T10, T9, T8, T7, T6, T5, T4, T3, T2, T1, T0)` implements `rkyv::Serialize<S>`
+             `(T11, T10, T9, T8, T7, T6, T5, T4, T3, T2, T1, T0)` implements `rkyv::Serialize<S>`
+             `(T2, T1, T0)` implements `rkyv::Serialize<S>`
+             `(T3, T2, T1, T0)` implements `rkyv::Serialize<S>`
+             `(T4, T3, T2, T1, T0)` implements `rkyv::Serialize<S>`
+           and $N others
+   = note: required for `Binned<3>` to implement `ArchivedDBData`
+   = note: required for `Binned<3>` to implement `DBData`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: cannot add `&'a Binned<3>` to `&'a Binned<3>`
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `&'a Binned<3> + &'a Binned<3>`
+   |
+   = help: the trait `for<'a> Add` is not implemented for `&'a Binned<3>`
+help: the trait `Add` is implemented for `Binned<K>`
+  --> src/binned.rs
+   |
+   | impl<const K: usize> Add for Binned<K> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: required for `Binned<3>` to implement `AddByRef`
+   = note: required for `Binned<3>` to implement `SemigroupValue`
+   = note: required for `Binned<3>` to implement `MonoidValue`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0277]: cannot add-assign `&'a Binned<3>` to `Binned<3>`
+  --> tests/ui/binned_as_dbsp_weight.rs:12:18
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `Binned<3> += &'a Binned<3>`
+   |
+help: the trait `AddAssign<&'a Binned<3>>` is not implemented for `Binned<3>`
+      but trait `AddAssign<Binned<3>>` is implemented for it
+  --> src/binned.rs
+   |
+   | impl<const K: usize> AddAssign for Binned<K> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for that trait implementation, expected `Binned<3>`, found `&'a Binned<3>`
+   = note: required for `Binned<3>` to implement `AddAssignByRef`
+   = note: required for `Binned<3>` to implement `SemigroupValue`
+   = note: required for `Binned<3>` to implement `MonoidValue`
+   = note: required for `Binned<3>` to implement `DBWeight`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `Hash`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `DataTrait`
+   = note: required for `(dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)` to implement `WeightTrait`
+note: required by a bound in `DynFallbackIndexedWSet`
+  --> $CARGO/dbsp-$VERSION/src/trace/ord/fallback/indexed_wset.rs
+   |
+   | pub struct FallbackIndexedWSet<K, V, R>
+   |            ------------------- required by a bound in this struct
+...
+   |     R: WeightTrait + ?Sized,
+   |        ^^^^^^^^^^^ required by this bound in `DynFallbackIndexedWSet`
+
+error[E0599]: the associated function or constant `from_tuples` exists for struct `TypedBatch<u32, u32, Binned<3>, DynFallbackIndexedWSet<(dyn dbsp::dynamic::Data + 'static), (dyn dbsp::dynamic::Data + 'static), (dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)>>`, but its trait bounds were not satisfied
+  --> tests/ui/binned_as_dbsp_weight.rs:12:84
+   |
+12 |     let _batch = OrdIndexedWSet::<u32, u32, Binned<3>, DynWeightTyped<Binned<3>>>::from_tuples(
+   |                                                                                    ^^^^^^^^^^^ associated function or constant cannot be called due to unsatisfied trait bounds
+   |
+  ::: src/binned.rs
+   |
+   | pub struct Binned<const K: usize> {
+   | --------------------------------- doesn't satisfy 9 bounds
+   |
+note: if you're trying to build a new `TypedBatch<u32, u32, Binned<3>, DynFallbackIndexedWSet<(dyn dbsp::dynamic::Data + 'static), (dyn dbsp::dynamic::Data + 'static), (dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>> + 'static)>>`, consider using `TypedBatch::<K, V, R, B>::new` which returns `TypedBatch<_, _, _, _>`
+  --> $CARGO/dbsp-$VERSION/src/typed_batch.rs
+   |
+   |     pub fn new(inner: B) -> Self {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: the following trait bounds were not satisfied:
+           `Binned<3>: feldera_size_of::SizeOf`
+           which is required by `Binned<3>: DBWeight`
+           `Binned<3>: IsNone`
+           which is required by `Binned<3>: DBWeight`
+           `Binned<3>: SupportsRoaring`
+           which is required by `Binned<3>: DBWeight`
+           `Binned<3>: HasZero`
+           which is required by `Binned<3>: DBWeight`
+           `Binned<3>: rkyv::Archive`
+           which is required by `Binned<3>: Erase<dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>>>`
+           `Binned<3>: rkyv::Serialize<DbspSerializer<'a>>`
+           which is required by `Binned<3>: Erase<dyn dbsp::dynamic::weight::WeightTyped<Type = Binned<3>>>`
+           `&'a Binned<3>: Add`
+           which is required by `Binned<3>: DBWeight`
+           `Binned<3>: AddAssign<&'a Binned<3>>`
+           which is required by `Binned<3>: DBWeight`

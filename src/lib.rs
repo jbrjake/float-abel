@@ -27,6 +27,12 @@
 //! so a collection takes it as a diff the way it takes `isize`: `explode` a float column into the
 //! diff and `count_total` reads each key's exact total back out, with a retraction arriving as
 //! `-1 × Exact`. `examples/dd_sum.rs` is that idiom on three workers.
+//!
+//! Behind the `dbsp` feature, [`Exact`] is a DBSP `DBWeight`: a weighted batch takes it, and
+//! `aggregate_linear` takes it as the accumulator, which is the shape of Feldera's
+//! `CREATE LINEAR AGGREGATE`, the sanctioned route to an exact `SUM` over doubles.
+//! `examples/dbsp_uda/` holds that aggregate's three Rust items beside its SQL. The feature builds
+//! on the toolchain its CI job pins, because rustc 1.97 and 1.98 ICE inside dbsp.
 #![no_std]
 #![deny(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

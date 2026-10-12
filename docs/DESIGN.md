@@ -376,7 +376,7 @@ vectors.
 | `std` (default) | — | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
-| `dbsp` | dbsp 0.364, feldera-macros, rkyv 0.7 (`size_64`), feldera-size-of 0.1.7 | the DBSP adapter |
+| `dbsp` | dbsp 0.364 + rkyv 0.7 (`std`, `size_64`) + feldera-size-of 0.1.7 + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
 | `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate |
 | `arbitrary` | arbitrary 1 | fuzz inputs |
@@ -418,20 +418,25 @@ epoch whose netted output is empty.
 
 ### DBSP {#sp-dbsp}
 
-Two probe types were compiled and run against published dbsp 0.356.0 on rustc 1.96.1. They covered
-consolidation of `0.1 + 0.2` on an `OrdIndexedWSet` and its exact cancellation on merge with
-`−0.2, −0.1`, and `aggregate_linear` scaling by `MulByRef<i64>` and retracting a group on an exact
-zero. Three deliberate breaks failed on `IsNone`/`SupportsRoaring`, `OrdRepr`, and
-`HasOne`/`Mul`/`Neg` respectively. Nothing in dbsp is sealed: `DBData`, `DBWeight`, `Data`, `Weight`,
-`WeightTrait` and `Erase` are all blanket impls over public bounds.
+A probe weight with `Exact`'s layout was compiled and run against published dbsp 0.364.0 on rustc
+1.99.0 (its source is attached to the store's "Ship the dbsp feature" task). It covered consolidation
+of `0.1 + 0.2` on an `OrdIndexedWSet` and its exact cancellation on merge with `−0.2, −0.1`, and
+`aggregate_linear` scaling by `MulByRef<i64>` and retracting a group on an exact zero. Three
+deliberate breaks failed on `IsNone`/`SupportsRoaring`, `OrdRepr`, and `HasOne`/`Mul`/`Neg`
+respectively; the third reaches `neg`, `minus` and `differentiate` on a custom-weight stream through
+the leaf's `Neg`, which bounds the weight on `ZRingValue`, and no public operator names `ZRingValue`
+directly. Nothing in dbsp is sealed: `DBData`, `DBWeight`, `Data`, `Weight`, `WeightTrait` and
+`Erase` are all blanket impls over public bounds. A custom-weight batch has no `iter`, which
+`IndexedZSetReader` keeps for `ZWeight`; its cursor reads it, with the typed weight derefing.
+tests/dbsp.rs runs the probe's cases against the shipped adapter.
 
 | requirement | source | how |
 |---|---|---|
 | `Clone + Default + Debug + Eq + Ord + Hash + Send + Sync + 'static` | `DBData` | already |
 | `SizeOf` | feldera-size-of 0.1.7 (`package = "feldera-size-of"`) | derive |
-| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | derive on the struct, a `Copy` word of six integers; `Ord` on the archived form by the same numeric compare |
-| `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written, because `Ord` is hand-written; property-tested against `Ord` on mixed tiers and specials |
-| `IsNone` + `SupportsRoaring` | `utils/{is_none,supports_roaring}.rs` | `#[derive(feldera_macros::IsNone)]` emits both; it requires the dependency to be named `dbsp` |
+| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | `Archive` and `Serialize` derived on the struct, a `Copy` word of six integers, so the archived form is the word itself (the wire body without its version byte); `Deserialize`, `Eq` and `Ord` on the archived form hand-written through one validating constructor, which refuses a non-canonical word with a panic naming the invariant, because dbsp's deserialiser has no error channel |
+| `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written through the same constructor, because `Ord` is hand-written; tested against `Ord` on 10⁵ values over mixed tiers and specials |
+| `IsNone` + `SupportsRoaring` | `utils/{is_none,supports_roaring}.rs` | dbsp's own exported `never_none!` and `never_roaring_filter!`, which expand to what `#[derive(feldera_macros::IsNone)]` emits, so feldera-macros is not a dependency |
 | `HasZero` (exact `is_zero`), `AddByRef`/`AddAssignByRef` | `algebra.rs`; blankets over `&T: Add` and `T: AddAssign<&T>` | std ops |
 | `MulByRef<i64, Output = Exact>` | `aggregate_linear`'s accumulator bound; retractions arrive as `f(v).mul_by_ref(&w)` with negative `w` | explicit |
 | `Neg`, `NegByRef`, `Mul`, `MulByRef<Exact>`, `HasOne` (= `ZRingValue`) | only for `minus`/`neg`/`differentiate` on a custom-weight stream | already a ring |
@@ -443,10 +448,14 @@ shape. SQL `SUM(DOUBLE)` can't be made linear from outside, because the compiler
 Feldera's sanctioned route is a `CREATE LINEAR AGGREGATE` UDA whose accumulator type is ours (the
 compiler wraps it in `Tup3<acc, i64, i64>`), and the crate ships that UDA as its DBSP example.
 
-Constraints: the `dbsp` CI job pins rustc 1.99.0. rkyv is used with
+Constraints: the `dbsp` CI job pins rustc 1.99.0, and the push gate runs the feature's tests and
+its example on that toolchain when it is installed. rkyv is used with
 `default-features = false, features = ["std", "size_64"]` to match dbsp's. The feature pins
-`dbsp = "=0.364.0"`; the probe above ran against 0.356.0, and the adapter task re-runs it at the pin
-before the feature ships. Moving the pin again means re-running the probe there first.
+`dbsp = "=0.364.0"`, the version the probe ran at; moving the pin means re-running the probe there
+first. The feature's closure is 440 crates against the crate's 114, carrying eight licences the
+`deny.toml` allow-list lacks (BSD-3-Clause, ISC, Zlib, MIT-0, CC0-1.0, BSL-1.0, CDLA-Permissive-2.0
+and bzip2-1.0.6, across 18 crates) and 30 duplicate majors, so `cargo deny check` over all features
+fails until the owner rules on how deny.toml treats it.
 
 ## The laws kit {#sp-laws-kit}
 
@@ -618,4 +627,4 @@ owner's act; so is any announcement.
   (ReproBLAS, the Demmel–Nguyen indexed accumulator).
 - Kulisch's exact dot product; Shewchuk's adaptive-precision expansions; ExBLAS.
 - bitrep 0.5.1: `FORMAT.md` and `conformance/vectors.json`.
-- differential-dataflow 0.24.0 on timely 0.30.0; dbsp 0.356.0 and Feldera's `udf.md`.
+- differential-dataflow 0.24.0 on timely 0.30.0; dbsp 0.364.0 and Feldera's `udf.md`.

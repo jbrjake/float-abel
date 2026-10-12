@@ -54,8 +54,14 @@ impl Exact {
         Self::canonical(lo, hi, exp, counts)
     }
 
-    /// The word with these fields, if it is a canonical form.
-    fn canonical(lo: u64, hi: u64, exp: i32, counts: [i32; 3]) -> Result<Self, WireError> {
+    /// The word with these fields, if it is a canonical form: the one constructor every decoder
+    /// goes through, the DBSP adapter's archived form included.
+    pub(super) fn canonical(
+        lo: u64,
+        hi: u64,
+        exp: i32,
+        counts: [i32; 3],
+    ) -> Result<Self, WireError> {
         if lo | hi == 0 {
             if exp != 0 {
                 return Err(WireError::ZeroExponent);

@@ -10,6 +10,8 @@
 
 mod compact;
 mod convert;
+#[cfg(feature = "dbsp")]
+mod dbsp;
 #[cfg(feature = "differential")]
 mod differential;
 mod ops;
@@ -92,7 +94,11 @@ impl PastCap {
 /// the little-endian wire form on a little-endian machine, so an engine may cast a column of them
 /// in place. A byte pattern with an even mantissa is not a value, so bytes from outside go through
 /// the validating decoder, [`Exact::from_bytes`].
+///
+/// Behind the `dbsp` feature the word is also its own rkyv archive, so DBSP's storage writes it
+/// as these bytes; the archived form's `Deserialize` and comparisons refuse a non-canonical word.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "dbsp", derive(rkyv::Archive, rkyv::Serialize))]
 #[repr(C)]
 pub struct Exact {
     lo: u64,

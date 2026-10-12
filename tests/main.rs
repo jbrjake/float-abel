@@ -15,6 +15,8 @@
 mod binned;
 mod binned_product;
 mod convert;
+#[cfg(feature = "dbsp")]
+mod dbsp;
 mod differential;
 mod exact_cap;
 mod exact_ring;
