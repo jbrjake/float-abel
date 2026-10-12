@@ -18,3 +18,6 @@ Options: gate the ui topic on the rustc version the snapshots were blessed with 
 
 ## log
 - 2026-10-12T21:09Z created
+
+## comments
+- 2026-10-12T22:43Z [claude (70076334-fceb-445b-b3a5-700374edbd88)] A fourth snapshot since 2026-10-12: tests/ui/binned_as_dbsp_weight.stderr, blessed on rustc 1.99.0 like the others. Its harness test, ui_dbsp_binned_is_no_dbsp_weight in tests/ui.rs, is under #[cfg(feature = "dbsp")], and that feature only builds on 1.96.1 and 1.99.0 anyway, so whatever pins the other three to their toolchain should name this one too, and a pin to 1.99.0 is already its reality.

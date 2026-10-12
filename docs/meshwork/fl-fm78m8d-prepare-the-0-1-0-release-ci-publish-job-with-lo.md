@@ -4,7 +4,7 @@ title: "Prepare the 0.1.0 release — CI publish job with --locked, a signed tag
 category: crate/release
 labels: [reproducible-floats, rf-tail]
 docs: [docs/DESIGN.md#release-sp-release]
-needs: [fl-z91b7pq, fl-6shtzpj, fl-v6mh9cv, fl-06sggdc, fl-9kp61j0, fl-ajqrs9p, fl-c3ahdwc, fl-v7t6xhz, fl-b41y9kt]
+needs: [fl-z91b7pq, fl-6shtzpj, fl-v6mh9cv, fl-06sggdc, fl-9kp61j0, fl-ajqrs9p, fl-c3ahdwc, fl-v7t6xhz, fl-b41y9kt, fl-jmjbjk5]
 seq: 170
 verify: "all(exists CHANGELOG.md, contains CHANGELOG.md /^## 0\\.1\\.0/)"
 status: open
