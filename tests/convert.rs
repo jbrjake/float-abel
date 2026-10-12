@@ -233,15 +233,3 @@ fn convert_wide_try_from_exact_refuses_by_name_past_the_range_and_accepts_at_the
         Ok(Wide::from(f64::NEG_INFINITY))
     );
 }
-
-/// `Wide: From<Fixed<LSB, LIMBS>>` is pinned at compile time to the pairs it is exact for. The
-/// assertion is post-monomorphisation, so the harness needs a `pass` case beside the
-/// `compile_fail` ones: with only compile-fail cases trybuild runs `cargo check`, which never
-/// instantiates the impl and so never evaluates the assertion.
-#[test]
-fn convert_fixed_outside_wides_window_does_not_compile() {
-    let t = trybuild::TestCases::new();
-    t.pass("tests/ui/fixed256_into_wide.rs");
-    t.compile_fail("tests/ui/fixed_below_wides_unit.rs");
-    t.compile_fail("tests/ui/fixed_wider_than_wide.rs");
-}

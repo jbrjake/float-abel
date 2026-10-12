@@ -302,23 +302,28 @@ dev-dependency differential oracle for `Exact::to_f64` on random multisets. `Fix
 
 ## Wire format {#sp-wire}
 
-One canonical little-endian encoding per type, with a version byte, emitted both by the `serde`
-feature and by `to_bytes`/`from_bytes` without it:
+One canonical little-endian encoding per type, a leading version byte then the body, emitted both by
+the `serde` feature and by `to_bytes`/`from_bytes` without it:
 
 - `Exact` as its 32 bytes, two limbs, the exponent and three counts, which is its in-memory layout;
 - `Wide` as 272 limb bytes then 24 counter bytes, which is its in-memory layout;
 - `Fixed` as its limbs, which is its in-memory layout.
 
-Each body is the type's `repr(C)` bytes on a little-endian machine, with the size and alignment
-pinned by `const` assertions, so an engine that frames its own extents casts a mapping to `Wide` or
-`Fixed` without a copy, every bit pattern of theirs being a value. `Exact`'s bytes from outside still
-pass the validating decoder, because an even mantissa is not a value.
+The version byte names the type as well as the revision (`0x01` `Exact`, `0x02` `Wide`, `0x03`
+`Fixed`), so a `Fixed256` body is never read as an `Exact` though both are 33 bytes, and a later
+revision of a type's encoding takes a fresh value. Each body is the type's `repr(C)` bytes on a
+little-endian machine, with the size and alignment pinned by `const` assertions, so an engine that
+frames its own extents casts a mapping to `Wide` or `Fixed` without a copy, every bit pattern of
+theirs being a value. `Exact`'s bytes from outside still pass the validating decoder, because an even
+mantissa is not a value.
 
 **Decoding validates canonical form and refuses anything else.** A non-canonical value smuggled
 through a batch would break `Eq`-substitutability in differential-dataflow's builder, so a decoder
-that accepted one would be a correctness hole, not a leniency. A refusal is a typed error, never a
-panic. Through differential-dataflow the encoding rides bincode 1.3; through DBSP it is rkyv 0.7. The
-format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with vectors.
+that accepted one would be a correctness hole, not a leniency. A refusal is a typed error,
+`WireError`, never a panic. Under `serde` a value is a fixed-length tuple of its `to_bytes` bytes, as
+a `[u8; N]` serialises, so bincode 1.3's fixed-int encoding, which differential-dataflow rides, is
+`to_bytes` byte for byte with no length prefix; through DBSP it is rkyv 0.7. The format freezes at
+1.0 and is documented in `FORMAT.md`, in bitrep's style, with vectors.
 
 ## Crate posture {#sp-posture}
 

@@ -14,6 +14,7 @@ mod ops;
 mod ring;
 #[cfg(test)]
 pub(crate) mod testing;
+mod wire;
 
 use core::cmp::Ordering;
 use core::fmt;
@@ -88,7 +89,7 @@ impl PastCap {
 /// The layout is `repr(C)` with no padding: two limbs, the exponent, three counts. The bytes are
 /// the little-endian wire form on a little-endian machine, so an engine may cast a column of them
 /// in place. A byte pattern with an even mantissa is not a value, so bytes from outside go through
-/// the validating decoder.
+/// the validating decoder, [`Exact::from_bytes`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct Exact {

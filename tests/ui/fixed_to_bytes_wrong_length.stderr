@@ -1,0 +1,26 @@
+error[E0080]: evaluation panicked: Fixed: to_bytes returns [u8; BYTES], the version byte then eight bytes per limb
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `float_abel::wire::Encoded::<4, 32>::OK` failed here
+  |
+ ::: src/wire.rs
+  |
+  |       const OK: () = assert!(
+  |  ____________________-
+  | |         N == 1 + 8 * LIMBS,
+  | |         "Fixed: to_bytes returns [u8; BYTES], the version byte then eight bytes per limb"
+  | |     );
+  | |_____- in this macro invocation
+
+note: erroneous constant encountered
+ --> src/wire.rs
+  |
+  |         let () = Encoded::<LIMBS, N>::OK;
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^
+
+note: the above error was encountered while instantiating `fn float_abel::wire::<impl Fixed<-96, 4>>::to_bytes::<32>`
+ --> tests/ui/fixed_to_bytes_wrong_length.rs:8:28
+  |
+8 |     let _bytes: [u8; 32] = f.to_bytes();
+  |                            ^^^^^^^^^^^^

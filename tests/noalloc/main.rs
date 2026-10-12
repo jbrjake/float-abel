@@ -4,7 +4,7 @@
 
 #![allow(clippy::float_cmp)]
 
-use float_abel::{Exact, PastCap};
+use float_abel::{Exact, PastCap, WireError};
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 
@@ -72,4 +72,24 @@ fn noalloc_the_checked_methods_return_the_cap_and_leave_the_state() {
     assert!(format!("{}", PastCap::Width).contains("width"));
     assert!(format!("{}", PastCap::Exponent).contains("exponent"));
     assert!(format!("{}", PastCap::Count).contains("count"));
+}
+
+#[test]
+fn noalloc_the_wire_codec_needs_no_feature() {
+    let x = Exact::from(1.5) + Exact::from(f64::NAN);
+    let bytes = x.to_bytes();
+    assert_eq!(bytes.len(), 33);
+    assert_eq!(bytes[0], Exact::WIRE_VERSION);
+    assert_eq!(Exact::from_bytes(&bytes), Ok(x));
+    assert_eq!(
+        Exact::from_bytes(&bytes[..32]),
+        Err(WireError::Length {
+            expected: 33,
+            found: 32
+        })
+    );
+    let mut even = bytes;
+    even[1] = 2;
+    assert_eq!(Exact::from_bytes(&even), Err(WireError::EvenMantissa));
+    assert!(format!("{}", WireError::EvenMantissa).contains("even"));
 }
