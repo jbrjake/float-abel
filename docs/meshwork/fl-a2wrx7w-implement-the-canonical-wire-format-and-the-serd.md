@@ -96,6 +96,7 @@ handoff: |
   ask fl-cfx001b is still
   open. `CARGO_TARGET_DIR` is set outside ~/Documents by the repo's
   `.claude/settings.local.json`.
+relates: [fl-6shtzpj, fl-v7t6xhz, fl-cfx001b]
 ---
 Per DESIGN.md § Wire format: `FORMAT.md` in bitrep's style; `to_bytes` and `from_bytes` on all three
 exact types; `serde` behind its feature, encoding the same bytes.
