@@ -5,12 +5,21 @@
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
+use super::compact::Compact;
 use super::Exact;
 
 impl From<f64> for Exact {
     /// A fresh state holding `x`: its finite value, or one count of its special. Total.
     fn from(x: f64) -> Self {
         Self::from_f64(x)
+    }
+}
+
+impl From<i8> for Exact {
+    /// The integer, exactly, by integer arithmetic: the one that differential-dataflow's
+    /// `count_core` and `distinct_core` put out.
+    fn from(k: i8) -> Self {
+        Self::assemble(Compact::from_i64(i64::from(k)), [0, 0, 0])
     }
 }
 

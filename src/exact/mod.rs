@@ -10,6 +10,8 @@
 
 mod compact;
 mod convert;
+#[cfg(feature = "differential")]
+mod differential;
 mod ops;
 mod ring;
 #[cfg(test)]

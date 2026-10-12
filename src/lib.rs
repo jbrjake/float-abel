@@ -16,6 +16,12 @@
 //! Every type has one canonical encoding, `FORMAT.md`: `to_bytes` and `from_bytes` on every feature
 //! set, and `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A decoder
 //! refuses anything that is not a canonical value, as a [`WireError`], never a panic.
+//!
+//! Behind the `differential` feature, [`Exact`] implements differential-dataflow's weight traits
+//! (`Semigroup`, `Monoid`, `Abelian`, and `Multiply` by `Exact`, `i64` or `isize` on either side),
+//! so a collection takes it as a diff the way it takes `isize`: `explode` a float column into the
+//! diff and `count_total` reads each key's exact total back out, with a retraction arriving as
+//! `-1 × Exact`. `examples/dd_sum.rs` is that idiom on three workers.
 #![no_std]
 #![deny(unsafe_code)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

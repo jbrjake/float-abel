@@ -4,10 +4,16 @@
 [graph]
 all-features = true
 
+# The two ignores are the owner's ruling for the `differential` feature's closure, each named with
+# the crate that drags it in. Neither is a dependency of this crate, and a third advisory still
+# fails: `unmaintained = "workspace"` would have cleared both in one line and was ruled out.
 [advisories]
 version = 2
 yanked = "deny"
-ignore = []
+ignore = [
+  { id = "RUSTSEC-2025-0141", reason = "bincode 1.3.3 is timely's serialized exchange, reached only through differential-dataflow" },
+  { id = "RUSTSEC-2024-0436", reason = "paste 1.0.15 is columnation's and differential-dataflow's macro helper, reached only through differential-dataflow" },
+]
 
 # Only licences the tree actually carries; cargo-deny warns on an allowance nothing uses, so a new
 # dependency's licence is added here with it. Unicode-3.0 (OSI-approved) is unicode-ident's, which
@@ -24,7 +30,9 @@ multiple-versions = "deny"
 wildcards = "deny"
 highlight = "all"
 # A duplicate major goes here with the crate that drags it in, never as a blanket skip.
-skip = []
+skip = [
+  { crate = "syn@2", reason = "columnar_derive 0.13, reached only through differential-dataflow, is on syn 2 while serde_derive and thiserror-impl are on syn 3" },
+]
 skip-tree = []
 
 [sources]

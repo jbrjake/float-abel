@@ -338,7 +338,7 @@ vectors.
   (the default) adds the test kit and `std::error::Error`.
 - **Zero required dependencies.** Everything else is a feature.
 - MSRV **1.74** for the default feature set, asserted in CI on exactly that set. The `differential`
-  feature inherits differential-dataflow 0.24's declared `rust-version = "1.86"`. The `dbsp` feature
+  feature inherits differential-dataflow 0.25's declared `rust-version = "1.86"`. The `dbsp` feature
   builds on rustc 1.99.0 and on 1.96.1, which dbsp declares; 1.97 and 1.98 ICE inside it, so its CI
   job pins 1.99.0.
 - The crate lists **itself as a dev-dependency** with `serde`, `differential`, `laws`, `simd` and
@@ -354,7 +354,7 @@ vectors.
 |---|---|---|
 | `std` (default) | — | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
-| `differential` | differential-dataflow 0.24 + `serde` | the differential-dataflow adapter |
+| `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
 | `dbsp` | dbsp 0.364, feldera-macros, rkyv 0.7 (`size_64`), feldera-size-of 0.1.7 | the DBSP adapter |
 | `laws` | proptest | the laws kit |
 | `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate |

@@ -54,6 +54,11 @@ outside `~/Documents`.
   "we absolutely need exact multiplication").
 - `Binned<K>` never implements an incremental trait, because it is not a group. A `trybuild` test
   pins that.
+- `differential` adapts differential-dataflow 0.25 on a caret, never an exact pin, so a consumer's
+  own 0.25.x unifies with it (owner: "0.25.1"). The closure's two unmaintained advisories, bincode
+  through timely and paste through columnation, are ignored by id in `deny.toml` with the dragging
+  crate named, never by `unmaintained = "workspace"`, so a third advisory still fails the gate
+  (owner: "Ignore both by id").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
 - `cargo publish` runs only with `--dry-run`. A publish, the crates.io name reservation included, is

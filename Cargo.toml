@@ -23,6 +23,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 # exactly one feature.
 [dependencies]
 arbitrary = { version = "1", optional = true }
+# The engine the `differential` feature adapts `Exact` to. A caret on the minor, not an exact pin,
+# so a consumer's own 0.25.x unifies with it: the impls are a diff type's traits, which that
+# consumer's dataflow has to see as one crate. Its closure reaches timely 0.31, whose serialized
+# exchange is bincode 1, and columnation, which is on paste; both are ignored by id in deny.toml.
+differential-dataflow = { version = "0.25", optional = true }
 # The laws kit's property tester, re-exported from `float_abel::laws` so a stranger's strategies
 # and ours agree on one proptest. `std` alone: the default `fork` and `timeout` features drag in
 # rusty-fork, tempfile and wait-timeout, which the kit never uses. The floor is the release the kit
@@ -47,6 +52,9 @@ bitrep = "=0.5.1"
 postcard = { version = "=1.1.3", default-features = false, features = ["use-std"] }
 # Reads the committed conformance vectors.
 serde_json = "1"
+# The runtime tests/differential.rs and examples/dd_sum.rs execute a dataflow on: the version
+# differential-dataflow 0.25 depends on, which it does not re-export.
+timely = "0.31"
 # Compile-fail cases under tests/ui/: the `const` assertions that pin a conversion or a trait to
 # the types it is sound for. Pinned because the `.stderr` files are matched against its
 # normalisation of the compiler's output.
@@ -56,6 +64,13 @@ trybuild = "=1.0.122"
 name = "main"
 path = "tests/main.rs"
 
+# The `explode` + `count_total` idiom, DESIGN.md § differential-dataflow: `cargo run --example
+# dd_sum -- -w 3`. The self dev-dependency turns the feature on for a bare run; the requirement
+# keeps `--no-default-features` builds of the examples from failing.
+[[example]]
+name = "dd_sum"
+required-features = ["differential"]
+
 [features]
 default = ["std"]
 # `std::error::Error` impls and the bench harness. Nothing in the crate allocates, so there is no
@@ -63,8 +78,9 @@ default = ["std"]
 std = []
 # `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
 serde = ["dep:serde"]
-# The differential-dataflow adapter. Wired by its own task.
-differential = []
+# The differential-dataflow adapter: `Exact` as a diff type, DESIGN.md § differential-dataflow.
+# `serde` because exchange between workers serialises the diff.
+differential = ["dep:differential-dataflow", "serde"]
 # The DBSP adapter. Builds only on rustc 1.96.1; wired by its own task.
 dbsp = []
 # The laws kit, `float_abel::laws`: proptest checks of what an incremental engine asks of a weight,

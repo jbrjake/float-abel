@@ -13,6 +13,7 @@
 )]
 
 mod convert;
+mod differential;
 mod exact_cap;
 mod exact_ring;
 mod fixed;
