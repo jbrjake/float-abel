@@ -40,6 +40,13 @@ pub(crate) const F64: Format = Format {
     exp_bits: 11,
 };
 
+/// IEEE binary32. A `to_f32` rounds the exact state here once, never through `F64` first: a value
+/// that `F64` rounds onto an `f32` tie would then round the wrong way.
+pub(crate) const F32: Format = Format {
+    precision: 24,
+    exp_bits: 8,
+};
+
 /// Rounds the magnitude `limbs · 2^exp` to nearest-even in `fmt` and applies the sign. `sticky`
 /// says that nonzero bits lie strictly below bit 0 of `limbs`; a caller passing it guarantees
 /// the limbs carry at least `precision + 2` bits, so the round bit is always in view. Returns the

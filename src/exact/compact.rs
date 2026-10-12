@@ -232,6 +232,13 @@ impl Compact {
         (f64::from_bits(bits), inexact)
     }
 
+    /// The value rounded once to nearest-even as a single, never via `f64`. The zero reads `+0.0`.
+    pub(crate) fn read_f32(self) -> f32 {
+        let (negative, mag) = self.magnitude();
+        let (bits, _) = round::round(negative, &mag, self.exp, false, round::F32);
+        f32::from_bits(bits as u32)
+    }
+
     /// The correctly rounded quotient of the exact value by an integer, with IEEE's answers for a
     /// zero divisor: `0/0` is NaN and `x/0` is `±∞`.
     pub(crate) fn div_f64(self, n: u64) -> f64 {

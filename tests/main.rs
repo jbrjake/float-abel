@@ -18,6 +18,7 @@ mod exact_ring;
 mod fixed;
 mod layout;
 mod posture;
+mod rounding;
 mod support;
 mod wide;
 mod wide_group;

@@ -40,17 +40,38 @@ pub(crate) fn special(x: f64) -> Special {
     }
 }
 
+impl Special {
+    /// The double this special is. A read in either format takes the constant of that format, so
+    /// no conversion instruction runs between them.
+    pub(crate) const fn to_f64(self) -> f64 {
+        match self {
+            Self::Nan => f64::NAN,
+            Self::PosInf => f64::INFINITY,
+            Self::NegInf => f64::NEG_INFINITY,
+        }
+    }
+
+    /// The single this special is.
+    pub(crate) const fn to_f32(self) -> f32 {
+        match self {
+            Self::Nan => f32::NAN,
+            Self::PosInf => f32::INFINITY,
+            Self::NegInf => f32::NEG_INFINITY,
+        }
+    }
+}
+
 /// The special that signed counts of NaN, +∞ and −∞ inputs project to, or `None` when they are
 /// all zero: a NaN count, or both infinities present, is NaN; one infinity reads by the sign of its
 /// count. Every tier that counts specials reads through this.
-pub(crate) fn project(n: i64, p: i64, q: i64) -> Option<f64> {
+pub(crate) fn project(n: i64, p: i64, q: i64) -> Option<Special> {
     if n != 0 || (p != 0 && q != 0) {
-        return Some(f64::NAN);
+        return Some(Special::Nan);
     }
     match (p.signum(), q.signum()) {
         (0, 0) => None,
-        (1, _) | (_, -1) => Some(f64::INFINITY),
-        _ => Some(f64::NEG_INFINITY),
+        (1, _) | (_, -1) => Some(Special::PosInf),
+        _ => Some(Special::NegInf),
     }
 }
 

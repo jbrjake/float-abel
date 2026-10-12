@@ -332,7 +332,7 @@ impl Exact {
         (self.nan, self.pos_inf, self.neg_inf)
     }
 
-    fn projection(&self) -> Option<f64> {
+    fn projection(&self) -> Option<Special> {
         ieee::project(
             i64::from(self.nan),
             i64::from(self.pos_inf),
@@ -360,8 +360,21 @@ impl Exact {
 
     fn read(&self) -> (f64, bool) {
         match self.projection() {
-            Some(special) => (special, false),
+            Some(special) => (special.to_f64(), false),
             None => self.finite().read(),
+        }
+    }
+
+    /// The value as a single: the special projection if the counts say so, else the finite part
+    /// rounded once, to nearest-even in integer arithmetic, with subnormals and overflow to `±∞`.
+    /// Never via `f64`: a finite part that `to_f64` rounds onto an `f32` tie would then round
+    /// the wrong way. A nonzero finite part below half the smallest `f32` subnormal reads a zero
+    /// of its sign.
+    #[must_use]
+    pub fn to_f32(&self) -> f32 {
+        match self.projection() {
+            Some(special) => special.to_f32(),
+            None => self.finite().read_f32(),
         }
     }
 
@@ -372,7 +385,7 @@ impl Exact {
     #[must_use]
     pub fn div_f64(&self, n: u64) -> f64 {
         match self.projection() {
-            Some(special) => special,
+            Some(special) => special.to_f64(),
             None => self.finite().div_f64(n),
         }
     }

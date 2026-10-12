@@ -8,8 +8,8 @@ use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 use crate::fixed::{Fixed, Hex, OutOfWindow};
 use crate::ieee::{
-    self, factor, special_times_finite, special_times_special, Dyadic, Factor, NAN, NEG_INF,
-    POS_INF,
+    self, factor, special_times_finite, special_times_special, Dyadic, Factor, Special, NAN,
+    NEG_INF, POS_INF,
 };
 use crate::limbs;
 use crate::round;
@@ -219,7 +219,7 @@ impl Wide {
     }
 
     /// The special the counters project to, or `None` when they are all zero.
-    fn projection(&self) -> Option<f64> {
+    fn projection(&self) -> Option<Special> {
         let [n, p, q] = self.specials;
         ieee::project(n, p, q)
     }
@@ -244,12 +244,28 @@ impl Wide {
 
     fn read(&self) -> (f64, bool) {
         if let Some(special) = self.projection() {
-            return (special, false);
+            return (special.to_f64(), false);
         }
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);
         let (bits, inexact) = round::round(negative, &mag, LSB, false, round::F64);
         (f64::from_bits(bits), inexact)
+    }
+
+    /// The value as a single: the special projection if the counters say so, else the finite part
+    /// rounded once, to nearest-even in integer arithmetic, with subnormals and overflow to `±∞`.
+    /// Never via `f64`: a finite part that `to_f64` rounds onto an `f32` tie would then round
+    /// the wrong way. A finite part below half the smallest `f32` subnormal reads a zero of its
+    /// sign.
+    #[must_use]
+    pub fn to_f32(&self) -> f32 {
+        if let Some(special) = self.projection() {
+            return special.to_f32();
+        }
+        let mut mag = [0u64; LIMBS];
+        let negative = limbs::abs_into(&self.limbs, &mut mag);
+        let (bits, _) = round::round(negative, &mag, LSB, false, round::F32);
+        f32::from_bits(bits as u32)
     }
 
     /// The correctly rounded quotient of the exact value by an integer: what an `AVG` calls, so
@@ -259,7 +275,7 @@ impl Wide {
     #[must_use]
     pub fn div_f64(&self, n: u64) -> f64 {
         if let Some(special) = self.projection() {
-            return special;
+            return special.to_f64();
         }
         let mut mag = [0u64; LIMBS];
         let negative = limbs::abs_into(&self.limbs, &mut mag);

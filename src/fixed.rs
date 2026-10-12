@@ -224,6 +224,17 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
         (f64::from_bits(bits), inexact)
     }
 
+    /// The value rounded once to nearest-even as a single, in integer arithmetic, with subnormals
+    /// and overflow to ±∞. Never via `f64`: a value that `to_f64` rounds onto an `f32` tie would
+    /// then round the wrong way. A nonzero value that rounds to zero keeps its sign.
+    #[must_use]
+    pub fn to_f32(&self) -> f32 {
+        let mut mag = [0u64; LIMBS];
+        let negative = limbs::abs_into(&self.limbs, &mut mag);
+        let (bits, _) = round::round(negative, &mag, LSB, false, round::F32);
+        f32::from_bits(bits as u32)
+    }
+
     /// The correctly rounded quotient of the exact value by an integer: what an `AVG` calls, so
     /// every engine divides the same exact numerator once. Division by zero follows IEEE: `0/0`
     /// is NaN and `x/0` is `±∞`.

@@ -1,0 +1,3413 @@
+{
+ "generator": "scripts/gen_rounding_vectors.py",
+ "python": "3.12.13",
+ "reads": [
+  {
+   "name": "zero",
+   "tags": [
+    "exact",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x0",
+   "exp": 0,
+   "f64": "0x0000000000000000",
+   "f64_exact": true,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "one",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "f64": "0x3ff0000000000000",
+   "f64_exact": true,
+   "f32": "0x3f800000"
+  },
+  {
+   "name": "one, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "f64": "0xbff0000000000000",
+   "f64_exact": true,
+   "f32": "0xbf800000"
+  },
+  {
+   "name": "three halves",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": -1,
+   "f64": "0x3ff8000000000000",
+   "f64_exact": true,
+   "f32": "0x3fc00000"
+  },
+  {
+   "name": "three halves, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": -1,
+   "f64": "0xbff8000000000000",
+   "f64_exact": true,
+   "f32": "0xbfc00000"
+  },
+  {
+   "name": "2^53 - 1, the last odd double",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1fffffffffffff",
+   "exp": 0,
+   "f64": "0x433fffffffffffff",
+   "f64_exact": true,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 - 1, the last odd double, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1fffffffffffff",
+   "exp": 0,
+   "f64": "0xc33fffffffffffff",
+   "f64_exact": true,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^64",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 64,
+   "f64": "0x43f0000000000000",
+   "f64_exact": true,
+   "f32": "0x5f800000"
+  },
+  {
+   "name": "2^64, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 64,
+   "f64": "0xc3f0000000000000",
+   "f64_exact": true,
+   "f32": "0xdf800000"
+  },
+  {
+   "name": "2^-1074, the smallest subnormal",
+   "tags": [
+    "exact",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1074,
+   "f64": "0x0000000000000001",
+   "f64_exact": true,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-1074, the smallest subnormal, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1074,
+   "f64": "0x8000000000000001",
+   "f64_exact": true,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "2^-1022, the smallest normal",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1022,
+   "f64": "0x0010000000000000",
+   "f64_exact": true,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-1022, the smallest normal, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1022,
+   "f64": "0x8010000000000000",
+   "f64_exact": true,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "the largest subnormal",
+   "tags": [
+    "exact",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0xfffffffffffff",
+   "exp": -1074,
+   "f64": "0x000fffffffffffff",
+   "f64_exact": true,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "the largest subnormal, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0xfffffffffffff",
+   "exp": -1074,
+   "f64": "0x800fffffffffffff",
+   "f64_exact": true,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "f64::MAX",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1fffffffffffff",
+   "exp": 971,
+   "f64": "0x7fefffffffffffff",
+   "f64_exact": true,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "f64::MAX, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1fffffffffffff",
+   "exp": 971,
+   "f64": "0xffefffffffffffff",
+   "f64_exact": true,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "an even mantissa with trailing zeros",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x50000000000",
+   "exp": -30,
+   "f64": "0x40b4000000000000",
+   "f64_exact": true,
+   "f32": "0x45a00000"
+  },
+  {
+   "name": "an even mantissa with trailing zeros, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x50000000000",
+   "exp": -30,
+   "f64": "0xc0b4000000000000",
+   "f64_exact": true,
+   "f32": "0xc5a00000"
+  },
+  {
+   "name": "2^24 + 2, exact in both formats",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1000002",
+   "exp": 0,
+   "f64": "0x4170000020000000",
+   "f64_exact": true,
+   "f32": "0x4b800001"
+  },
+  {
+   "name": "2^24 + 2, exact in both formats, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1000002",
+   "exp": 0,
+   "f64": "0xc170000020000000",
+   "f64_exact": true,
+   "f32": "0xcb800001"
+  },
+  {
+   "name": "2^53 + 1 ties to even, down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x20000000000001",
+   "exp": 0,
+   "f64": "0x4340000000000000",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 1 ties to even, down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x20000000000001",
+   "exp": 0,
+   "f64": "0xc340000000000000",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^53 + 3 ties to even, up",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x20000000000003",
+   "exp": 0,
+   "f64": "0x4340000000000002",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 3 ties to even, up, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x20000000000003",
+   "exp": 0,
+   "f64": "0xc340000000000002",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^53 + 5 ties to even, down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x20000000000005",
+   "exp": 0,
+   "f64": "0x4340000000000002",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 5 ties to even, down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x20000000000005",
+   "exp": 0,
+   "f64": "0xc340000000000002",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^54 - 1 ties up into the next binade",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x3fffffffffffff",
+   "exp": 0,
+   "f64": "0x4350000000000000",
+   "f64_exact": false,
+   "f32": "0x5a800000"
+  },
+  {
+   "name": "2^54 - 1 ties up into the next binade, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x3fffffffffffff",
+   "exp": 0,
+   "f64": "0xc350000000000000",
+   "f64_exact": false,
+   "f32": "0xda800000"
+  },
+  {
+   "name": "2^53 + 1 with a sticky bit far below is above the tie",
+   "tags": [
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x200000000000010000000000000001",
+   "exp": -64,
+   "f64": "0x4340000000000001",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 1 with a sticky bit far below is above the tie, negative",
+   "tags": [
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x200000000000010000000000000001",
+   "exp": -64,
+   "f64": "0xc340000000000001",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^53 + 1 with a sticky bit 130 bits below, across limbs",
+   "tags": [
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x8000000000000400000000000000000000000000000001",
+   "exp": -96,
+   "f64": "0x4560000000000001",
+   "f64_exact": false,
+   "f32": "0x6b000000"
+  },
+  {
+   "name": "2^53 + 1 with a sticky bit 130 bits below, across limbs, negative",
+   "tags": [
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x8000000000000400000000000000000000000000000001",
+   "exp": -96,
+   "f64": "0xc560000000000001",
+   "f64_exact": false,
+   "f32": "0xeb000000"
+  },
+  {
+   "name": "2^53 + 3 with a sticky bit below is still up",
+   "tags": [
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x8000000000000c00000000000000001",
+   "exp": -70,
+   "f64": "0x4340000000000002",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 3 with a sticky bit below is still up, negative",
+   "tags": [
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x8000000000000c00000000000000001",
+   "exp": -70,
+   "f64": "0xc340000000000002",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "just below the 2^53 + 1 tie rounds down",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x80000000000003fffffffffffffffff",
+   "exp": -70,
+   "f64": "0x4340000000000000",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "just below the 2^53 + 1 tie rounds down, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x80000000000003fffffffffffffffff",
+   "exp": -70,
+   "f64": "0xc340000000000000",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "just below the 2^53 + 3 tie rounds down to 2^53 + 2",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x8000000000000bfffffffffffffffff",
+   "exp": -70,
+   "f64": "0x4340000000000001",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "just below the 2^53 + 3 tie rounds down to 2^53 + 2, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x8000000000000bfffffffffffffffff",
+   "exp": -70,
+   "f64": "0xc340000000000001",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^53 + 2 + a quarter rounds down",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x80000000000009",
+   "exp": -2,
+   "f64": "0x4340000000000001",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 2 + a quarter rounds down, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x80000000000009",
+   "exp": -2,
+   "f64": "0xc340000000000001",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "2^53 + 2 + three quarters rounds up",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x8000000000000b",
+   "exp": -2,
+   "f64": "0x4340000000000001",
+   "f64_exact": false,
+   "f32": "0x5a000000"
+  },
+  {
+   "name": "2^53 + 2 + three quarters rounds up, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x8000000000000b",
+   "exp": -2,
+   "f64": "0xc340000000000001",
+   "f64_exact": false,
+   "f32": "0xda000000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x10000000000000800000000001",
+   "exp": -60,
+   "f64": "0x4270000000000001",
+   "f64_exact": false,
+   "f32": "0x53800000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x10000000000000800000000001",
+   "exp": -60,
+   "f64": "0xc270000000000001",
+   "f64_exact": false,
+   "f32": "0xd3800000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary, tie up",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x10000000000001800000000000",
+   "exp": -60,
+   "f64": "0x4270000000000002",
+   "f64_exact": false,
+   "f32": "0x53800000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary, tie up, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x10000000000001800000000000",
+   "exp": -60,
+   "f64": "0xc270000000000002",
+   "f64_exact": false,
+   "f32": "0xd3800000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary, tie down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x10000000000000800000000000",
+   "exp": -60,
+   "f64": "0x4270000000000000",
+   "f64_exact": false,
+   "f32": "0x53800000"
+  },
+  {
+   "name": "a 100-bit mantissa across a limb boundary, tie down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x10000000000000800000000000",
+   "exp": -60,
+   "f64": "0xc270000000000000",
+   "f64_exact": false,
+   "f32": "0xd3800000"
+  },
+  {
+   "name": "2^-1075 ties to zero",
+   "tags": [
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1075,
+   "f64": "0x0000000000000000",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-1075 ties to zero, negative",
+   "tags": [
+    "sign",
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1075,
+   "f64": "0x8000000000000000",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "2^-1075 + 2^-1200 rounds up to 2^-1074",
+   "tags": [
+    "sticky",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x20000000000000000000000000000001",
+   "exp": -1200,
+   "f64": "0x0000000000000001",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-1075 + 2^-1200 rounds up to 2^-1074, negative",
+   "tags": [
+    "sign",
+    "sticky",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x20000000000000000000000000000001",
+   "exp": -1200,
+   "f64": "0x8000000000000001",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "3 · 2^-1075 ties up to 2^-1073",
+   "tags": [
+    "subnormal",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": -1075,
+   "f64": "0x0000000000000002",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "3 · 2^-1075 ties up to 2^-1073, negative",
+   "tags": [
+    "sign",
+    "subnormal",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": -1075,
+   "f64": "0x8000000000000002",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "3 · 2^-1076 rounds to 2^-1074",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": -1076,
+   "f64": "0x0000000000000001",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "3 · 2^-1076 rounds to 2^-1074, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": -1076,
+   "f64": "0x8000000000000001",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "5 · 2^-1076 rounds to 2^-1074",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x5",
+   "exp": -1076,
+   "f64": "0x0000000000000001",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "5 · 2^-1076 rounds to 2^-1074, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x5",
+   "exp": -1076,
+   "f64": "0x8000000000000001",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "7 · 2^-1076 rounds to 2^-1073",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x7",
+   "exp": -1076,
+   "f64": "0x0000000000000002",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "7 · 2^-1076 rounds to 2^-1073, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x7",
+   "exp": -1076,
+   "f64": "0x8000000000000002",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "2^-1076 rounds to zero",
+   "tags": [
+    "nearest",
+    "subnormal",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1076,
+   "f64": "0x0000000000000000",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-1076 rounds to zero, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal",
+    "zero"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1076,
+   "f64": "0x8000000000000000",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "a subnormal with 60 bits rounds at the floor, not the precision",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x10000000000fffff",
+   "exp": -1120,
+   "f64": "0x0000000000004000",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "a subnormal with 60 bits rounds at the floor, not the precision, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x10000000000fffff",
+   "exp": -1120,
+   "f64": "0x8000000000004000",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "halfway to the smallest normal ties up to it",
+   "tags": [
+    "subnormal",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x1fffffffffffff",
+   "exp": -1075,
+   "f64": "0x0010000000000000",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "halfway to the smallest normal ties up to it, negative",
+   "tags": [
+    "sign",
+    "subnormal",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x1fffffffffffff",
+   "exp": -1075,
+   "f64": "0x8010000000000000",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "just under halfway to the smallest normal stays subnormal",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x7ffffffffffffbff",
+   "exp": -1085,
+   "f64": "0x000fffffffffffff",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "just under halfway to the smallest normal stays subnormal, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x7ffffffffffffbff",
+   "exp": -1085,
+   "f64": "0x800fffffffffffff",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "the largest subnormal plus a quarter unit stays",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x3ffffffffffffd",
+   "exp": -1076,
+   "f64": "0x000fffffffffffff",
+   "f64_exact": false,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "the largest subnormal plus a quarter unit stays, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x3ffffffffffffd",
+   "exp": -1076,
+   "f64": "0x800fffffffffffff",
+   "f64_exact": false,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "f64::MAX plus half an ulp ties to even, which is infinity",
+   "tags": [
+    "overflow",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x3fffffffffffff",
+   "exp": 970,
+   "f64": "0x7ff0000000000000",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "f64::MAX plus half an ulp ties to even, which is infinity, negative",
+   "tags": [
+    "overflow",
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x3fffffffffffff",
+   "exp": 970,
+   "f64": "0xfff0000000000000",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "f64::MAX plus just under half an ulp stays finite",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x3ffffffffffffefffff",
+   "exp": 950,
+   "f64": "0x7fefffffffffffff",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "f64::MAX plus just under half an ulp stays finite, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x3ffffffffffffefffff",
+   "exp": 950,
+   "f64": "0xffefffffffffffff",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "f64::MAX plus three quarters of an ulp overflows",
+   "tags": [
+    "nearest",
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x7fffffffffffff",
+   "exp": 969,
+   "f64": "0x7ff0000000000000",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "f64::MAX plus three quarters of an ulp overflows, negative",
+   "tags": [
+    "nearest",
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x7fffffffffffff",
+   "exp": 969,
+   "f64": "0xfff0000000000000",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "2^1024",
+   "tags": [
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1024,
+   "f64": "0x7ff0000000000000",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "2^1024, negative",
+   "tags": [
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1024,
+   "f64": "0xfff0000000000000",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "2^1100, past Wide's ceiling",
+   "tags": [
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1100,
+   "f64": "0x7ff0000000000000",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "2^1100, past Wide's ceiling, negative",
+   "tags": [
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1100,
+   "f64": "0xfff0000000000000",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "2^1037, Wide's ceiling",
+   "tags": [
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1037,
+   "f64": "0x7ff0000000000000",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "2^1037, Wide's ceiling, negative",
+   "tags": [
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1037,
+   "f64": "0xfff0000000000000",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "2^24 + 1 ties to even in f32, exact in f64",
+   "tags": [
+    "exact",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x1000001",
+   "exp": 0,
+   "f64": "0x4170000010000000",
+   "f64_exact": true,
+   "f32": "0x4b800000"
+  },
+  {
+   "name": "2^24 + 1 ties to even in f32, exact in f64, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x1000001",
+   "exp": 0,
+   "f64": "0xc170000010000000",
+   "f64_exact": true,
+   "f32": "0xcb800000"
+  },
+  {
+   "name": "2^24 + 3 ties up in f32",
+   "tags": [
+    "exact",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x1000003",
+   "exp": 0,
+   "f64": "0x4170000030000000",
+   "f64_exact": true,
+   "f32": "0x4b800002"
+  },
+  {
+   "name": "2^24 + 3 ties up in f32, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x1000003",
+   "exp": 0,
+   "f64": "0xc170000030000000",
+   "f64_exact": true,
+   "f32": "0xcb800002"
+  },
+  {
+   "name": "2^25 - 1 ties up into the next f32 binade",
+   "tags": [
+    "exact",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x1ffffff",
+   "exp": 0,
+   "f64": "0x417ffffff0000000",
+   "f64_exact": true,
+   "f32": "0x4c000000"
+  },
+  {
+   "name": "2^25 - 1 ties up into the next f32 binade, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x1ffffff",
+   "exp": 0,
+   "f64": "0xc17ffffff0000000",
+   "f64_exact": true,
+   "f32": "0xcc000000"
+  },
+  {
+   "name": "2^24 + 1 with a sticky bit below rounds up in f32",
+   "tags": [
+    "exact",
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x100000100001",
+   "exp": -20,
+   "f64": "0x4170000010000100",
+   "f64_exact": true,
+   "f32": "0x4b800001"
+  },
+  {
+   "name": "2^24 + 1 with a sticky bit below rounds up in f32, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x100000100001",
+   "exp": -20,
+   "f64": "0xc170000010000100",
+   "f64_exact": true,
+   "f32": "0xcb800001"
+  },
+  {
+   "name": "2^-150 ties to zero in f32",
+   "tags": [
+    "exact",
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -150,
+   "f64": "0x3690000000000000",
+   "f64_exact": true,
+   "f32": "0x00000000"
+  },
+  {
+   "name": "2^-150 ties to zero in f32, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -150,
+   "f64": "0xb690000000000000",
+   "f64_exact": true,
+   "f32": "0x80000000"
+  },
+  {
+   "name": "2^-150 + 2^-200 rounds up to 2^-149 in f32",
+   "tags": [
+    "exact",
+    "sticky",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x4000000000001",
+   "exp": -200,
+   "f64": "0x3690000000000004",
+   "f64_exact": true,
+   "f32": "0x00000001"
+  },
+  {
+   "name": "2^-150 + 2^-200 rounds up to 2^-149 in f32, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "sticky",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x4000000000001",
+   "exp": -200,
+   "f64": "0xb690000000000004",
+   "f64_exact": true,
+   "f32": "0x80000001"
+  },
+  {
+   "name": "3 · 2^-150 ties up to 2^-148 in f32",
+   "tags": [
+    "exact",
+    "subnormal",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": -150,
+   "f64": "0x36a8000000000000",
+   "f64_exact": true,
+   "f32": "0x00000002"
+  },
+  {
+   "name": "3 · 2^-150 ties up to 2^-148 in f32, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": -150,
+   "f64": "0xb6a8000000000000",
+   "f64_exact": true,
+   "f32": "0x80000002"
+  },
+  {
+   "name": "2^-149, the smallest f32 subnormal",
+   "tags": [
+    "exact",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -149,
+   "f64": "0x36a0000000000000",
+   "f64_exact": true,
+   "f32": "0x00000001"
+  },
+  {
+   "name": "2^-149, the smallest f32 subnormal, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -149,
+   "f64": "0xb6a0000000000000",
+   "f64_exact": true,
+   "f32": "0x80000001"
+  },
+  {
+   "name": "2^-126, the smallest f32 normal",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -126,
+   "f64": "0x3810000000000000",
+   "f64_exact": true,
+   "f32": "0x00800000"
+  },
+  {
+   "name": "2^-126, the smallest f32 normal, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -126,
+   "f64": "0xb810000000000000",
+   "f64_exact": true,
+   "f32": "0x80800000"
+  },
+  {
+   "name": "halfway to the smallest f32 normal ties up to it",
+   "tags": [
+    "exact",
+    "subnormal",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0xffffff",
+   "exp": -150,
+   "f64": "0x380fffffe0000000",
+   "f64_exact": true,
+   "f32": "0x00800000"
+  },
+  {
+   "name": "halfway to the smallest f32 normal ties up to it, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0xffffff",
+   "exp": -150,
+   "f64": "0xb80fffffe0000000",
+   "f64_exact": true,
+   "f32": "0x80800000"
+  },
+  {
+   "name": "just under halfway to the smallest f32 normal stays subnormal",
+   "tags": [
+    "exact",
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x3fffffbff",
+   "exp": -160,
+   "f64": "0x380fffffdff80000",
+   "f64_exact": true,
+   "f32": "0x007fffff"
+  },
+  {
+   "name": "just under halfway to the smallest f32 normal stays subnormal, negative",
+   "tags": [
+    "exact",
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x3fffffbff",
+   "exp": -160,
+   "f64": "0xb80fffffdff80000",
+   "f64_exact": true,
+   "f32": "0x807fffff"
+  },
+  {
+   "name": "f32::MAX",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0xffffff",
+   "exp": 104,
+   "f64": "0x47efffffe0000000",
+   "f64_exact": true,
+   "f32": "0x7f7fffff"
+  },
+  {
+   "name": "f32::MAX, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0xffffff",
+   "exp": 104,
+   "f64": "0xc7efffffe0000000",
+   "f64_exact": true,
+   "f32": "0xff7fffff"
+  },
+  {
+   "name": "f32::MAX plus half an ulp ties to even, which is infinity",
+   "tags": [
+    "exact",
+    "overflow",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x1ffffff",
+   "exp": 103,
+   "f64": "0x47effffff0000000",
+   "f64_exact": true,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "f32::MAX plus half an ulp ties to even, which is infinity, negative",
+   "tags": [
+    "exact",
+    "overflow",
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x1ffffff",
+   "exp": 103,
+   "f64": "0xc7effffff0000000",
+   "f64_exact": true,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "f32::MAX plus just under half an ulp stays finite",
+   "tags": [
+    "exact",
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1fffffefffff",
+   "exp": 83,
+   "f64": "0x47efffffefffff00",
+   "f64_exact": true,
+   "f32": "0x7f7fffff"
+  },
+  {
+   "name": "f32::MAX plus just under half an ulp stays finite, negative",
+   "tags": [
+    "exact",
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1fffffefffff",
+   "exp": 83,
+   "f64": "0xc7efffffefffff00",
+   "f64_exact": true,
+   "f32": "0xff7fffff"
+  },
+  {
+   "name": "2^128 overflows f32",
+   "tags": [
+    "exact",
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 128,
+   "f64": "0x47f0000000000000",
+   "f64_exact": true,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "2^128 overflows f32, negative",
+   "tags": [
+    "exact",
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 128,
+   "f64": "0xc7f0000000000000",
+   "f64_exact": true,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "2^200 overflows f32 and is exact in f64",
+   "tags": [
+    "exact",
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 200,
+   "f64": "0x4c70000000000000",
+   "f64_exact": true,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "2^200 overflows f32 and is exact in f64, negative",
+   "tags": [
+    "exact",
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 200,
+   "f64": "0xcc70000000000000",
+   "f64_exact": true,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "just above the 2^24 + 1 tie: f64 lands on the tie and f32 via f64 goes down",
+   "tags": [
+    "f32-differs",
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x40000040000001",
+   "exp": -30,
+   "f64": "0x4170000010000000",
+   "f64_exact": false,
+   "f32": "0x4b800001"
+  },
+  {
+   "name": "just above the 2^24 + 1 tie: f64 lands on the tie and f32 via f64 goes down, negative",
+   "tags": [
+    "f32-differs",
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x40000040000001",
+   "exp": -30,
+   "f64": "0xc170000010000000",
+   "f64_exact": false,
+   "f32": "0xcb800001"
+  },
+  {
+   "name": "just below the 2^24 + 3 tie: f64 lands on the tie and f32 via f64 goes up",
+   "tags": [
+    "f32-differs",
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x400000bfffffff",
+   "exp": -30,
+   "f64": "0x4170000030000000",
+   "f64_exact": false,
+   "f32": "0x4b800001"
+  },
+  {
+   "name": "just below the 2^24 + 3 tie: f64 lands on the tie and f32 via f64 goes up, negative",
+   "tags": [
+    "f32-differs",
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x400000bfffffff",
+   "exp": -30,
+   "f64": "0xc170000030000000",
+   "f64_exact": false,
+   "f32": "0xcb800001"
+  },
+  {
+   "name": "just above 2^-150: f64 lands on the f32 tie and f32 via f64 is zero",
+   "tags": [
+    "f32-differs",
+    "sticky",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x1000000000000001",
+   "exp": -210,
+   "f64": "0x3690000000000000",
+   "f64_exact": false,
+   "f32": "0x00000001"
+  },
+  {
+   "name": "just above 2^-150: f64 lands on the f32 tie and f32 via f64 is zero, negative",
+   "tags": [
+    "f32-differs",
+    "sign",
+    "sticky",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x1000000000000001",
+   "exp": -210,
+   "f64": "0xb690000000000000",
+   "f64_exact": false,
+   "f32": "0x80000001"
+  },
+  {
+   "name": "just below f32::MAX plus half an ulp: f64 lands on the tie and f32 via f64 overflows",
+   "tags": [
+    "f32-differs",
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1fffffefffffffffffffff",
+   "exp": 43,
+   "f64": "0x47effffff0000000",
+   "f64_exact": false,
+   "f32": "0x7f7fffff"
+  },
+  {
+   "name": "just below f32::MAX plus half an ulp: f64 lands on the tie and f32 via f64 overflows, negative",
+   "tags": [
+    "f32-differs",
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1fffffefffffffffffffff",
+   "exp": 43,
+   "f64": "0xc7effffff0000000",
+   "f64_exact": false,
+   "f32": "0xff7fffff"
+  },
+  {
+   "name": "just below the halfway point to 2^-126: f64 lands on the tie and f32 via f64 goes normal",
+   "tags": [
+    "f32-differs",
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0xfffffefffffffffffffff",
+   "exp": -210,
+   "f64": "0x380fffffe0000000",
+   "f64_exact": false,
+   "f32": "0x007fffff"
+  },
+  {
+   "name": "just below the halfway point to 2^-126: f64 lands on the tie and f32 via f64 goes normal, negative",
+   "tags": [
+    "f32-differs",
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0xfffffefffffffffffffff",
+   "exp": -210,
+   "f64": "0xb80fffffe0000000",
+   "f64_exact": false,
+   "f32": "0x807fffff"
+  },
+  {
+   "name": "random dyadic 0: 133 bits at 2^-3",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x1d5d5bca4696b343b3553274161bbf8475",
+   "exp": -3,
+   "f64": "0xc80d5d5bca4696b3",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "random dyadic 1: 69 bits at 2^-53",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x131289a69805c125b1",
+   "exp": -53,
+   "f64": "0xc0e31289a69805c1",
+   "f64_exact": false,
+   "f32": "0xc718944d"
+  },
+  {
+   "name": "random dyadic 2: 125 bits at 2^-3",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x1d0e83a710231b072d2bae64640abfb9",
+   "exp": -3,
+   "f64": "0xc78d0e83a710231b",
+   "f64_exact": false,
+   "f32": "0xfc68741d"
+  },
+  {
+   "name": "random dyadic 3: 136 bits at 2^-49",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x94c33e61bc6ef9e4c4bbea42bd69484adc",
+   "exp": -49,
+   "f64": "0x45529867cc378ddf",
+   "f64_exact": false,
+   "f32": "0x6a94c33e"
+  },
+  {
+   "name": "random dyadic 4: 95 bits at 2^-54",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x42286387974041d15ad75c38",
+   "exp": -54,
+   "f64": "0xc2708a18e1e5d010",
+   "f64_exact": false,
+   "f32": "0xd38450c7"
+  },
+  {
+   "name": "random dyadic 5: 29 bits at 2^-4",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x10dc91ac",
+   "exp": -4,
+   "f64": "0xc170dc91ac000000",
+   "f64_exact": true,
+   "f32": "0xcb86e48d"
+  },
+  {
+   "name": "random dyadic 6: 2 bits at 2^-74",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x2",
+   "exp": -74,
+   "f64": "0x3b60000000000000",
+   "f64_exact": true,
+   "f32": "0x1b000000"
+  },
+  {
+   "name": "random dyadic 7: 90 bits at 2^-43",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x289c9ce272c78c413c9d42d",
+   "exp": -43,
+   "f64": "0xc2d44e4e713963c6",
+   "f64_exact": false,
+   "f32": "0xd6a27274"
+  },
+  {
+   "name": "random dyadic 8: 99 bits at 2^-81",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x46446969a5a71cd3d503faeee",
+   "exp": -81,
+   "f64": "0xc101911a5a6969c7",
+   "f64_exact": false,
+   "f32": "0xc80c88d3"
+  },
+  {
+   "name": "random dyadic 9: 53 bits at 2^-44",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1d73ce3f48b12d",
+   "exp": -44,
+   "f64": "0x407d73ce3f48b12d",
+   "f64_exact": true,
+   "f32": "0x43eb9e72"
+  },
+  {
+   "name": "random dyadic 10: 34 bits at 2^-33",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x3e6055f33",
+   "exp": -33,
+   "f64": "0x3fff302af9980000",
+   "f64_exact": true,
+   "f32": "0x3ff98158"
+  },
+  {
+   "name": "random dyadic 11: 33 bits at 2^-17",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x192ea9c40",
+   "exp": -17,
+   "f64": "0x40e92ea9c4000000",
+   "f64_exact": true,
+   "f32": "0x4749754e"
+  },
+  {
+   "name": "random dyadic 12: 59 bits at 2^-88",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x5026344c3387367",
+   "exp": -88,
+   "f64": "0xbe14098d130ce1ce",
+   "f64_exact": false,
+   "f32": "0xb0a04c69"
+  },
+  {
+   "name": "random dyadic 13: 103 bits at 2^-72",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x6b215e12f82ce286c208bcb62c",
+   "exp": -72,
+   "f64": "0x41dac85784be0b39",
+   "f64_exact": false,
+   "f32": "0x4ed642bc"
+  },
+  {
+   "name": "random dyadic 14: 26 bits at 2^-79",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x2cf5335",
+   "exp": -79,
+   "f64": "0x3c967a99a8000000",
+   "f64_exact": true,
+   "f32": "0x24b3d4cd"
+  },
+  {
+   "name": "random dyadic 15: 90 bits at 2^-37",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x320e46e0e65fffebf0178b3",
+   "exp": -37,
+   "f64": "0x4339072370733000",
+   "f64_exact": false,
+   "f32": "0x59c8391c"
+  },
+  {
+   "name": "random dyadic 16: 74 bits at 2^-57",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x2e4b2f46d141fcb806f",
+   "exp": -57,
+   "f64": "0x40f72597a368a0fe",
+   "f64_exact": false,
+   "f32": "0x47b92cbd"
+  },
+  {
+   "name": "random dyadic 17: 118 bits at 2^47",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x2354fbcadebb98f0c0c01a028df290",
+   "exp": 47,
+   "f64": "0xca31aa7de56f5dcc",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "random dyadic 18: 68 bits at 2^-44",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xaa3e82300b7a5d526",
+   "exp": -44,
+   "f64": "0x416547d046016f4c",
+   "f64_exact": false,
+   "f32": "0x4b2a3e82"
+  },
+  {
+   "name": "random dyadic 19: 124 bits at 2^-90",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xc4c1dd3ff95abeb22c63036d92d6a23",
+   "exp": -90,
+   "f64": "0x4208983ba7ff2b58",
+   "f64_exact": false,
+   "f32": "0x5044c1dd"
+  },
+  {
+   "name": "random dyadic 20: 33 bits at 2^31",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1de461dab",
+   "exp": 31,
+   "f64": "0x43ede461dab00000",
+   "f64_exact": true,
+   "f32": "0x5f6f230f"
+  },
+  {
+   "name": "random dyadic 21: 65 bits at 2^-53",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x1c3d5fcec3bbe5ea6",
+   "exp": -53,
+   "f64": "0xc0ac3d5fcec3bbe6",
+   "f64_exact": false,
+   "f32": "0xc561eafe"
+  },
+  {
+   "name": "random dyadic 22: 9 bits at 2^9",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x172",
+   "exp": 9,
+   "f64": "0xc107200000000000",
+   "f64_exact": true,
+   "f32": "0xc8390000"
+  },
+  {
+   "name": "random dyadic 23: 137 bits at 2^44",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x109d55fa4d5cd43431a87ea22ca1ccf382c",
+   "exp": 44,
+   "f64": "0x4b309d55fa4d5cd4",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "random dyadic 24: 20 bits at 2^-8",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xca131",
+   "exp": -8,
+   "f64": "0xc0a9426200000000",
+   "f64_exact": true,
+   "f32": "0xc54a1310"
+  },
+  {
+   "name": "random dyadic 25: 134 bits at 2^28",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x377474b672939f6eeddfa72d5051bdc083",
+   "exp": 28,
+   "f64": "0xca0bba3a5b3949d0",
+   "f64_exact": false,
+   "f32": "0xff800000"
+  },
+  {
+   "name": "random dyadic 26: 56 bits at 2^-31",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x8c02268b9cbcb6",
+   "exp": -31,
+   "f64": "0xc1718044d1739797",
+   "f64_exact": false,
+   "f32": "0xcb8c0227"
+  },
+  {
+   "name": "random dyadic 27: 40 bits at 2^-76",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xa1c3abb87f",
+   "exp": -76,
+   "f64": "0x3da43875770fe000",
+   "f64_exact": true,
+   "f32": "0x2d21c3ac"
+  },
+  {
+   "name": "random dyadic 28: 77 bits at 2^-15",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x1eaa5ebc5bc394715dce",
+   "exp": -15,
+   "f64": "0xc3ceaa5ebc5bc394",
+   "f64_exact": false,
+   "f32": "0xde7552f6"
+  },
+  {
+   "name": "random dyadic 29: 109 bits at 2^-38",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x17a45b478b9a1a2d91eb02c9ecb6",
+   "exp": -38,
+   "f64": "0x4457a45b478b9a1a",
+   "f64_exact": false,
+   "f32": "0x62bd22da"
+  },
+  {
+   "name": "random dyadic 30: 108 bits at 2^-67",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x8b15fee847105135744d33157e7",
+   "exp": -67,
+   "f64": "0x427162bfdd08e20a",
+   "f64_exact": false,
+   "f32": "0x538b15ff"
+  },
+  {
+   "name": "random dyadic 31: 39 bits at 2^49",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x4ca7d3730e",
+   "exp": 49,
+   "f64": "0xc56329f4dcc38000",
+   "f64_exact": true,
+   "f32": "0xeb194fa7"
+  },
+  {
+   "name": "random dyadic 32: 41 bits at 2^-51",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x11204319760",
+   "exp": -51,
+   "f64": "0x3f41204319760000",
+   "f64_exact": true,
+   "f32": "0x3a090219"
+  },
+  {
+   "name": "random dyadic 33: 26 bits at 2^-93",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x3a7460a",
+   "exp": -93,
+   "f64": "0xbbbd3a3050000000",
+   "f64_exact": true,
+   "f32": "0x9de9d182"
+  },
+  {
+   "name": "random dyadic 34: 7 bits at 2^-22",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x5c",
+   "exp": -22,
+   "f64": "0xbef7000000000000",
+   "f64_exact": true,
+   "f32": "0xb7b80000"
+  },
+  {
+   "name": "random dyadic 35: 10 bits at 2^18",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x3cf",
+   "exp": 18,
+   "f64": "0x41ae780000000000",
+   "f64_exact": true,
+   "f32": "0x4d73c000"
+  },
+  {
+   "name": "random dyadic 36: 15 bits at 2^7",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x6cc6",
+   "exp": 7,
+   "f64": "0x414b318000000000",
+   "f64_exact": true,
+   "f32": "0x4a598c00"
+  },
+  {
+   "name": "random dyadic 37: 112 bits at 2^-32",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xe0e89d26d942ebecede5e0a1007e",
+   "exp": -32,
+   "f64": "0x44ec1d13a4db285d",
+   "f64_exact": false,
+   "f32": "0x6760e89d"
+  },
+  {
+   "name": "random dyadic 38: 11 bits at 2^-63",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x79b",
+   "exp": -63,
+   "f64": "0x3cae6c0000000000",
+   "f64_exact": true,
+   "f32": "0x25736000"
+  },
+  {
+   "name": "random dyadic 39: 134 bits at 2^-76",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x341951304f456d38187d26da544e8960ad",
+   "exp": -76,
+   "f64": "0x438a0ca89827a2b7",
+   "f64_exact": false,
+   "f32": "0x5c506545"
+  },
+  {
+   "name": "random dyadic 40: 31 bits at 2^-91",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x7695682d",
+   "exp": -91,
+   "f64": "0x3c2da55a0b400000",
+   "f64_exact": true,
+   "f32": "0x216d2ad0"
+  },
+  {
+   "name": "random dyadic 41: 68 bits at 2^25",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xb211105be1a72e4e2",
+   "exp": 25,
+   "f64": "0xc5b642220b7c34e6",
+   "f64_exact": false,
+   "f32": "0xedb21110"
+  },
+  {
+   "name": "random dyadic 42: 23 bits at 2^-91",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x6e3027",
+   "exp": -91,
+   "f64": "0x3bab8c09c0000000",
+   "f64_exact": true,
+   "f32": "0x1d5c604e"
+  },
+  {
+   "name": "random dyadic 43: 139 bits at 2^8",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x74cc185a01fff53fe962438eacafa7d11a7",
+   "exp": 8,
+   "f64": "0x491d330616807ffd",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  },
+  {
+   "name": "random dyadic 44: 118 bits at 2^-42",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x383b1922cdc73796f639b30cce07b4",
+   "exp": -42,
+   "f64": "0x44ac1d8c9166e39c",
+   "f64_exact": false,
+   "f32": "0x6560ec65"
+  },
+  {
+   "name": "random dyadic 45: 1 bits at 2^17",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 17,
+   "f64": "0x4100000000000000",
+   "f64_exact": true,
+   "f32": "0x48000000"
+  },
+  {
+   "name": "random dyadic 46: 11 bits at 2^-5",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x5bf",
+   "exp": -5,
+   "f64": "0xc046fc0000000000",
+   "f64_exact": true,
+   "f32": "0xc237e000"
+  },
+  {
+   "name": "random dyadic 47: 120 bits at 2^44",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xf939b56f1cc800a19d0b43d7cbcdf0",
+   "exp": 44,
+   "f64": "0x4a2f2736ade39900",
+   "f64_exact": false,
+   "f32": "0x7f800000"
+  }
+ ],
+ "quotients": [
+  {
+   "name": "0 / 0 is NaN",
+   "tags": [
+    "zero",
+    "zero-divisor"
+   ],
+   "negative": false,
+   "mant": "0x0",
+   "exp": 0,
+   "n": 0,
+   "f64": "nan"
+  },
+  {
+   "name": "1 / 0 is +∞",
+   "tags": [
+    "overflow",
+    "zero-divisor"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 0,
+   "f64": "0x7ff0000000000000"
+  },
+  {
+   "name": "-1 / 0 is -∞",
+   "tags": [
+    "overflow",
+    "sign",
+    "zero-divisor"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 0,
+   "f64": "0xfff0000000000000"
+  },
+  {
+   "name": "0 / 3 is zero",
+   "tags": [
+    "exact",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x0",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x0000000000000000"
+  },
+  {
+   "name": "7 / 1",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x7",
+   "exp": 0,
+   "n": 1,
+   "f64": "0x401c000000000000"
+  },
+  {
+   "name": "7 / 1, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x7",
+   "exp": 0,
+   "n": 1,
+   "f64": "0xc01c000000000000"
+  },
+  {
+   "name": "1 / 3",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x3fd5555555555555"
+  },
+  {
+   "name": "1 / 3, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xbfd5555555555555"
+  },
+  {
+   "name": "2 / 3",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x2",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x3fe5555555555555"
+  },
+  {
+   "name": "2 / 3, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x2",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xbfe5555555555555"
+  },
+  {
+   "name": "5 / 7",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x5",
+   "exp": 0,
+   "n": 7,
+   "f64": "0x3fe6db6db6db6db7"
+  },
+  {
+   "name": "5 / 7, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x5",
+   "exp": 0,
+   "n": 7,
+   "f64": "0xbfe6db6db6db6db7"
+  },
+  {
+   "name": "10 / 3",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0xa",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x400aaaaaaaaaaaab"
+  },
+  {
+   "name": "10 / 3, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0xa",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xc00aaaaaaaaaaaab"
+  },
+  {
+   "name": "1 / 10",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 10,
+   "f64": "0x3fb999999999999a"
+  },
+  {
+   "name": "1 / 10, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 10,
+   "f64": "0xbfb999999999999a"
+  },
+  {
+   "name": "1 / 2^40 is exact",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 1099511627776,
+   "f64": "0x3d70000000000000"
+  },
+  {
+   "name": "1 / 2^40 is exact, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 1099511627776,
+   "f64": "0xbd70000000000000"
+  },
+  {
+   "name": "3 / 4",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": 0,
+   "n": 4,
+   "f64": "0x3fe8000000000000"
+  },
+  {
+   "name": "3 / 4, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": 0,
+   "n": 4,
+   "f64": "0xbfe8000000000000"
+  },
+  {
+   "name": "2^64 / 3",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 64,
+   "n": 3,
+   "f64": "0x43d5555555555555"
+  },
+  {
+   "name": "2^64 / 3, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 64,
+   "n": 3,
+   "f64": "0xc3d5555555555555"
+  },
+  {
+   "name": "(2^128 - 1) / (2^64 - 1) is 2^64 + 1, a tie down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0xffffffffffffffffffffffffffffffff",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0x43f0000000000000"
+  },
+  {
+   "name": "(2^128 - 1) / (2^64 - 1) is 2^64 + 1, a tie down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0xffffffffffffffffffffffffffffffff",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0xc3f0000000000000"
+  },
+  {
+   "name": "(2^128 - 1) / 2 rounds up to 2^127",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0xffffffffffffffffffffffffffffffff",
+   "exp": 0,
+   "n": 2,
+   "f64": "0x47e0000000000000"
+  },
+  {
+   "name": "(2^128 - 1) / 2 rounds up to 2^127, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0xffffffffffffffffffffffffffffffff",
+   "exp": 0,
+   "n": 2,
+   "f64": "0xc7e0000000000000"
+  },
+  {
+   "name": "1 / (2^64 - 1), a quotient below one",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0x3bf0000000000000"
+  },
+  {
+   "name": "1 / (2^64 - 1), a quotient below one, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0xbbf0000000000000"
+  },
+  {
+   "name": "3 · (2^53 + 1) / 3 is the 2^53 + 1 tie, down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x60000000000003",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x4340000000000000"
+  },
+  {
+   "name": "3 · (2^53 + 1) / 3 is the 2^53 + 1 tie, down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x60000000000003",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xc340000000000000"
+  },
+  {
+   "name": "(3 · (2^53 + 1) + 1) / 3 is above the tie, up",
+   "tags": [
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x60000000000004",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x4340000000000001"
+  },
+  {
+   "name": "(3 · (2^53 + 1) + 1) / 3 is above the tie, up, negative",
+   "tags": [
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x60000000000004",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xc340000000000001"
+  },
+  {
+   "name": "(3 · (2^53 + 3) - 1) / 3 is below the tie, down",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x60000000000008",
+   "exp": 0,
+   "n": 3,
+   "f64": "0x4340000000000001"
+  },
+  {
+   "name": "(3 · (2^53 + 3) - 1) / 3 is below the tie, down, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x60000000000008",
+   "exp": 0,
+   "n": 3,
+   "f64": "0xc340000000000001"
+  },
+  {
+   "name": "2^-1074 / 2 ties to zero",
+   "tags": [
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1074,
+   "n": 2,
+   "f64": "0x0000000000000000"
+  },
+  {
+   "name": "2^-1074 / 2 ties to zero, negative",
+   "tags": [
+    "sign",
+    "subnormal",
+    "tie",
+    "zero"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1074,
+   "n": 2,
+   "f64": "0x8000000000000000"
+  },
+  {
+   "name": "2^-1074 / 3 rounds to zero",
+   "tags": [
+    "nearest",
+    "subnormal",
+    "zero"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1074,
+   "n": 3,
+   "f64": "0x0000000000000000"
+  },
+  {
+   "name": "2^-1074 / 3 rounds to zero, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal",
+    "zero"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1074,
+   "n": 3,
+   "f64": "0x8000000000000000"
+  },
+  {
+   "name": "3 · 2^-1074 / 2 ties up to 2^-1073",
+   "tags": [
+    "subnormal",
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x3",
+   "exp": -1074,
+   "n": 2,
+   "f64": "0x0000000000000002"
+  },
+  {
+   "name": "3 · 2^-1074 / 2 ties up to 2^-1073, negative",
+   "tags": [
+    "sign",
+    "subnormal",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x3",
+   "exp": -1074,
+   "n": 2,
+   "f64": "0x8000000000000002"
+  },
+  {
+   "name": "7 · 2^-1074 / 4 rounds to 2^-1073",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x7",
+   "exp": -1074,
+   "n": 4,
+   "f64": "0x0000000000000002"
+  },
+  {
+   "name": "7 · 2^-1074 / 4 rounds to 2^-1073, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x7",
+   "exp": -1074,
+   "n": 4,
+   "f64": "0x8000000000000002"
+  },
+  {
+   "name": "2^-1000 / 2^60 is a subnormal, exact",
+   "tags": [
+    "exact",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1000,
+   "n": 1152921504606846976,
+   "f64": "0x0000000000004000"
+  },
+  {
+   "name": "2^-1000 / 2^60 is a subnormal, exact, negative",
+   "tags": [
+    "exact",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1000,
+   "n": 1152921504606846976,
+   "f64": "0x8000000000004000"
+  },
+  {
+   "name": "2^-1000 / (2^60 + 1) is a subnormal, rounded",
+   "tags": [
+    "nearest",
+    "subnormal"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": -1000,
+   "n": 1152921504606846977,
+   "f64": "0x0000000000004000"
+  },
+  {
+   "name": "2^-1000 / (2^60 + 1) is a subnormal, rounded, negative",
+   "tags": [
+    "nearest",
+    "sign",
+    "subnormal"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": -1000,
+   "n": 1152921504606846977,
+   "f64": "0x8000000000004000"
+  },
+  {
+   "name": "2^1024 / 1 overflows",
+   "tags": [
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1024,
+   "n": 1,
+   "f64": "0x7ff0000000000000"
+  },
+  {
+   "name": "2^1024 / 1 overflows, negative",
+   "tags": [
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1024,
+   "n": 1,
+   "f64": "0xfff0000000000000"
+  },
+  {
+   "name": "2^1024 / 2 is 2^1023",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1024,
+   "n": 2,
+   "f64": "0x7fe0000000000000"
+  },
+  {
+   "name": "2^1024 / 2 is 2^1023, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1024,
+   "n": 2,
+   "f64": "0xffe0000000000000"
+  },
+  {
+   "name": "2^1100 / 2^60 is 2^1040, past the ceiling and infinite",
+   "tags": [
+    "overflow"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1100,
+   "n": 1152921504606846976,
+   "f64": "0x7ff0000000000000"
+  },
+  {
+   "name": "2^1100 / 2^60 is 2^1040, past the ceiling and infinite, negative",
+   "tags": [
+    "overflow",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1100,
+   "n": 1152921504606846976,
+   "f64": "0xfff0000000000000"
+  },
+  {
+   "name": "2^1080 / 2^60 is 2^1020, finite",
+   "tags": [
+    "exact"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 1080,
+   "n": 1152921504606846976,
+   "f64": "0x7fb0000000000000"
+  },
+  {
+   "name": "2^1080 / 2^60 is 2^1020, finite, negative",
+   "tags": [
+    "exact",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 1080,
+   "n": 1152921504606846976,
+   "f64": "0xffb0000000000000"
+  },
+  {
+   "name": "f64::MAX / (2^64 - 1)",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1fffffffffffff",
+   "exp": 971,
+   "n": 18446744073709551615,
+   "f64": "0x7befffffffffffff"
+  },
+  {
+   "name": "f64::MAX / (2^64 - 1), negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1fffffffffffff",
+   "exp": 971,
+   "n": 18446744073709551615,
+   "f64": "0xfbefffffffffffff"
+  },
+  {
+   "name": "a 131-bit mantissa / (2^63 + 1), across limbs",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x400000000000000000000000000000001",
+   "exp": -96,
+   "n": 9223372036854775809,
+   "f64": "0x3e20000000000000"
+  },
+  {
+   "name": "a 131-bit mantissa / (2^63 + 1), across limbs, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x400000000000000000000000000000001",
+   "exp": -96,
+   "n": 9223372036854775809,
+   "f64": "0xbe20000000000000"
+  },
+  {
+   "name": "a 131-bit mantissa / 1, rounded",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x400000000000000000000000000000001",
+   "exp": -96,
+   "n": 1,
+   "f64": "0x4210000000000000"
+  },
+  {
+   "name": "a 131-bit mantissa / 1, rounded, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x400000000000000000000000000000001",
+   "exp": -96,
+   "n": 1,
+   "f64": "0xc210000000000000"
+  },
+  {
+   "name": "a 150-bit mantissa / 2^63, across limbs",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x40000000000000000000400000000000000001",
+   "exp": -96,
+   "n": 9223372036854775808,
+   "f64": "0x3f60000000000000"
+  },
+  {
+   "name": "a 150-bit mantissa / 2^63, across limbs, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x40000000000000000000400000000000000001",
+   "exp": -96,
+   "n": 9223372036854775808,
+   "f64": "0xbf60000000000000"
+  },
+  {
+   "name": "(2^53 + 1) · 2^63 / 2^63 is the tie, down",
+   "tags": [
+    "tie"
+   ],
+   "negative": false,
+   "mant": "0x20000000000001",
+   "exp": 63,
+   "n": 9223372036854775808,
+   "f64": "0x4340000000000000"
+  },
+  {
+   "name": "(2^53 + 1) · 2^63 / 2^63 is the tie, down, negative",
+   "tags": [
+    "sign",
+    "tie"
+   ],
+   "negative": true,
+   "mant": "0x20000000000001",
+   "exp": 63,
+   "n": 9223372036854775808,
+   "f64": "0xc340000000000000"
+  },
+  {
+   "name": "((2^53 + 1) · 2^63 + 1) / 2^63 is above the tie, up",
+   "tags": [
+    "sticky"
+   ],
+   "negative": false,
+   "mant": "0x100000000000008000000000000001",
+   "exp": 0,
+   "n": 9223372036854775808,
+   "f64": "0x4340000000000001"
+  },
+  {
+   "name": "((2^53 + 1) · 2^63 + 1) / 2^63 is above the tie, up, negative",
+   "tags": [
+    "sign",
+    "sticky"
+   ],
+   "negative": true,
+   "mant": "0x100000000000008000000000000001",
+   "exp": 0,
+   "n": 9223372036854775808,
+   "f64": "0xc340000000000001"
+  },
+  {
+   "name": "1 / u64::MAX",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0x3bf0000000000000"
+  },
+  {
+   "name": "1 / u64::MAX, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 0,
+   "n": 18446744073709551615,
+   "f64": "0xbbf0000000000000"
+  },
+  {
+   "name": "2^100 / u64::MAX",
+   "tags": [
+    "nearest"
+   ],
+   "negative": false,
+   "mant": "0x1",
+   "exp": 100,
+   "n": 18446744073709551615,
+   "f64": "0x4230000000000000"
+  },
+  {
+   "name": "2^100 / u64::MAX, negative",
+   "tags": [
+    "nearest",
+    "sign"
+   ],
+   "negative": true,
+   "mant": "0x1",
+   "exp": 100,
+   "n": 18446744073709551615,
+   "f64": "0xc230000000000000"
+  },
+  {
+   "name": "random quotient 0: 96 bits at 2^-92 over 132538502295",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xcbc6764560f5eddb192f0efb",
+   "exp": -92,
+   "n": 132538502295,
+   "f64": "0x3dda69e8208fbae3"
+  },
+  {
+   "name": "random quotient 1: 116 bits at 2^-44 over 8647418514767861",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xbc21e96d25c42005fa6e544aa4122",
+   "exp": -44,
+   "n": 8647418514767861,
+   "f64": "0xc1187eb6e4a96d60"
+  },
+  {
+   "name": "random quotient 2: 6 bits at 2^10 over 29493",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x2c",
+   "exp": 10,
+   "n": 29493,
+   "f64": "0xbff8716556dc6bab"
+  },
+  {
+   "name": "random quotient 3: 50 bits at 2^-23 over 7235450645",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x3e7ad8b7c06d6",
+   "exp": -23,
+   "n": 7235450645,
+   "f64": "0x3f928b464f7262e0"
+  },
+  {
+   "name": "random quotient 4: 50 bits at 2^-68 over 25656533431",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x223910c4dee6e",
+   "exp": -68,
+   "n": 25656533431,
+   "f64": "0xbc96ea7f0fa17088"
+  },
+  {
+   "name": "random quotient 5: 72 bits at 2^-83 over 2658",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xa55e702ef06490ef1d",
+   "exp": -83,
+   "n": 2658,
+   "f64": "0xbe7fdab707b17bf8"
+  },
+  {
+   "name": "random quotient 6: 28 bits at 2^-56 over 31954431542718442",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xd10664c",
+   "exp": -56,
+   "n": 31954431542718442,
+   "f64": "0xbabd75a866c7a301"
+  },
+  {
+   "name": "random quotient 7: 114 bits at 2^19 over 17728",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x2cdabcbd3b5d7e00392584915f301",
+   "exp": 19,
+   "n": 17728,
+   "f64": "0x4754ba1a38054075"
+  },
+  {
+   "name": "random quotient 8: 20 bits at 2^-22 over 10212199440",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x9feef",
+   "exp": -22,
+   "n": 10212199440,
+   "f64": "0x3db0d0dd8d30bf8d"
+  },
+  {
+   "name": "random quotient 9: 110 bits at 2^27 over 39",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x2fbb8a43ae103637f78bc0455305",
+   "exp": 27,
+   "n": 39,
+   "f64": "0x482395250812e5d5"
+  },
+  {
+   "name": "random quotient 10: 96 bits at 2^-5 over 22772",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xc8ff08e6f66e0df3a60a965d",
+   "exp": -5,
+   "n": 22772,
+   "f64": "0xc4b2139be4bf0f85"
+  },
+  {
+   "name": "random quotient 11: 69 bits at 2^41 over 217010807779858269",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x19b27b3de46c1c50b7",
+   "exp": 41,
+   "n": 217010807779858269,
+   "f64": "0xc33110b7e22a709c"
+  },
+  {
+   "name": "random quotient 12: 116 bits at 2^12 over 25",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xb12a618e9a41ef83019faaf7989f7",
+   "exp": 12,
+   "n": 25,
+   "f64": "0x479c58b372f9f612"
+  },
+  {
+   "name": "random quotient 13: 96 bits at 2^-19 over 500",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0xcc1d2d520773fed305bfa2fa",
+   "exp": -19,
+   "n": 500,
+   "f64": "0x442a20681ae23be7"
+  },
+  {
+   "name": "random quotient 14: 81 bits at 2^13 over 146062720",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x188022a7c35090143959c",
+   "exp": 13,
+   "n": 146062720,
+   "f64": "0x4416837eb9a839bc"
+  },
+  {
+   "name": "random quotient 15: 47 bits at 2^-34 over 302",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x712302476b4c",
+   "exp": -34,
+   "n": 302,
+   "f64": "0xc037f9db2f58db8d"
+  },
+  {
+   "name": "random quotient 16: 65 bits at 2^-7 over 55506438",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1023a73ea4e109269",
+   "exp": -7,
+   "n": 55506438,
+   "f64": "0x41e3834956da944b"
+  },
+  {
+   "name": "random quotient 17: 123 bits at 2^47 over 248479667714896",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x62adbd3440c62de10f3887c72aa26b6",
+   "exp": 47,
+   "n": 248479667714896,
+   "f64": "0x478bf20db6fa743a"
+  },
+  {
+   "name": "random quotient 18: 5 bits at 2^-96 over 2009811611327116",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x12",
+   "exp": -96,
+   "n": 2009811611327116,
+   "f64": "0x37042ad1a8f17552"
+  },
+  {
+   "name": "random quotient 19: 132 bits at 2^46 over 1",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xd7f6f2bd02ce93118090d24f397200ab1",
+   "exp": 46,
+   "n": 1,
+   "f64": "0xcb0afede57a059d2"
+  },
+  {
+   "name": "random quotient 20: 42 bits at 2^10 over 272272751760",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x262c9eecc6e",
+   "exp": 10,
+   "n": 272272751760,
+   "f64": "0xc0c3451041f44af4"
+  },
+  {
+   "name": "random quotient 21: 89 bits at 2^16 over 78671583689572",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1ce27cc99ea34624df62944",
+   "exp": 16,
+   "n": 78671583689572,
+   "f64": "0x4399d616964f06ea"
+  },
+  {
+   "name": "random quotient 22: 30 bits at 2^-48 over 124557",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x36232617",
+   "exp": -48,
+   "n": 124557,
+   "f64": "0x3dbc7c0741d85a84"
+  },
+  {
+   "name": "random quotient 23: 42 bits at 2^-14 over 356150",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x2ea3112fd87",
+   "exp": -14,
+   "n": 356150,
+   "f64": "0xc08129df280cf61c"
+  },
+  {
+   "name": "random quotient 24: 5 bits at 2^-46 over 490578953768",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x1a",
+   "exp": -46,
+   "n": 490578953768,
+   "f64": "0x3aed22e3f7bd0301"
+  },
+  {
+   "name": "random quotient 25: 48 bits at 2^-15 over 4015890",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xd053fe25fafa",
+   "exp": -15,
+   "n": 4015890,
+   "f64": "0xc09b32abf750696e"
+  },
+  {
+   "name": "random quotient 26: 129 bits at 2^-21 over 2746400828920834",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x19e4cb1a7d1a05835ae64822b51b8ae2e",
+   "exp": -21,
+   "n": 2746400828920834,
+   "f64": "0xc3753b02888291e1"
+  },
+  {
+   "name": "random quotient 27: 116 bits at 2^-64 over 1",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0xd111cbb12825c4fed956854cdd167",
+   "exp": -64,
+   "n": 1,
+   "f64": "0xc32a2239762504b9"
+  },
+  {
+   "name": "random quotient 28: 72 bits at 2^-19 over 7667831391507858",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x858fab48e35dcd9349",
+   "exp": -19,
+   "n": 7667831391507858,
+   "f64": "0xbfe39c81a757eb6b"
+  },
+  {
+   "name": "random quotient 29: 21 bits at 2^-46 over 4220759076242499268",
+   "tags": [
+    "random"
+   ],
+   "negative": true,
+   "mant": "0x159e8c",
+   "exp": -46,
+   "n": 4220759076242499268,
+   "f64": "0xba779f282bb1f198"
+  },
+  {
+   "name": "random quotient 30: 5 bits at 2^-93 over 4096006607541",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x14",
+   "exp": -93,
+   "n": 4096006607541,
+   "f64": "0x37c5798c9cfc311d"
+  },
+  {
+   "name": "random quotient 31: 42 bits at 2^-37 over 874",
+   "tags": [
+    "random"
+   ],
+   "negative": false,
+   "mant": "0x346ef293ed6",
+   "exp": -37,
+   "n": 874,
+   "f64": "0x3f9eb7541c138d2e"
+  }
+ ]
+}
