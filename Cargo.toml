@@ -63,10 +63,21 @@ differential-dataflow = "0.25"
 # the types it is sound for. Pinned because the `.stderr` files are matched against its
 # normalisation of the compiler's output.
 trybuild = "=1.0.122"
+# benches/simd.rs. Pinned so a baseline and a re-run agree on the harness; no default features,
+# because the plotters and rayon closure is a tenth of a second of plots nobody reads in CI.
+criterion = { version = "=0.8.2", default-features = false, features = ["cargo_bench_support"] }
 
 [[test]]
 name = "main"
 path = "tests/main.rs"
+
+# The SIMD kill condition, DESIGN.md § Targets and kill conditions: each tier's bulk entry against
+# its one-at-a-time deposits. `cargo bench --bench simd`; advisory, measured into BENCH.md, never a
+# gate. The requirement keeps a `--no-default-features` build of the benches from failing.
+[[bench]]
+name = "simd"
+harness = false
+required-features = ["simd"]
 
 # The `explode` + `count_total` idiom, DESIGN.md § differential-dataflow: `cargo run --example
 # dd_sum -- -w 3`. The self dev-dependency turns the feature on for a bare run; the requirement
