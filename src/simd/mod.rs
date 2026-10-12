@@ -20,9 +20,6 @@ use crate::wide::Wide;
 
 mod scalar;
 
-#[allow(unsafe_code)] // the AVX2 target-feature wrapper on x86_64; the block states its invariant
-mod fp_bins;
-
 #[cfg(all(feature = "simd", target_arch = "x86_64"))]
 #[allow(unsafe_code)] // the AVX2 intrinsics; every block states its invariant
 mod avx2;
@@ -238,27 +235,6 @@ pub(crate) fn binned_extend<const K: usize>(b: &mut Binned<K>, xs: &[f64]) {
         for (i, (limb, carry)) in bins.iter_mut().zip(carries.iter_mut()).enumerate() {
             (*limb, *carry) = partials.bin(i);
         }
-        *b += Binned::from_bins(bins, carries, [0; 3], index);
-    }
-}
-
-/// `Binned` kernel (ii), the bench-only experiment: the same tiles and the same index as
-/// [`binned_extend`], folded by the floating-point peel in `fp_bins.rs`. `FIXUP` is the truncating
-/// kernel that lands the fold's bits; `false` is the nearest-rounding variant that does not. A
-/// tile past the kernel's index bound goes whole to the scalar deposit.
-pub(crate) fn binned_extend_fp<const K: usize, const FIXUP: bool>(b: &mut Binned<K>, xs: &[f64]) {
-    for tile in xs.chunks(TILE) {
-        let index = binned_index::<K>(tile);
-        if index > fp_bins::MAX_INDEX {
-            for &x in tile {
-                b.deposit(x);
-            }
-            continue;
-        }
-        let lsb = Wide::LSB + 64 * (i32::from(index) - K as i32 + 1);
-        let mut sums: fp_bins::Sums<K> = [[[0.0; fp_bins::N]; 2]; K];
-        fp_bins::fold_tile::<K, FIXUP>(tile, lsb, &mut sums, &mut |x| b.deposit(x));
-        let (bins, carries) = fp_bins::bins(&sums, lsb);
         *b += Binned::from_bins(bins, carries, [0; 3], index);
     }
 }

@@ -264,48 +264,6 @@ fn simd_wide_tiles_mixing_spans_specials_zeros_and_subnormals_match_the_loop() {
     }
 }
 
-/// Binned kernel (ii), the floating-point fold DESIGN.md § Speed has built and benchmarked beside
-/// (i): it has to land the one-at-a-time fold's bits like any kernel, at every width, onto a held
-/// state, and on the mixing fixture, whose subnormals sit at the grid's floor and whose largest
-/// inputs lie past the kernel's index bound.
-#[test]
-fn simd_binned_fp_kernel_lands_the_folds_bits_at_every_width() {
-    let sets = every_input_set();
-    for (name, xs) in &sets {
-        let mut b1 = Binned::<1>::ZERO;
-        b1.extend_from_slice_fp(xs);
-        assert_eq!(b1, binned_loop::<1>(xs), "{name}: K = 1");
-        let mut b2 = Binned::<2>::ZERO;
-        b2.extend_from_slice_fp(xs);
-        assert_eq!(b2, binned_loop::<2>(xs), "{name}: K = 2");
-        let mut b3 = Binned::<3>::ZERO;
-        b3.extend_from_slice_fp(xs);
-        assert_eq!(b3, binned_loop::<3>(xs), "{name}: K = 3");
-        let mut b5 = Binned::<5>::ZERO;
-        b5.extend_from_slice_fp(xs);
-        assert_eq!(b5, binned_loop::<5>(xs), "{name}: K = 5");
-        let mut onto = Binned::<3>::from(1e30);
-        onto.extend_from_slice_fp(xs);
-        assert_eq!(
-            onto,
-            binned_loop::<3>(xs) + Binned::<3>::from(1e30),
-            "{name}: onto"
-        );
-    }
-    let mut rng = Rng(0xA5);
-    for round in 0..400 {
-        let xs = mixing_multiset(&mut rng, round);
-        let mut bins = Binned::<3>::ZERO;
-        bins.extend_from_slice_fp(&xs);
-        assert_eq!(
-            bins,
-            binned_loop::<3>(&xs),
-            "round {round}, {} inputs: mixing",
-            xs.len()
-        );
-    }
-}
-
 #[test]
 fn simd_bulk_entries_take_every_slice_length_across_a_tile() {
     let mut rng = Rng(0x7E);

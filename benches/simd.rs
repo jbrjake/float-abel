@@ -118,23 +118,6 @@ fn binned(c: &mut Criterion) {
             bins
         });
     });
-    // Kernel (ii), the floating-point peel, against kernel (i) above: the truncating kernel that
-    // lands the fold's bits, and the nearest-rounding variant that bounds its cost without the
-    // fix-up. DESIGN.md § Speed has the loser deleted.
-    g.bench_function("extend_from_slice_fp", |b| {
-        b.iter(|| {
-            let mut bins = Binned::<3>::ZERO;
-            bins.extend_from_slice_fp(&same_scale);
-            bins
-        });
-    });
-    g.bench_function("extend_from_slice_fp_nearest", |b| {
-        b.iter(|| {
-            let mut bins = Binned::<3>::ZERO;
-            bins.extend_from_slice_fp_nearest(&same_scale);
-            bins
-        });
-    });
     g.finish();
 }
 

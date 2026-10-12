@@ -44,3 +44,35 @@ four-limb window, so almost every vector carries a lane outside it and goes to t
 The bulk entry is the scalar fold plus the span pass here; AVX2 pays 5% for it. That fixture is not
 a column, and the design's `Wide` target is stated on real columns, but it bounds the cost of the
 fallback.
+
+## Binned kernel (ii)
+
+DESIGN.md § Speed names two candidate kernels for `Binned` and keeps the winner. Kernel (i) is the
+integer fold at a per-tile index, the one `extend_from_slice` runs. Kernel (ii) is ReproBLAS's
+pinned-exponent floating-point fold, `q = (M + x) − M` per bin, in the one shape that lands the
+one-at-a-time fold's bits: `2K` half-bins of 32 bits on `Wide`'s half-limb grid (the fold's bins
+are independent, so a bin must align with a limb and a piece must fit the accumulator), each
+level's nearest rounding corrected to truncation toward zero by one compare and one masked
+subtract, pieces signed by an xor, and every half-bin read back as an integer through its bits.
+That is eight vector ops a level on NEON (`fadd`, `fsub`, `fcmgt`, `fsub`, `bit`, `eor`, `fadd`,
+`fsub`) and seven on AVX2 over four lanes, for `2K` levels, against (i)'s about seven per limb for
+`K` limbs. Beside it ran the same peel without the fix-up, ReproBLAS's own kernel, which cannot land
+the bits and only bounds what the shape would cost if truncation were free. Both live at commit
+4b533a9: `cargo bench --bench simd -- binned3`, with the loop and (i) re-taken in the same sitting.
+
+| `Binned<3>`, same-scale | NEON | AVX2 |
+|---|--:|--:|
+| one at a time | 10.89 ns | 18.04 ns |
+| (i) the integer fold, `extend_from_slice` | 2.00 ns | 1.67 ns |
+| (ii) the floating-point peel, truncating | 3.17 ns | 3.01 ns |
+| (ii) without the fix-up, nearest: not the fold's bits | 2.29 ns | 3.55 ns |
+
+(i) is the kernel, 1.6× faster than (ii) on NEON and 1.8× on AVX2. The floating-point shape loses
+on its own, not only on the truncation: with the fix-up gone it is still 1.14× behind (i) on NEON.
+The AVX2 figure for that variant is a codegen artefact and not the bound to read: the compiler
+shuffled its lanes through 128-bit halves (`vunpcklpd`, `vshufpd`, `vextractf128`) where the
+truncating peel got straight 256-bit code. The cost is structural, `2K` levels of seven or eight
+ops against `K` limbs of about seven, and no fixture in the design's set changes that ratio.
+
+- NEON: Apple M5 Max, macOS, rustc 1.99.0, commit 4b533a9.
+- AVX2: AMD Ryzen 7 5700U, Ubuntu 24.04, rustc 1.96.1, commit 4b533a9.
