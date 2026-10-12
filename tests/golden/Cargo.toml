@@ -12,7 +12,9 @@ publish = false
 autotests = false
 
 [dependencies]
-float-abel = { path = "../.." }
+# `simd` on, so the hash covers every kernel: NEON on aarch64, AVX2 on x86_64 that has it, and the
+# portable kernel everywhere else, each landing the bits the one-at-a-time deposits land.
+float-abel = { path = "../..", features = ["simd"] }
 # Reads the two committed vector files, as tests/main.rs does.
 serde_json = "1"
 # The digest. 0.10, not 0.11: 0.11 declares rust-version 1.85, and cargo 1.74 parses every manifest

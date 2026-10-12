@@ -5,7 +5,9 @@
 //! through every tier: `Wide` with its group ops, its reads and its view as a `Binned`; a `Binned`
 //! fold with its bins and the `Wide` it converts to, since `Binned` has no wire form; `Fixed256`
 //! and `Exact` with every input accepted or refused by name; the conversions between them; the
-//! 106-bit product on each; and the batch tier's dot product of the multiset with its own reverse.
+//! 106-bit product on each; the bulk entries, `extend_from_slice` on `Wide`, `Fixed256` and
+//! `Binned` and the dot product of the multiset with its own reverse through `deposit_products`
+//! on each, which run whatever kernel this target dispatches to behind the `simd` feature.
 //! Every integer enters the digest little-endian, every double as its
 //! bits and every refusal as one tag byte, so a difference on a big-endian target is the crate's,
 //! never this file's. Every test is named `golden_*`.
@@ -38,7 +40,7 @@ const MULTISETS: u64 = 10_000;
 /// seed and the record layout, and both are asserted before the hash because a different count of
 /// records is a more legible finding than a different hash.
 const ELEMENTS: u64 = 325_745;
-const BYTES: u64 = 60_470_210;
+const BYTES: u64 = 65_557_243;
 /// The batch tier's width here: three bins, the design's default.
 const K: usize = 3;
 
@@ -203,11 +205,12 @@ struct Stats {
     cases: usize,
     multisets: u64,
     elements: u64,
-    /// Inputs `Fixed256` refused, products `Wide`, `Fixed256` and `Binned` refused, and inputs
-    /// `Exact` refused: each path must have been taken, so each is asserted positive. A product
-    /// deposit on `Exact::ZERO` never refuses (two doubles' product fits the width) and is not
-    /// counted.
+    /// Inputs `Fixed256` refused one at a time and in bulk, products `Wide`, `Fixed256` and
+    /// `Binned` refused, and inputs `Exact` refused: each path must have been taken, so each is
+    /// asserted positive. A product deposit on `Exact::ZERO` never refuses (two doubles' product
+    /// fits the width) and is not counted.
     fixed_refused: u64,
+    fixed_bulk_refused: u64,
     wide_products_refused: u64,
     fixed_products_refused: u64,
     binned_products_refused: u64,
@@ -311,6 +314,10 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
     // Wide: the fold, its group ops and ring scaling, a quotient, and its view as a Binned.
     let wide_sum: Wide = xs.iter().copied().map(Wide::from).sum();
     t.wide(&wide_sum);
+    // The same multiset through the bulk entry: whatever kernel runs here must land the fold's bits.
+    let mut wide_bulk = Wide::ZERO;
+    wide_bulk.extend_from_slice(xs);
+    t.wide(&wide_bulk);
     t.wide(&(-wide_sum));
     t.wide(&(wide_sum - Wide::from(first)));
     t.wide(&(wide_sum * scale));
@@ -332,6 +339,11 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         }
     }
     t.fixed(&fixed_sum);
+    let mut fixed_bulk = Fixed256::ZERO;
+    match t.result(fixed_bulk.extend_from_slice(xs)) {
+        Some(()) => t.fixed(&fixed_bulk),
+        None => s.fixed_bulk_refused += 1,
+    }
     t.fixed(&(fixed_sum * scale));
     t.tag(tag::F64);
     t.f64(fixed_sum.div_f64(divisor));
@@ -382,8 +394,19 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         Some(()) => t.binned(&binned_product),
         None => s.binned_products_refused += 1,
     }
-    // The multiset's dot product with its own reverse through the bulk entry, or its refusal.
+    // The multiset's dot product with its own reverse through each tier's bulk entry, or its
+    // refusal.
     let reversed: Vec<f64> = xs.iter().rev().copied().collect();
+    let mut wide_dot = Wide::ZERO;
+    match t.result(wide_dot.deposit_products(xs, &reversed)) {
+        Some(()) => t.wide(&wide_dot),
+        None => s.wide_products_refused += 1,
+    }
+    let mut fixed_dot = Fixed256::ZERO;
+    match t.result(fixed_dot.deposit_products(xs, &reversed)) {
+        Some(()) => t.fixed(&fixed_dot),
+        None => s.fixed_products_refused += 1,
+    }
     let mut dot = Binned::<K>::ZERO;
     match t.result(dot.deposit_products(xs, &reversed)) {
         Some(()) => t.binned(&dot),
@@ -425,6 +448,7 @@ fn golden_hash_matches_the_committed_claim() {
     assert_eq!(s.multisets, MULTISETS, "{s:?}");
     assert!(
         s.fixed_refused > 0
+            && s.fixed_bulk_refused > 0
             && s.wide_products_refused > 0
             && s.fixed_products_refused > 0
             && s.binned_products_refused > 0
