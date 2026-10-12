@@ -23,6 +23,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 # exactly one feature.
 [dependencies]
 arbitrary = { version = "1", optional = true }
+# The laws kit's property tester, re-exported from `float_abel::laws` so a stranger's strategies
+# and ours agree on one proptest. `std` alone: the default `fork` and `timeout` features drag in
+# rusty-fork, tempfile and wait-timeout, which the kit never uses. The floor is the release the kit
+# was written against; it needs `Config::rng_seed`, the fixed seed CI runs with. Cargo.lock holds
+# 1.11.0 on purpose (`cargo update -p proptest --precise 1.11.0`): 1.12 moves to rand 0.10, whose
+# closure (rand_core, getrandom 0.4, chacha20, rand_xorshift 0.5) is edition 2024, and cargo 1.74
+# parses every locked manifest on a normal edge, optional features included, so the MSRV build of
+# the default features fails on a lockfile that names them even though it never compiles them.
+proptest = { version = "1.11", optional = true, default-features = false, features = ["std"] }
 serde = { version = "1", optional = true, default-features = false }
 
 # The crate lists itself with the test features on: the one Cargo spelling that turns them on for a
@@ -58,8 +67,9 @@ serde = ["dep:serde"]
 differential = []
 # The DBSP adapter. Builds only on rustc 1.96.1; wired by its own task.
 dbsp = []
-# The laws kit (proptest). Wired by its own task.
-laws = []
+# The laws kit, `float_abel::laws`: proptest checks of what an incremental engine asks of a weight,
+# runnable against any type. proptest's runner wants `std`.
+laws = ["dep:proptest", "std"]
 # Runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate. Runtime
 # detection is `std::arch`'s macro, hence `std`.
 simd = ["std"]

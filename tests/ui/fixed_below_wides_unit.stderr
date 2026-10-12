@@ -21,7 +21,7 @@ note: erroneous constant encountered
   |         let () = Embeds::<LSB, LIMBS>::OK;
   |                  ^^^^^^^^^^^^^^^^^^^^^^^^
 
-note: the above error was encountered while instantiating `fn <Wide as From<Fixed<-1076, 20>>>::from`
+note: the above error was encountered while instantiating `fn <Wide as From<float_abel::Fixed<-1076, 20>>>::from`
  --> tests/ui/fixed_below_wides_unit.rs:8:14
   |
 8 |     let _w = Wide::from(f);

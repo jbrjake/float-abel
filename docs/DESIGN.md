@@ -441,11 +441,15 @@ theirs or ours. It checks with proptest:
   pruning between partitions, lands the same bits.
 
 The entry points are `check_abelian_group`, `check_ring`, `check_canonical` and
-`check_consolidation_invariance`, generic over a `Strategy`. The laws are the contract, and the kit is
-how a stranger checks their own type against differential-dataflow's or DBSP's expectations without
-reading either codebase. The kit runs against every tier, and against a naive `f64` wrapper as a
-negative control that must **fail** associativity and inverse; a control that passes means the kit is
-blind.
+`check_consolidation_invariance`, generic over a `Strategy`. A type opts in through `laws::Weight`
+(the operators by value, structural `Eq` and `Hash`, `zero` and `is_zero`); each check takes a
+proptest `TestRunner`, and `laws::runner(cases, seed)` is the fixed-seed one CI uses. A check returns
+proptest's minimal failing case under a reason that names every law it broke with a witness for
+each, rather than panicking, so the control's failures are asserted as values. The laws are the
+contract, and the kit is how a stranger checks their own type against differential-dataflow's or
+DBSP's expectations without reading either codebase. The kit runs against every tier, and against a
+naive `f64` wrapper as a negative control that must **fail** associativity and inverse; a control
+that passes means the kit is blind.
 
 ## Speed {#sp-simd}
 

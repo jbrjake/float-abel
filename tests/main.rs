@@ -16,6 +16,7 @@ mod convert;
 mod exact_cap;
 mod exact_ring;
 mod fixed;
+mod laws;
 mod layout;
 mod posture;
 mod rounding;

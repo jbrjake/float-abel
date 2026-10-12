@@ -19,7 +19,7 @@ note: erroneous constant encountered
   |         let () = Encoded::<LIMBS, N>::OK;
   |                  ^^^^^^^^^^^^^^^^^^^^^^^
 
-note: the above error was encountered while instantiating `fn float_abel::wire::<impl Fixed<-96, 4>>::to_bytes::<32>`
+note: the above error was encountered while instantiating `fn float_abel::wire::<impl float_abel::Fixed<-96, 4>>::to_bytes::<32>`
  --> tests/ui/fixed_to_bytes_wrong_length.rs:8:28
   |
 8 |     let _bytes: [u8; 32] = f.to_bytes();

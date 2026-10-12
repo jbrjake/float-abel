@@ -33,6 +33,9 @@ extern crate std;
 mod exact;
 mod fixed;
 mod ieee;
+#[cfg(feature = "laws")]
+#[cfg_attr(docsrs, doc(cfg(feature = "laws")))]
+pub mod laws;
 mod limbs;
 mod round;
 mod wide;
