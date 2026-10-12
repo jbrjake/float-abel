@@ -8,8 +8,8 @@ use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 use crate::fixed::{Fixed, Hex, OutOfWindow};
 use crate::ieee::{
-    self, factor, special_times_finite, special_times_special, Dyadic, Factor, Special, NAN,
-    NEG_INF, POS_INF,
+    self, factor, special_times_finite, special_times_special, Factor, Special, NAN, NEG_INF,
+    POS_INF,
 };
 use crate::limbs;
 use crate::round;
@@ -143,31 +143,50 @@ impl Wide {
     /// hardware multiply has already overflowed to `±∞` well below the ceiling, and underflowed
     /// to zero well above the unit. [`OutOfWindow::NotFinite`] never occurs: specials are counted.
     pub fn deposit_product(&mut self, a: f64, b: f64) -> Result<(), OutOfWindow> {
-        match (factor(a), factor(b)) {
-            (Factor::Finite(da), Factor::Finite(db)) => self.deposit_finite_product(da, db),
-            (Factor::Finite(d), Factor::Special(_)) | (Factor::Special(_), Factor::Finite(d))
-                if d.mant == 0 =>
-            {
-                Ok(())
-            }
-            (Factor::Finite(d), Factor::Special(s)) | (Factor::Special(s), Factor::Finite(d)) => {
-                let (which, by) = special_times_finite(s, d.negative);
-                self.bump(which, by);
-                Ok(())
-            }
-            (Factor::Special(s), Factor::Special(t)) => {
-                self.bump(special_times_special(s, t), 1);
-                Ok(())
-            }
-        }
+        self.apply(product(a, b)?);
+        Ok(())
     }
 
-    fn deposit_finite_product(&mut self, da: Dyadic, db: Dyadic) -> Result<(), OutOfWindow> {
-        self.try_deposit_dyadic(
-            da.negative != db.negative,
-            u128::from(da.mant) * u128::from(db.mant),
-            da.exp + db.exp,
-        )
+    /// Adds every double in the slice, as [`Wide::deposit`] would one at a time. The bits are the
+    /// bits the one-at-a-time deposits land, whatever kernel runs: a tile folds in lane-parallel
+    /// partials that merge at its end, and the group laws make that the same sum.
+    pub fn extend_from_slice(&mut self, xs: &[f64]) {
+        crate::simd::wide_extend(self, xs);
+    }
+
+    /// Adds every product `a[i] · b[i]`, as [`Wide::deposit_product`] would one pair at a time,
+    /// or none of them: every pair is checked against the window first, so a refusal leaves the
+    /// state as it was.
+    ///
+    /// # Errors
+    ///
+    /// The first pair's refusal in slice order, and nothing is deposited.
+    ///
+    /// # Panics
+    ///
+    /// If the slices differ in length.
+    pub fn deposit_products(&mut self, a: &[f64], b: &[f64]) -> Result<(), OutOfWindow> {
+        assert_eq!(
+            a.len(),
+            b.len(),
+            "Wide: deposit_products takes two slices of one length"
+        );
+        for (&x, &y) in a.iter().zip(b) {
+            product(x, y)?;
+        }
+        for (&x, &y) in a.iter().zip(b) {
+            // Every pair passed the check above, so this never returns early.
+            self.apply(product(x, y)?);
+        }
+        Ok(())
+    }
+
+    fn apply(&mut self, term: Term) {
+        match term {
+            Term::Nothing => {}
+            Term::Finite(negative, mant, shift) => self.deposit_finite(negative, mant, shift),
+            Term::Special(which, by) => self.bump(which, by),
+        }
     }
 
     /// Adds `(-1)^negative · mant · 2^exp` if it lies in the window: the one check a product and
@@ -184,18 +203,7 @@ impl Wide {
         mant: u128,
         exp: i32,
     ) -> Result<(), OutOfWindow> {
-        if mant == 0 {
-            return Ok(());
-        }
-        let shift = i64::from(exp) - i64::from(LSB);
-        if shift < 0 {
-            return Err(OutOfWindow::OffGrid);
-        }
-        let bits = u64::from(128 - mant.leading_zeros()) + shift as u64;
-        if bits > CEILING_BITS {
-            return Err(OutOfWindow::AboveCeiling);
-        }
-        self.deposit_finite(negative, mant, shift as u32);
+        self.apply(check_dyadic(negative, mant, exp)?);
         Ok(())
     }
 
@@ -282,6 +290,55 @@ impl Wide {
         let negative = limbs::abs_into(&self.limbs, &mut mag);
         round::div_f64(negative, &mag, LSB, n)
     }
+}
+
+/// What one deposit adds once checked: nothing, a magnitude on the grid with its sign and its
+/// shift above the unit, or an amount for a special counter.
+#[derive(Clone, Copy)]
+enum Term {
+    Nothing,
+    Finite(bool, u128, u32),
+    Special(usize, i64),
+}
+
+/// The product of two doubles as `Wide` deposits it, or its refusal by name.
+fn product(a: f64, b: f64) -> Result<Term, OutOfWindow> {
+    match (factor(a), factor(b)) {
+        (Factor::Finite(da), Factor::Finite(db)) => check_dyadic(
+            da.negative != db.negative,
+            u128::from(da.mant) * u128::from(db.mant),
+            da.exp + db.exp,
+        ),
+        (Factor::Finite(d), Factor::Special(_)) | (Factor::Special(_), Factor::Finite(d))
+            if d.mant == 0 =>
+        {
+            Ok(Term::Nothing)
+        }
+        (Factor::Finite(d), Factor::Special(s)) | (Factor::Special(s), Factor::Finite(d)) => {
+            let (which, by) = special_times_finite(s, d.negative);
+            Ok(Term::Special(which, by))
+        }
+        (Factor::Special(s), Factor::Special(t)) => {
+            Ok(Term::Special(special_times_special(s, t), 1))
+        }
+    }
+}
+
+/// `(-1)^negative · mant · 2^exp` checked against the window: below the unit is `OffGrid`, at the
+/// ceiling is `AboveCeiling`, and a zero mantissa is nothing.
+fn check_dyadic(negative: bool, mant: u128, exp: i32) -> Result<Term, OutOfWindow> {
+    if mant == 0 {
+        return Ok(Term::Nothing);
+    }
+    let shift = i64::from(exp) - i64::from(LSB);
+    if shift < 0 {
+        return Err(OutOfWindow::OffGrid);
+    }
+    let bits = u64::from(128 - mant.leading_zeros()) + shift as u64;
+    if bits > CEILING_BITS {
+        return Err(OutOfWindow::AboveCeiling);
+    }
+    Ok(Term::Finite(negative, mant, shift as u32))
 }
 
 impl Default for Wide {

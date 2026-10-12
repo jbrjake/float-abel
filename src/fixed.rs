@@ -124,6 +124,18 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
         self.deposit_dyadic(d.negative, u128::from(d.mant), d.exp)
     }
 
+    /// Adds every double in the slice, as [`Fixed::try_deposit`] would one at a time, or none of
+    /// them: every input is checked against the window, so a refusal leaves the state as it was.
+    /// The bits are the bits the one-at-a-time deposits land, whatever kernel runs: a tile folds
+    /// in lane-parallel partials that merge at its end, and the group laws make that the same sum.
+    ///
+    /// # Errors
+    ///
+    /// The first input's refusal in slice order, and nothing is deposited.
+    pub fn extend_from_slice(&mut self, xs: &[f64]) -> Result<(), OutOfWindow> {
+        crate::simd::fixed_extend(self, xs)
+    }
+
     /// Adds the exact product of two finite doubles: the full 106-bit mantissa product, without a
     /// floating-point multiply. This is the join-fold and dot-product shape.
     ///
@@ -132,18 +144,64 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
     /// As [`Fixed::try_deposit`], judged on the exact product. A zero factor makes the product an
     /// exact zero, which is always accepted.
     pub fn deposit_product(&mut self, a: f64, b: f64) -> Result<(), OutOfWindow> {
+        if let Some((negative, mant, shift)) = Self::product(a, b)? {
+            self.add_placed(negative, mant, shift);
+        }
+        Ok(())
+    }
+
+    /// Adds every product `a[i] · b[i]`, as [`Fixed::deposit_product`] would one pair at a time,
+    /// or none of them: every pair is checked against the window first, so a refusal leaves the
+    /// state as it was.
+    ///
+    /// # Errors
+    ///
+    /// The first pair's refusal in slice order, and nothing is deposited.
+    ///
+    /// # Panics
+    ///
+    /// If the slices differ in length.
+    pub fn deposit_products(&mut self, a: &[f64], b: &[f64]) -> Result<(), OutOfWindow> {
+        assert_eq!(
+            a.len(),
+            b.len(),
+            "Fixed: deposit_products takes two slices of one length"
+        );
+        for (&x, &y) in a.iter().zip(b) {
+            Self::product(x, y)?;
+        }
+        for (&x, &y) in a.iter().zip(b) {
+            // Every pair passed the check above, so this never returns early.
+            self.deposit_product(x, y)?;
+        }
+        Ok(())
+    }
+
+    /// The product of two doubles checked against the window: its sign, 106-bit magnitude and
+    /// shift above the unit, `None` for an exact zero, or the refusal by name.
+    fn product(a: f64, b: f64) -> Result<Option<(bool, u128, u32)>, OutOfWindow> {
         let da = ieee::decompose(a).ok_or(OutOfWindow::NotFinite)?;
         let db = ieee::decompose(b).ok_or(OutOfWindow::NotFinite)?;
         let mant = u128::from(da.mant) * u128::from(db.mant);
-        self.deposit_dyadic(da.negative != db.negative, mant, da.exp + db.exp)
+        Ok(Self::placed(mant, da.exp + db.exp)?
+            .map(|shift| (da.negative != db.negative, mant, shift)))
     }
 
     /// Adds `(-1)^negative · mant · 2^exp`, checking the grid and the ceiling first.
     fn deposit_dyadic(&mut self, negative: bool, mant: u128, exp: i32) -> Result<(), OutOfWindow> {
+        if let Some(shift) = Self::placed(mant, exp)? {
+            self.add_placed(negative, mant, shift);
+        }
+        Ok(())
+    }
+
+    /// Where `mant · 2^exp` lands in the window, as its shift above the unit: `None` for a zero
+    /// mantissa, `OffGrid` below the unit, `AboveCeiling` at the ceiling.
+    fn placed(mant: u128, exp: i32) -> Result<Option<u32>, OutOfWindow> {
         #[allow(clippy::let_unit_value)] // evaluates the const assertion on the window
         let () = Self::WINDOW_OK;
         if mant == 0 {
-            return Ok(());
+            return Ok(None);
         }
         let shift = i64::from(exp) - i64::from(LSB);
         if shift < 0 {
@@ -153,8 +211,13 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
         if bits > Self::CEILING_BITS {
             return Err(OutOfWindow::AboveCeiling);
         }
+        Ok(Some(shift as u32))
+    }
+
+    /// Adds `(-1)^negative · mant · 2^(shift + LSB)`. The caller has checked that it fits.
+    fn add_placed(&mut self, negative: bool, mant: u128, shift: u32) {
         let mut term = [0u64; LIMBS];
-        limbs::set_shifted(&mut term, mant, shift as u32);
+        limbs::set_shifted(&mut term, mant, shift);
         if negative {
             limbs::negate(&mut term);
         }
@@ -163,7 +226,6 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
             !overflow,
             "Fixed: headroom exhausted, past 2^64 deposits at the ceiling"
         );
-        Ok(())
     }
 
     /// Rounds a double onto the grid, to nearest with ties to even, so that

@@ -50,6 +50,7 @@ mod ieee;
 pub mod laws;
 mod limbs;
 mod round;
+mod simd;
 mod wide;
 mod wire;
 

@@ -156,10 +156,26 @@ impl<const K: usize> Binned<K> {
         }
     }
 
-    /// Adds every double in the slice, as [`Binned::deposit`] would one at a time.
+    /// Adds every double in the slice, as [`Binned::deposit`] would one at a time. The bits are
+    /// the bits the one-at-a-time deposits land, whatever kernel runs: a tile folds at the index
+    /// of its largest input in lane-parallel partials that merge at its end, and the fold is a
+    /// function of the multiset alone.
     pub fn extend_from_slice(&mut self, xs: &[f64]) {
-        for &x in xs {
-            self.deposit(x);
+        crate::simd::binned_extend(self, xs);
+    }
+
+    /// The fold with these bins, counters and index, as a kernel's tile comes out of its partials.
+    pub(crate) const fn from_bins(
+        limbs: [u64; K],
+        carries: [i64; K],
+        specials: [i64; 3],
+        index: i16,
+    ) -> Self {
+        Self {
+            limbs,
+            carries,
+            specials,
+            index,
         }
     }
 

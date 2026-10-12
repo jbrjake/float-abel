@@ -101,6 +101,21 @@ pub(crate) fn set_shifted(dst: &mut [u64], mag: u128, shift: u32) {
     }
 }
 
+/// `a += v · 2^(64·at)`, wrapping at the top: modular arithmetic on purpose, for a sum whose
+/// two's-complement result the caller knows fits even though its unsigned partials carry past the
+/// width. A limb index past the end is a bug and panics as an index out of range.
+pub(crate) fn add_u128_at(a: &mut [u64], at: usize, v: u128) {
+    let mut carry = v;
+    for x in &mut a[at..] {
+        if carry == 0 {
+            return;
+        }
+        let s = u128::from(*x) + (carry & u128::from(u64::MAX));
+        *x = s as u64;
+        carry = (carry >> 64) + (s >> 64);
+    }
+}
+
 /// `a <<= shift` across limbs, as a bit pattern: what shifts out of the top is lost, so the caller
 /// has checked that the two's-complement value times `2^shift` still fits the width.
 pub(crate) fn shl_assign(a: &mut [u64], shift: u32) {
@@ -249,6 +264,29 @@ mod tests {
         assert_eq!(d, [u64::MAX - 1, u64::MAX, 1]);
         set_shifted(&mut d, 5, 130);
         assert_eq!(d, [0, 0, 5 << 2]);
+    }
+
+    #[test]
+    fn add_u128_at_carries_up_and_wraps_at_the_top() {
+        let mut a = [u64::MAX, 0, 0];
+        add_u128_at(&mut a, 0, 1);
+        assert_eq!(a, [0, 1, 0]);
+        add_u128_at(&mut a, 1, u128::from(u64::MAX) << 64 | u128::from(u64::MAX));
+        assert_eq!(
+            a,
+            [0, 0, 0],
+            "both words carried: the top one out of the width"
+        );
+        let mut b = [0u64, 0, 5];
+        add_u128_at(&mut b, 1, (1u128 << 64) + 7);
+        assert_eq!(b, [0, 7, 6]);
+        let mut c = [1u64, 2];
+        add_u128_at(&mut c, 1, u128::MAX);
+        assert_eq!(
+            c,
+            [1, 1],
+            "a value wider than what is left is cut at the top"
+        );
     }
 
     #[test]

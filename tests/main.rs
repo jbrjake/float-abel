@@ -23,6 +23,7 @@ mod laws;
 mod layout;
 mod posture;
 mod rounding;
+mod simd;
 mod support;
 mod ui;
 mod wide;
