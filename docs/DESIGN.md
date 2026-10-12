@@ -508,12 +508,16 @@ they are missed.
 
 No floating-point instruction executes in any group op or in `to_f64`: only `to_bits`, shifts and
 adds with carry. So rounding modes, FTZ/DAZ, x87 excess precision and FMA contraction can't reach the
-result. CI proves it the way bitrep does. One SHA-256 is taken over `to_bytes` and the
-`to_f64().to_bits()` of every vector in the rounding and conformance sets, plus 10⁴ seeded random
-multisets. It is asserted equal on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32
-(wasmtime), and, through QEMU via `cross`, riscv64gc and s390x. s390x is big-endian, which is what
-catches a byte-order slip in `from_bytes`. The committed hash is the claim, and the workflow asserts it
-on every push.
+result. CI proves it the way bitrep does. One SHA-256 is taken over every tier's `to_bytes` and reads
+(`to_f64`, `try_to_f64`, `to_f32`, `div_f64`) for every vector in the rounding and conformance sets
+and for 10⁴ seeded random multisets, each run through `Wide`, `Fixed`, `Exact` and `Binned` with
+every refusal entering by name; `Binned` has no wire form, so its `index`, `limbs` and `carries`
+enter with the `Wide` it converts to. The transcript is `tests/golden/`, its own workspace member,
+because the main test target links engine dependencies wasm32 cannot run. It is asserted equal to
+`tests/data/golden.sha256` on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32 (wasmtime),
+and, through QEMU via `cross`, riscv64gc and s390x. s390x is big-endian, which is what catches a
+byte-order slip in `from_bytes`. The committed hash is the claim, and the workflow asserts it on every
+push.
 
 ## Verification
 
@@ -523,7 +527,7 @@ on every push.
 | rounding | `to_f64`/`to_f32`/`div_f64` against the CPython-generated vectors; ties, subnormals, overflow | committed vector file |
 | cross-tier | `Fixed`, `Wide` and `Exact` agree bit for bit on their shared domain; `Exact::to_f64 == bitrep::SumF64::value` on random finite multisets | 10⁶ random multisets |
 | decode | canonical round-trip; non-canonical bytes refused | unit tests, `cargo-fuzz` nightly |
-| architecture | one SHA-256 over vector state and `to_f64` bits on 7 targets | the golden-hash workflow |
+| architecture | one SHA-256 over every tier's bytes, reads and refusals on the vectors and 10⁴ seeded multisets, on 7 targets | the golden-hash workflow |
 | SIMD | every kernel equals the scalar reference bit for bit on the vectors and 10⁴ seeded multisets (specials and subnormals included); lane-count independence at 2, 4 and 8 partials | the golden hash covers every kernel |
 | batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; equal to the sum of the inputs truncated below the window, and so within `n·2^(−64(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |

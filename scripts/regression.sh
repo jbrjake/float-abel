@@ -35,6 +35,9 @@ cargo test --quiet -- --include-ignored >/dev/null
 cargo test --quiet --release --test main every_build >/dev/null
 # The no-feature build, which only a separate member reaches; see tests/noalloc/Cargo.toml.
 cargo test --quiet -p float-abel-noalloc >/dev/null
+# The architecture claim on this machine, tests/golden/; .github/workflows/golden.yml asserts it on
+# the other six targets.
+cargo test --quiet -p float-abel-golden >/dev/null
 
 if rustup run "$MSRV" cargo --version >/dev/null 2>&1; then
   cargo "+$MSRV" build --quiet --locked

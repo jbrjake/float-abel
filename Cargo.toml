@@ -107,12 +107,13 @@ debug = false
 [lints]
 workspace = true
 
-# The allocator-free test crate is a workspace member so that `cargo test -p float-abel-noalloc`
-# resolves the library's features from its own manifest, which no `cargo test` of this package
-# can: the self dev-dependency's `simd` pulls `std`. A bare `cargo test`
-# still runs this package alone, because a package at the workspace root is its default member.
+# Two test crates are workspace members because each reaches a build no `cargo test` of this package
+# can: tests/noalloc builds the lib with no features (the self dev-dependency's `simd` pulls `std`),
+# and tests/golden links the lib and a hasher alone, so it cross-compiles to wasm32 and the QEMU
+# targets where tests/main.rs's engine dependencies cannot. A bare `cargo test` still runs this
+# package alone, because a package at the workspace root is its default member.
 [workspace]
-members = ["tests/noalloc"]
+members = ["tests/noalloc", "tests/golden"]
 
 # Lints warn here and fail only at the gate (`cargo clippy --all-targets -- -D warnings` and
 # `RUSTDOCFLAGS="-D warnings" cargo doc` in scripts/regression.sh). `unsafe_code` is denied in
