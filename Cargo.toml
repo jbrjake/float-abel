@@ -55,6 +55,10 @@ serde_json = "1"
 # The runtime tests/differential.rs and examples/dd_sum.rs execute a dataflow on: the version
 # differential-dataflow 0.25 depends on, which it does not re-export.
 timely = "0.31"
+# trybuild hands a case the dev-dependencies alone, so the compile-fail case that opens a
+# collection with `Binned<3>` as its diff needs the engine here too. It unifies with the optional
+# dependency above.
+differential-dataflow = "0.25"
 # Compile-fail cases under tests/ui/: the `const` assertions that pin a conversion or a trait to
 # the types it is sound for. Pinned because the `.stderr` files are matched against its
 # normalisation of the compiler's output.

@@ -12,6 +12,7 @@
     clippy::unreadable_literal
 )]
 
+mod binned;
 mod convert;
 mod differential;
 mod exact_cap;

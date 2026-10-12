@@ -110,7 +110,7 @@ and the crate ships each:
 | exact + full range for a value; a sum or product within a 127-bit span | `Exact` | 32 B, a plain word | every `f64`, specials counted; past the width it is the cap, by name | yes | yes: `×Exact` with integer special amounts, `×i64` |
 | exact + constant size (wide) | `Wide` | 296 B | every `f64` | yes | `×i64` only |
 | exact + constant size (window) | `Fixed<const LSB: i32, const LIMBS: usize>` | 8·LIMBS B (32 at the default) | finite doubles exactly on the 2^LSB grid inside the window; the rest **refused at the door**, or **quantised** by declaration | yes | `×i64` only |
-| constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 8·K B + index + counters (56 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
+| constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 16·K B + index + counters (80 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
 
 The last corner is the adaptive accumulator, and the previous section is why it is not a group. It
 ships anyway, for **batch work only**. An engine that also runs one-shot folds over tiles wants
@@ -245,19 +245,29 @@ included, because a wrapped sum is silently wrong. `Fixed256 = Fixed<−96, 4>` 
 
 ### Binned {#sp-binned}
 
-Batch-only. `K` limbs on `Wide`'s grid (`u64`, carry-save with 4 headroom bits, so a carry propagates
-once per 16 deposits), an `index: i16` (the grid position of the top limb) and the `[i64; 3]`
-counters. A deposit slices the input at the window's limb boundaries and drops whatever falls below
-the lowest kept limb. A larger input raises the index and drops the lowest limb. That is the
-Demmel–Nguyen update on integer limbs. `Add` aligns to the higher index and adds limb-wise, so it is
-associative and commutative: a fold is order-independent, and any merge tree lands the same bits.
+Batch-only. `K` bins on `Wide`'s limb grid, each an independent signed accumulator held carry-save as
+a `u64` limb and an `i64` carry (`carry · 2⁶⁴ + limb`), an `index: i16` (the `Wide` limb number of
+the top bin) and the `[i64; 3]` counters: `repr(C)`, 16·K + 32 bytes with the index padded to a
+word, 80 at K=3. A deposit takes the input's magnitude apart at `Wide`'s limb boundaries, adds each
+slice to its bin with the input's sign, and drops whatever falls below the lowest bin, so it
+truncates toward zero. A larger input raises the index and drops the lowest bins. That is the
+Demmel–Nguyen update on integer limbs. A bin's overflow stays in its own carry and never crosses
+into the bin above, because a carry that had crossed would survive the drop of the bin it came from
+while the same inputs deposited after the rise would lose it, and the fold would depend on the
+order. With the bins independent, each holds the sum of its slices over the multiset whatever the
+order or the merge tree, and so does the index, so `Add`, which aligns to the higher index and adds
+bin-wise, is associative and commutative: a fold is order-independent, and any merge tree lands the
+same bits. The carries are the one budget, `2⁶³` wraps of a bin, and past it the operators panic by
+name.
 
 The error bound, derived the way the paper derives its own, is
-`|S − Σxⱼ| ≤ n · 2^(−60(K−1)) · max|xⱼ|` plus one final rounding. At K=3 that is
-`n·2⁻¹²⁰·max|xⱼ|`, tighter than the paper's `n·2⁻⁸⁰` at the same three words, because a 64-bit limb
-carries 60 useful bits where a double bin carries 40. `into_wide()` places the K limbs at `index`,
-exactly. `Wide::to_binned::<K>()` keeps the top K non-zero limbs; it is lossy, and named so. There is
+`|S − Σxⱼ| ≤ n · 2^(−64(K−1)) · max|xⱼ|` plus one final rounding: the lowest kept bit lies at most
+64(K−1) below the top bit of the largest input, and each input loses less than one unit of it. At
+K=3 that is `n·2⁻¹²⁸·max|xⱼ|`, tighter than the paper's `n·2⁻⁸⁰` at the same three words, because a
+limb is 64 bits where a double bin is 40. `into_wide()` places the K bins at `index`, exactly.
+`Wide::to_binned::<K>()` keeps the top K limbs of the magnitude; it is lossy, and named so. There is
 no `Neg`, no `Sub`, no `Semigroup` and no `HasZero`, and a `trybuild` compile-fail test pins that.
+There is no wire form: a batch result crosses a boundary as the `Wide` it converts to.
 
 ## Operations and conversions {#sp-ops}
 
@@ -515,7 +525,7 @@ on every push.
 | decode | canonical round-trip; non-canonical bytes refused | unit tests, `cargo-fuzz` nightly |
 | architecture | one SHA-256 over vector state and `to_f64` bits on 7 targets | the golden-hash workflow |
 | SIMD | every kernel equals the scalar reference bit for bit on the vectors and 10⁴ seeded multisets (specials and subnormals included); lane-count independence at 2, 4 and 8 partials | the golden hash covers every kernel |
-| batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; within `n·2^(−60(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
+| batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; equal to the sum of the inputs truncated below the window, and so within `n·2^(−64(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |
 | DBSP | `OrdIndexedWSet` consolidation and cancellation; `aggregate_linear` scale and retract; the UDA example builds | feature `dbsp`, rustc 1.99.0 |
 

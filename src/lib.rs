@@ -13,9 +13,14 @@
 //! The crate is `no_std` and never allocates: every type is a `Copy` plain word on every feature
 //! set. `std` (on by default) adds `std::error::Error` impls and the bench harness.
 //!
-//! Every type has one canonical encoding, `FORMAT.md`: `to_bytes` and `from_bytes` on every feature
-//! set, and `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A decoder
-//! refuses anything that is not a canonical value, as a [`WireError`], never a panic.
+//! [`Exact`], [`Wide`] and [`Fixed`] are the groups. [`Binned`] is the batch-only tier beside
+//! them: constant size and the full range, order-independent, and not a group, so it folds a tile
+//! and converts to a [`Wide`] rather than serving as a weight.
+//!
+//! Each group type has one canonical encoding, `FORMAT.md`: `to_bytes` and `from_bytes` on every
+//! feature set, and `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A
+//! decoder refuses anything that is not a canonical value, as a [`WireError`], never a panic.
+//! `Binned` has none, and crosses a boundary as the `Wide` it converts to.
 //!
 //! Behind the `differential` feature, [`Exact`] implements differential-dataflow's weight traits
 //! (`Semigroup`, `Monoid`, `Abelian`, and `Multiply` by `Exact`, `i64` or `isize` on either side),
@@ -36,6 +41,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+mod binned;
 mod exact;
 mod fixed;
 mod ieee;
@@ -47,6 +53,7 @@ mod round;
 mod wide;
 mod wire;
 
+pub use binned::Binned;
 pub use exact::{Exact, PastCap, EXACT_MAX_EXP};
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
 pub use wide::Wide;

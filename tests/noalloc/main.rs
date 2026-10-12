@@ -1,12 +1,41 @@
-//! `Exact` on a build with no features: a 32-byte `Copy` word that works exactly as on every
-//! other build, since nothing in the crate allocates. The operators panic by name past the cap
-//! and the checked methods return it with the state untouched. Every test is named `noalloc_*`.
+//! `Exact` and `Binned` on a build with no features: plain `Copy` words that work exactly as on
+//! every other build, since nothing in the crate allocates. The operators panic by name past the
+//! cap and the checked methods return it with the state untouched. Every test is named
+//! `noalloc_*`.
 
 #![allow(clippy::float_cmp)]
 
-use float_abel::{Exact, PastCap, WireError};
+use float_abel::{Binned, Exact, PastCap, Wide, WireError};
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 32);
+const _: () = assert!(core::mem::size_of::<Binned<3>>() == 80);
+
+#[test]
+fn noalloc_a_binned_fold_lands_in_wide_without_std() {
+    let xs = [1e30, 1e-10, -1e30, 0.5, f64::NAN];
+    let mut forward = Binned::<3>::ZERO;
+    forward.extend_from_slice(&xs);
+    let backward = xs
+        .iter()
+        .rev()
+        .fold(Binned::<3>::ZERO, |acc, &x| acc + Binned::from(x));
+    assert_eq!(forward, backward);
+    assert_eq!(forward.specials(), (1, 0, 0));
+    let w = forward.into_wide();
+    assert!(w.to_f64().is_nan());
+    // The history is gone from the Wide: its window starts where the survivors are, two limbs
+    // below the 1e30 that fixed the fold's, so only the value round-trips, not the bits.
+    assert_eq!(w.to_binned::<3>().into_wide(), w);
+    assert_eq!(forward.index(), 18);
+    assert_eq!(w.to_binned::<3>().index(), 16);
+    let mut finite = forward;
+    finite = finite + Binned::from(0.0);
+    assert_eq!(finite, forward);
+    assert_eq!(
+        Wide::from(0.5).to_binned::<3>().into_wide(),
+        Wide::from(0.5)
+    );
+}
 
 #[test]
 fn noalloc_sums_products_and_specials_work_without_std() {

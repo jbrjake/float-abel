@@ -15,3 +15,14 @@ fn ui_const_assertions_refuse_the_pairs_and_lengths_they_name() {
     t.compile_fail("tests/ui/fixed_wider_than_wide.rs");
     t.compile_fail("tests/ui/fixed_to_bytes_wrong_length.rs");
 }
+
+/// `Binned<K>` implements none of differential-dataflow's weight traits, so a collection refuses
+/// it as a diff where it takes `Exact`, and `K` is pinned to `1..=33`. The `binned_` filter of the
+/// task verify reaches this through its name.
+#[test]
+fn ui_binned_is_no_engine_weight_and_k_is_bounded() {
+    let t = trybuild::TestCases::new();
+    t.pass("tests/ui/exact_as_differential_diff.rs");
+    t.compile_fail("tests/ui/binned_as_differential_diff.rs");
+    t.compile_fail("tests/ui/binned_zero_bins.rs");
+}

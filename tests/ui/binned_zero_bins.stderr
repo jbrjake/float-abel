@@ -1,0 +1,26 @@
+error[E0080]: evaluation panicked: Binned: K must lie in 1..=33, so the top bin's carry still fits Wide's 34 limbs
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `float_abel::Binned::<0>::BINS_OK` failed here
+  |
+ ::: src/binned.rs
+  |
+  |       const BINS_OK: () = assert!(
+  |  _________________________-
+  | |         K >= 1 && K < Wide::LIMBS,
+  | |         "Binned: K must lie in 1..=33, so the top bin's carry still fits Wide's 34 limbs"
+  | |     );
+  | |_____- in this macro invocation
+
+note: erroneous constant encountered
+ --> src/binned.rs
+  |
+  |         let () = Self::BINS_OK;
+  |                  ^^^^^^^^^^^^^
+
+note: erroneous constant encountered
+ --> tests/ui/binned_zero_bins.rs:7:14
+  |
+7 |     let _b = Binned::<0>::ZERO;
+  |              ^^^^^^^^^^^^^^^^^
