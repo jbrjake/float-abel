@@ -46,20 +46,13 @@ fn wide_body(w: &Wide) -> Vec<u8> {
 }
 
 fn random_wide(rng: &mut Rng) -> Wide {
-    let mut limbs = [0u64; Wide::LIMBS];
-    for l in &mut limbs {
-        *l = rng.next();
-    }
-    let specials = [rng.next() as i64, rng.next() as i64, rng.next() as i64];
+    let limbs = std::array::from_fn(|_| rng.next());
+    let specials = std::array::from_fn(|_| rng.next() as i64);
     Wide::from_parts(limbs, specials)
 }
 
 fn random_fixed(rng: &mut Rng) -> Fixed256 {
-    let mut limbs = [0u64; 4];
-    for l in &mut limbs {
-        *l = rng.next();
-    }
-    Fixed256::from_limbs(limbs)
+    Fixed256::from_limbs(std::array::from_fn(|_| rng.next()))
 }
 
 /// The refusal of a buffer that is not the type's length.
@@ -350,6 +343,13 @@ fn wire_wide_and_fixed_refuse_only_the_version_byte_and_the_length() {
     assert_eq!(Wide::from_bytes(&[]), Err(length(297, 0)));
 }
 
+/// postcard's refusal of `bytes` as a `T`.
+fn postcard_refuses<T: serde::de::DeserializeOwned + std::fmt::Debug>(
+    bytes: &[u8],
+) -> postcard::Error {
+    postcard::from_bytes::<T>(bytes).unwrap_err()
+}
+
 /// postcard writes a tuple's `u8` elements back to back with no length prefix, so its encoding of
 /// a value is `to_bytes` itself. Its error type carries no message, so a refusal from the decoder
 /// shows as `SerdeDeCustom` and a short buffer as `DeserializeUnexpectedEnd`.
@@ -384,34 +384,22 @@ fn wire_serde_postcard_is_to_bytes_byte_for_byte_and_round_trips() {
 
     // A non-canonical word is refused through serde by the decoder, never read.
     let even = exact_bytes(2, 0, 0, [0; 3]);
-    assert_eq!(
-        postcard::from_bytes::<Exact>(&even).unwrap_err(),
-        SerdeDeCustom
-    );
+    assert_eq!(postcard_refuses::<Exact>(&even), SerdeDeCustom);
     let zero_exp = exact_bytes(0, 0, 9, [0; 3]);
-    assert_eq!(
-        postcard::from_bytes::<Exact>(&zero_exp).unwrap_err(),
-        SerdeDeCustom
-    );
+    assert_eq!(postcard_refuses::<Exact>(&zero_exp), SerdeDeCustom);
     // A short buffer, and another type's encoding of the same length, are refused too.
     assert_eq!(
-        postcard::from_bytes::<Exact>(&even[..20]).unwrap_err(),
+        postcard_refuses::<Exact>(&even[..20]),
         DeserializeUnexpectedEnd
     );
     let fixed = postcard::to_allocvec(&Fixed256::try_from(1.0).unwrap()).unwrap();
     assert_eq!(fixed.len(), 33);
-    assert_eq!(
-        postcard::from_bytes::<Exact>(&fixed).unwrap_err(),
-        SerdeDeCustom
-    );
+    assert_eq!(postcard_refuses::<Exact>(&fixed), SerdeDeCustom);
     let mut wrong = postcard::to_allocvec(&narrow).unwrap();
     wrong[0] = 0x7f;
+    assert_eq!(postcard_refuses::<Narrow>(&wrong), SerdeDeCustom);
     assert_eq!(
-        postcard::from_bytes::<Narrow>(&wrong).unwrap_err(),
-        SerdeDeCustom
-    );
-    assert_eq!(
-        postcard::from_bytes::<Narrow>(&encoded[..16]).unwrap_err(),
+        postcard_refuses::<Narrow>(&encoded[..16]),
         DeserializeUnexpectedEnd
     );
 }
