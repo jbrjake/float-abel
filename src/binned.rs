@@ -164,6 +164,23 @@ impl<const K: usize> Binned<K> {
         crate::simd::binned_extend(self, xs);
     }
 
+    /// Kernel (ii) of DESIGN.md § Speed, the floating-point fold built beside the integer one so
+    /// the two can be benchmarked and the loser deleted: the same bits as [`Binned::deposit`] one
+    /// at a time, by another route. Hidden because it is the experiment, not the surface; the
+    /// bench and the kernel tests reach it here.
+    #[doc(hidden)]
+    pub fn extend_from_slice_fp(&mut self, xs: &[f64]) {
+        crate::simd::binned_extend_fp::<K, true>(self, xs);
+    }
+
+    /// Kernel (ii) without its truncation fix-up, `ReproBLAS`'s own nearest-rounding fold: not the
+    /// fold's bits, and here only so the bench can bound what the floating-point shape would cost
+    /// if truncation were free.
+    #[doc(hidden)]
+    pub fn extend_from_slice_fp_nearest(&mut self, xs: &[f64]) {
+        crate::simd::binned_extend_fp::<K, false>(self, xs);
+    }
+
     /// The fold with these bins, counters and index, as a kernel's tile comes out of its partials.
     pub(crate) const fn from_bins(
         limbs: [u64; K],

@@ -48,50 +48,35 @@ fn fixture(lo: i32, hi: i32) -> Vec<f64> {
     (0..N).map(|_| rng.on_grid(lo, hi)).collect()
 }
 
-fn bulk_vs_loop(c: &mut Criterion) {
+fn wide(c: &mut Criterion) {
+    for (name, xs) in [
+        ("wide/same-scale", fixture(-20, 20)),
+        ("wide/2^±300", fixture(-300, 300)),
+    ] {
+        let mut g = c.benchmark_group(name);
+        g.throughput(Throughput::Elements(N as u64));
+        g.bench_function("loop", |b| {
+            b.iter(|| {
+                let mut w = Wide::ZERO;
+                for &x in &xs {
+                    w.deposit(x);
+                }
+                w
+            });
+        });
+        g.bench_function("extend_from_slice", |b| {
+            b.iter(|| {
+                let mut w = Wide::ZERO;
+                w.extend_from_slice(&xs);
+                w
+            });
+        });
+        g.finish();
+    }
+}
+
+fn fixed(c: &mut Criterion) {
     let same_scale = fixture(-20, 20);
-    let wide_range = fixture(-300, 300);
-
-    let mut g = c.benchmark_group("wide/same-scale");
-    g.throughput(Throughput::Elements(N as u64));
-    g.bench_function("loop", |b| {
-        b.iter(|| {
-            let mut w = Wide::ZERO;
-            for &x in &same_scale {
-                w.deposit(x);
-            }
-            w
-        });
-    });
-    g.bench_function("extend_from_slice", |b| {
-        b.iter(|| {
-            let mut w = Wide::ZERO;
-            w.extend_from_slice(&same_scale);
-            w
-        });
-    });
-    g.finish();
-
-    let mut g = c.benchmark_group("wide/2^±300");
-    g.throughput(Throughput::Elements(N as u64));
-    g.bench_function("loop", |b| {
-        b.iter(|| {
-            let mut w = Wide::ZERO;
-            for &x in &wide_range {
-                w.deposit(x);
-            }
-            w
-        });
-    });
-    g.bench_function("extend_from_slice", |b| {
-        b.iter(|| {
-            let mut w = Wide::ZERO;
-            w.extend_from_slice(&wide_range);
-            w
-        });
-    });
-    g.finish();
-
     let mut g = c.benchmark_group("fixed256/same-scale");
     g.throughput(Throughput::Elements(N as u64));
     g.bench_function("loop", |b| {
@@ -111,7 +96,10 @@ fn bulk_vs_loop(c: &mut Criterion) {
         });
     });
     g.finish();
+}
 
+fn binned(c: &mut Criterion) {
+    let same_scale = fixture(-20, 20);
     let mut g = c.benchmark_group("binned3/same-scale");
     g.throughput(Throughput::Elements(N as u64));
     g.bench_function("loop", |b| {
@@ -130,10 +118,30 @@ fn bulk_vs_loop(c: &mut Criterion) {
             bins
         });
     });
+    // Kernel (ii), the floating-point peel, against kernel (i) above: the truncating kernel that
+    // lands the fold's bits, and the nearest-rounding variant that bounds its cost without the
+    // fix-up. DESIGN.md § Speed has the loser deleted.
+    g.bench_function("extend_from_slice_fp", |b| {
+        b.iter(|| {
+            let mut bins = Binned::<3>::ZERO;
+            bins.extend_from_slice_fp(&same_scale);
+            bins
+        });
+    });
+    g.bench_function("extend_from_slice_fp_nearest", |b| {
+        b.iter(|| {
+            let mut bins = Binned::<3>::ZERO;
+            bins.extend_from_slice_fp_nearest(&same_scale);
+            bins
+        });
+    });
     g.finish();
+}
 
-    // The naive sum that is wrong in its last bits: the floor every exact tier is measured against,
-    // with eight independent accumulators so the compiler vectorises it as a column engine would.
+/// The naive sum that is wrong in its last bits: the floor every exact tier is measured against,
+/// with eight independent accumulators so the compiler vectorises it as a column engine would.
+fn naive(c: &mut Criterion) {
+    let same_scale = fixture(-20, 20);
     let mut g = c.benchmark_group("f64/same-scale");
     g.throughput(Throughput::Elements(N as u64));
     g.bench_function("vectorised naive sum", |b| {
@@ -150,5 +158,5 @@ fn bulk_vs_loop(c: &mut Criterion) {
     g.finish();
 }
 
-criterion_group!(benches, bulk_vs_loop);
+criterion_group!(benches, wide, fixed, binned, naive);
 criterion_main!(benches);
