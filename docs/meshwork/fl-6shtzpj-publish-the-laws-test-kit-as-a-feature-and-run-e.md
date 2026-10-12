@@ -24,7 +24,7 @@ handoff: |
   from github.com, which the Bash sandbox blocks, so run it and the gate
   with the sandbox off.
   
-  Since the last handoff the wire format closed (fl-a2wrx7w). `to_bytes`,
+  Since the last handoff the wire-format task closed. `to_bytes`,
   `from_bytes`, `BYTES` and
   `WIRE_VERSION` sit on all three types; `WireError` is exported from
   `src/wire.rs`, which also holds
@@ -36,8 +36,11 @@ handoff: |
   `tests/wire.rs` proves that with
   postcard 1.1.3, a dev-dependency chosen because bincode 1.3.3 carries
   RUSTSEC-2025-0141
-  (unmaintained) and the owner ruled unmaintained code out; deny.toml
-  ignores nothing. Timely 0.30,
+  (unmaintained) and the owner ruled, in the session that built the wire:
+  "using unmaintained code
+  is a code smell. seriously nothing we can use that doesn't have a
+  security advisory warning against
+  its use???"; deny.toml ignores nothing. Timely 0.30,
   which differential-dataflow 0.24 requires, depends on bincode 1.3
   itself, so the `differential`
   feature will bring that advisory back for the owner to rule on; a
@@ -129,3 +132,4 @@ against their own type.
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-laws-kit @2246c38eec81
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-laws @d04a257c60cc
 - 2026-10-12T13:23Z handoff by claude (f24d940b-27ff-4906-b27c-e6a7b31fddaf)
+- 2026-10-12T13:25Z handoff by claude (f24d940b-27ff-4906-b27c-e6a7b31fddaf)
