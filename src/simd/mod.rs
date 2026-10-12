@@ -20,6 +20,9 @@ use crate::wide::Wide;
 
 mod scalar;
 
+#[cfg(all(feature = "simd", target_arch = "x86_64"))]
+#[allow(unsafe_code)] // the AVX2 intrinsics; every block states its invariant
+mod avx2;
 #[cfg(all(feature = "simd", target_arch = "aarch64"))]
 #[allow(unsafe_code)] // the NEON intrinsics; every block states its invariant
 mod neon;
@@ -104,6 +107,10 @@ fn fold_tile<const LIMBS: usize, const TRUNC: bool>(
     if neon::handles::<LIMBS, TRUNC>() {
         return neon::fold_tile::<LIMBS, TRUNC>(xs, lsb, partials, leftover);
     }
+    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    if avx2::handles::<LIMBS, TRUNC>() && avx2::available() {
+        return avx2::fold_tile::<LIMBS, TRUNC>(xs, lsb, partials, leftover);
+    }
     scalar::fold_tile::<4, LIMBS, TRUNC>(xs, lsb, partials, leftover)
 }
 
@@ -134,6 +141,12 @@ fn span(xs: &[f64]) -> (i32, i32) {
         debug_assert_eq!(v, scalar::span(xs));
         v
     }
+    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    if avx2::available() {
+        let v = avx2::span(xs);
+        debug_assert_eq!(v, scalar::span(xs));
+        return v;
+    }
     #[cfg(not(all(feature = "simd", target_arch = "aarch64")))]
     scalar::span(xs)
 }
@@ -145,6 +158,12 @@ fn top_limb(xs: &[f64]) -> i16 {
         let v = neon::top_limb(xs);
         debug_assert_eq!(v, scalar::top_limb(xs));
         v
+    }
+    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    if avx2::available() {
+        let v = avx2::top_limb(xs);
+        debug_assert_eq!(v, scalar::top_limb(xs));
+        return v;
     }
     #[cfg(not(all(feature = "simd", target_arch = "aarch64")))]
     scalar::top_limb(xs)
