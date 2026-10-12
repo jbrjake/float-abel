@@ -1,11 +1,11 @@
 //! The canonical wire format, FORMAT.md: `to_bytes` is the version byte then the type's `repr(C)`
 //! body little-endian, `from_bytes` is its inverse and refuses everything else by name, and the
-//! `serde` feature carries exactly those bytes as a fixed-length tuple, so bincode 1.3's fixed-int
-//! encoding of a value is `to_bytes` byte for byte. Every test is named `wire_*`.
+//! `serde` feature carries exactly those bytes as a fixed-length tuple, so a format that writes a
+//! tuple's elements back to back, postcard here, encodes a value as `to_bytes` byte for byte.
+//! Every test is named `wire_*`.
 
 use std::collections::HashMap;
 
-use bincode::Options;
 use float_abel::{Exact, Fixed, Fixed256, Wide, WireError, EXACT_MAX_EXP};
 
 use crate::support::Rng;
@@ -350,55 +350,70 @@ fn wire_wide_and_fixed_refuse_only_the_version_byte_and_the_length() {
     assert_eq!(Wide::from_bytes(&[]), Err(length(297, 0)));
 }
 
+/// postcard writes a tuple's `u8` elements back to back with no length prefix, so its encoding of
+/// a value is `to_bytes` itself. Its error type carries no message, so a refusal from the decoder
+/// shows as `SerdeDeCustom` and a short buffer as `DeserializeUnexpectedEnd`.
 #[test]
-fn wire_serde_bincode_fixint_is_to_bytes_byte_for_byte_and_round_trips() {
-    let fixint = bincode::options().with_fixint_encoding();
+fn wire_serde_postcard_is_to_bytes_byte_for_byte_and_round_trips() {
+    use postcard::Error::{DeserializeUnexpectedEnd, SerdeDeCustom};
     let x = Exact::from(1.5) + Exact::from(f64::NAN) - Exact::from(-0.1);
-    let encoded = fixint.serialize(&x).unwrap();
+    let encoded = postcard::to_allocvec(&x).unwrap();
     assert_eq!(encoded, x.to_bytes().to_vec());
-    assert_eq!(fixint.deserialize::<Exact>(&encoded).unwrap(), x);
-    // The legacy entry points, which the differential adapter rides, are fixed-int too.
-    assert_eq!(bincode::serialize(&x).unwrap(), encoded);
-    assert_eq!(bincode::deserialize::<Exact>(&encoded).unwrap(), x);
+    assert_eq!(postcard::from_bytes::<Exact>(&encoded).unwrap(), x);
 
     let mut w = Wide::from(1e300);
     w.deposit(-5e-324);
     w.deposit(f64::NEG_INFINITY);
-    let encoded = fixint.serialize(&w).unwrap();
+    let encoded = postcard::to_allocvec(&w).unwrap();
     assert_eq!(encoded.len(), 297);
     assert_eq!(encoded, w.to_bytes().to_vec());
-    assert_eq!(fixint.deserialize::<Wide>(&encoded).unwrap(), w);
+    assert_eq!(postcard::from_bytes::<Wide>(&encoded).unwrap(), w);
 
     let f = Fixed256::try_from(-7.5).unwrap();
-    let encoded = fixint.serialize(&f).unwrap();
+    let encoded = postcard::to_allocvec(&f).unwrap();
     let direct: [u8; Fixed256::BYTES] = f.to_bytes();
     assert_eq!(encoded, direct.to_vec());
-    assert_eq!(fixint.deserialize::<Fixed256>(&encoded).unwrap(), f);
+    assert_eq!(postcard::from_bytes::<Fixed256>(&encoded).unwrap(), f);
     let mut narrow = Narrow::ZERO;
     narrow.try_deposit(2.0).unwrap();
-    let encoded = fixint.serialize(&narrow).unwrap();
+    let encoded = postcard::to_allocvec(&narrow).unwrap();
     let direct: [u8; Narrow::BYTES] = narrow.to_bytes();
     assert_eq!(encoded.len(), 17);
     assert_eq!(encoded, direct.to_vec());
-    assert_eq!(fixint.deserialize::<Narrow>(&encoded).unwrap(), narrow);
+    assert_eq!(postcard::from_bytes::<Narrow>(&encoded).unwrap(), narrow);
 
-    // A non-canonical word is refused through serde with the decoder's reason, never read.
+    // A non-canonical word is refused through serde by the decoder, never read.
     let even = exact_bytes(2, 0, 0, [0; 3]);
-    let err = fixint.deserialize::<Exact>(&even).unwrap_err();
-    assert!(err.to_string().contains("even"), "{err}");
+    assert_eq!(
+        postcard::from_bytes::<Exact>(&even).unwrap_err(),
+        SerdeDeCustom
+    );
     let zero_exp = exact_bytes(0, 0, 9, [0; 3]);
-    assert!(fixint.deserialize::<Exact>(&zero_exp).is_err());
+    assert_eq!(
+        postcard::from_bytes::<Exact>(&zero_exp).unwrap_err(),
+        SerdeDeCustom
+    );
     // A short buffer, and another type's encoding of the same length, are refused too.
-    assert!(fixint.deserialize::<Exact>(&even[..20]).is_err());
-    let fixed = bincode::serialize(&Fixed256::try_from(1.0).unwrap()).unwrap();
+    assert_eq!(
+        postcard::from_bytes::<Exact>(&even[..20]).unwrap_err(),
+        DeserializeUnexpectedEnd
+    );
+    let fixed = postcard::to_allocvec(&Fixed256::try_from(1.0).unwrap()).unwrap();
     assert_eq!(fixed.len(), 33);
-    let err = fixint.deserialize::<Exact>(&fixed).unwrap_err();
-    assert!(err.to_string().contains("version"), "{err}");
-    let mut wrong = fixint.serialize(&narrow).unwrap();
+    assert_eq!(
+        postcard::from_bytes::<Exact>(&fixed).unwrap_err(),
+        SerdeDeCustom
+    );
+    let mut wrong = postcard::to_allocvec(&narrow).unwrap();
     wrong[0] = 0x7f;
-    let err = fixint.deserialize::<Narrow>(&wrong).unwrap_err();
-    assert!(err.to_string().contains("version"), "{err}");
-    assert!(fixint.deserialize::<Narrow>(&wrong[..16]).is_err());
+    assert_eq!(
+        postcard::from_bytes::<Narrow>(&wrong).unwrap_err(),
+        SerdeDeCustom
+    );
+    assert_eq!(
+        postcard::from_bytes::<Narrow>(&encoded[..16]).unwrap_err(),
+        DeserializeUnexpectedEnd
+    );
 }
 
 #[test]

@@ -7,19 +7,16 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-# An ignore names one advisory with the crate it is about and why it stands, never a blanket skip.
-ignore = [
-    # bincode 1.3.3 is "unmaintained": its team stopped and calls 1.3.3 complete. It is the encoding
-    # the differential-dataflow adapter rides (DESIGN.md § Wire format), and here a dev-dependency
-    # whose fixed-int bytes tests/wire.rs asserts equal `to_bytes`.
-    { id = "RUSTSEC-2025-0141", reason = "bincode 1.3.3 is complete and is the adapter's wire; dev-dependency" },
-]
+ignore = []
 
 # Only licences the tree actually carries; cargo-deny warns on an allowance nothing uses, so a new
-# dependency's licence is added here with it.
+# dependency's licence is added here with it. Unicode-3.0 (OSI-approved) is unicode-ident's, which
+# every proc-macro reaches through proc-macro2; it is on a normal edge because postcard, a
+# dev-dependency, turns on serde's `derive` feature and feature unification carries that onto the
+# crate's own `serde` edge.
 [licenses]
 version = 2
-allow = ["MIT", "Apache-2.0"]
+allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
 confidence-threshold = 0.8
 
 [bans]

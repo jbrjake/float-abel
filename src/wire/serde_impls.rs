@@ -1,9 +1,10 @@
 //! `Serialize` and `Deserialize` as the wire bytes. A value is a fixed-length tuple of the bytes
 //! `to_bytes` gives, which is how a `[u8; N]` serialises, so a format frames it as it frames an
-//! array: bincode 1.3's fixed-int encoding of a value is `to_bytes` byte for byte, with no length
-//! prefix, and `serde_json` carries it as an array of numbers. A decoder gathers the bytes and runs
-//! `from_bytes`, so canonical form is validated in one place and a refusal is the decoder's
-//! message. Nothing here needs `std` or an allocator.
+//! array: one that writes a tuple's elements back to back, postcard or bincode 1's fixed-int
+//! encoding, emits `to_bytes` byte for byte with no length prefix, and `serde_json` carries it as
+//! an array of numbers. A decoder gathers the bytes and runs `from_bytes`, so canonical form is
+//! validated in one place and a refusal is the decoder's message. Nothing here needs `std` or an
+//! allocator.
 
 use core::fmt;
 

@@ -78,10 +78,11 @@ the finite part alone, rounded as above.
 
 Under the `serde` feature a value serialises as a tuple of `BYTES` elements of `u8`, the bytes of
 `to_bytes` in order, which is how a `[u8; BYTES]` serialises. A format therefore frames it as it
-frames a fixed-length array: bincode 1.3's fixed-int encoding of a value is `to_bytes` byte for
-byte, with no length prefix, and serde_json carries it as an array of numbers. Deserialisation
-gathers the elements and runs `from_bytes`, so every refusal above applies, as the deserialiser's
-error.
+frames a fixed-length array: one that writes a tuple's elements back to back with no length prefix,
+postcard or bincode 1's fixed-int encoding, emits `to_bytes` byte for byte, and serde_json carries it
+as an array of numbers. `tests/wire.rs` asserts the first with postcard and the second with
+serde_json. Deserialisation gathers the elements and runs `from_bytes`, so every refusal above
+applies, as the deserialiser's error.
 
 ## Vectors
 

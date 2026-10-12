@@ -321,9 +321,12 @@ mantissa is not a value.
 through a batch would break `Eq`-substitutability in differential-dataflow's builder, so a decoder
 that accepted one would be a correctness hole, not a leniency. A refusal is a typed error,
 `WireError`, never a panic. Under `serde` a value is a fixed-length tuple of its `to_bytes` bytes, as
-a `[u8; N]` serialises, so bincode 1.3's fixed-int encoding, which differential-dataflow rides, is
-`to_bytes` byte for byte with no length prefix; through DBSP it is rkyv 0.7. The format freezes at
-1.0 and is documented in `FORMAT.md`, in bitrep's style, with vectors.
+a `[u8; N]` serialises, so a format that writes a tuple's elements back to back emits `to_bytes` byte
+for byte with no length prefix: `tests/wire.rs` proves it with postcard, which is maintained, and
+bincode 1's fixed-int encoding frames the same way. Through differential-dataflow the encoding rides
+whatever timely frames exchanged data with, which at timely 0.30 is bincode 1.3; through DBSP it is
+rkyv 0.7. The format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with
+vectors.
 
 ## Crate posture {#sp-posture}
 

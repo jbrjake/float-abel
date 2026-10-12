@@ -29,12 +29,13 @@ serde = { version = "1", optional = true, default-features = false }
 # bare `cargo test` with no flag. `dbsp` stays out because it builds only on rustc 1.96.1.
 [dev-dependencies]
 float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", "arbitrary"] }
-# The wire format's serde round-trip through the encoding the differential adapter rides. Pinned
-# because tests/wire.rs asserts its fixed-int bytes equal `to_bytes`.
-bincode = "=1.3.3"
 # The differential oracle for `Wide`'s limbs: the same multiset must land the same 272 limb bytes.
 # Pinned to the version tests/data/bitrep/vectors.json was taken from.
 bitrep = "=0.5.1"
+# A maintained `no_std` serde format that writes a tuple's elements back to back with no length
+# prefix, so tests/wire.rs can assert its bytes equal `to_bytes`. Pinned because the assertion is
+# about its framing.
+postcard = { version = "=1.1.3", default-features = false, features = ["use-std"] }
 # Reads the committed conformance vectors.
 serde_json = "1"
 # Compile-fail cases under tests/ui/: the `const` assertions that pin a conversion or a trait to
