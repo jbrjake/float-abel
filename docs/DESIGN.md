@@ -450,9 +450,10 @@ compiler wraps it in `Tup3<acc, i64, i64>`), and the crate ships that UDA as its
 
 Constraints: the `dbsp` CI job pins rustc 1.99.0, and the push gate runs the feature's tests and
 its example on that toolchain when it is installed. rkyv is used with
-`default-features = false, features = ["std", "size_64"]` to match dbsp's. The feature pins
-`dbsp = "=0.364.0"`, the version the probe ran at; moving the pin means re-running the probe there
-first. The feature's closure is 440 crates against the crate's 114, carrying eight licences the
+`default-features = false, features = ["std", "size_64"]` to match dbsp's. The feature takes
+`dbsp = "0.364"`, a caret on the minor like differential's, so a consumer's own 0.364.x unifies
+with it; the probe runs at the floor of the range, and moving the floor means re-running the probe
+there first. The feature's closure is 440 crates against the crate's 114, carrying eight licences the
 crate's own allow-list lacks (BSD-3-Clause, ISC, Zlib, MIT-0, CC0-1.0, BSL-1.0, CDLA-Permissive-2.0
 and bzip2-1.0.6, across 18 crates), 30 duplicate majors and rkyv 0.7's RUSTSEC-2026-0235, so
 `deny.toml` checks every feature but `dbsp` and `deny-dbsp.toml` states that closure row by row, run

@@ -29,11 +29,12 @@ arbitrary = { version = "1", optional = true }
 # consumer's dataflow has to see as one crate. Its closure reaches timely 0.31, whose serialized
 # exchange is bincode 1, and columnation, which is on paste; both are ignored by id in deny.toml.
 differential-dataflow = { version = "0.25", optional = true }
-# The engine the `dbsp` feature adapts `Exact` to, DESIGN.md § DBSP. An exact pin, because the
-# probe the adapter is written against ran at this version and moving the pin means re-running it
-# there first. dbsp is edition 2024 and declares rust-version 1.96.1; rustc 1.97 and 1.98 ICE
-# inside it, so the feature builds on 1.96.1 and 1.99.0 and its CI job pins 1.99.0.
-dbsp = { version = "=0.364.0", optional = true }
+# The engine the `dbsp` feature adapts `Exact` to, DESIGN.md § DBSP. A caret on the minor, the
+# differential shape, so a consumer's own 0.364.x unifies with it; the probe the adapter is
+# written against runs at the floor of the range, and moving the floor means re-running it there
+# first. dbsp is edition 2024 and declares rust-version 1.96.1; rustc 1.97 and 1.98 ICE inside
+# it, so the feature builds on 1.96.1 and 1.99.0 and its CI job pins 1.99.0.
+dbsp = { version = "0.364", optional = true }
 # dbsp's storage traits on `Exact`: its archived form is rkyv's derive, on the features dbsp
 # itself sets so the two resolve to one rkyv, and `SizeOf` is feldera's fork of size-of under the
 # name dbsp gives it. Both on a caret so they unify with whatever dbsp's own closure picks.

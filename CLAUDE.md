@@ -62,10 +62,11 @@ outside `~/Documents`.
   through timely and paste through columnation, are ignored by id in `deny.toml` with the dragging
   crate named, never by `unmaintained = "workspace"`, so a third advisory still fails the gate
   (owner: "Ignore both by id").
-- `dbsp` is pinned at `=0.364.0`, the version its probe ran at, and its closure is checked by
-  `deny-dbsp.toml` in the dbsp CI job and the push gate while `deny.toml` checks every other
-  feature, so the crate's own posture stays as strict as it is (owner: "follow your rec on dbsp's
-  CI job").
+- `dbsp` is on a caret, `"0.364"`, like differential's, so a consumer's own 0.364.x unifies with
+  it, and its probe runs at the floor of the range (owner: chose "Caret: dbsp = "0.364"" over the
+  exact pin). Its closure is checked by `deny-dbsp.toml` in the dbsp CI job and the push gate
+  while `deny.toml` checks every other feature, so the crate's own posture stays as strict as it
+  is (owner: "follow your rec on dbsp's CI job").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
 - `cargo publish` runs only with `--dry-run`. A publish, the crates.io name reservation included, is
