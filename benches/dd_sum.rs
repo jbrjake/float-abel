@@ -4,10 +4,13 @@
 //! (tests/differential.rs): sixteen accounts, each amount a signed count of units of 2⁻²⁰ below
 //! 2²⁰, which `Exact` carries as the double and `isize` as the count, so both runs fold one
 //! multiset and an integer oracle checks the `Exact` totals bit for bit before anything is timed.
-//! The dataflow is the design's idiom, `explode` into the diff then `count_total`, on serialized
-//! exchange, the shape the probe ran on. Advisory, never a gate: `cargo bench --bench dd_sum`, and
-//! the numbers go into BENCH.md with the machine and the commit. Peak RSS comes from `/usr/bin/time`
-//! around the bench binary, not from here.
+//! The dataflow is the design's idiom, `explode` into the diff then `count_total`, run twice over:
+//! on serialized exchange (`ProcessBinary`, the shape the probe ran on, where every exchanged diff
+//! crosses the wire as its serde bytes even on one worker) and on typed exchange (`Process`, the
+//! in-process deployment, where it crosses as the word), so the two ratios split the diff's
+//! arithmetic from its serialization. Advisory, never a gate: `cargo bench --bench dd_sum`, and
+//! the numbers go into BENCH.md with the machine and the commit. Peak RSS comes from
+//! `/usr/bin/time` around the bench binary, not from here.
 //!
 //! A sample is one whole run, workers spawned to workers joined, so the harness takes ten of them
 //! flat rather than criterion's hundred.
@@ -117,17 +120,45 @@ fn isize_sum(worker: &mut Worker, rows: &[Row]) -> Captured<(u32, isize), isize>
     captured
 }
 
-/// One whole run: `workers` workers on serialized exchange, each building the dataflow and
-/// feeding its share, stepped to completion and joined. Returns every update the captured stream
-/// emitted on any worker, consolidated.
-fn run<D, R, F>(workers: usize, build: F) -> Vec<Update<D, R>>
+/// How a diff crosses between workers.
+#[derive(Clone, Copy)]
+enum Exchange {
+    /// `ProcessBinary`: every exchanged update is serialized to bytes and decoded, on one worker
+    /// as on eight.
+    Serialized,
+    /// `Process`: typed channels carry the word itself.
+    Typed,
+}
+
+impl Exchange {
+    const ALL: [Self; 2] = [Self::Serialized, Self::Typed];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Serialized => "serialized",
+            Self::Typed => "typed",
+        }
+    }
+
+    fn config(self, workers: usize) -> CommunicationConfig {
+        match self {
+            Self::Serialized => CommunicationConfig::ProcessBinary(workers),
+            Self::Typed => CommunicationConfig::Process(workers),
+        }
+    }
+}
+
+/// One whole run: `workers` workers on the given exchange, each building the dataflow and feeding
+/// its share, stepped to completion and joined. Returns every update the captured stream emitted
+/// on any worker, consolidated.
+fn run<D, R, F>(workers: usize, exchange: Exchange, build: F) -> Vec<Update<D, R>>
 where
     D: ExchangeData,
     R: ExchangeData + Semigroup,
     F: Fn(&mut Worker) -> Captured<D, R> + Send + Sync + 'static,
 {
     let config = Config {
-        communication: CommunicationConfig::ProcessBinary(workers),
+        communication: exchange.config(workers),
         worker: WorkerConfig::default(),
     };
     let guards = timely::execute(config, move |worker| {
@@ -146,50 +177,60 @@ where
     updates
 }
 
-/// Both dataflows on every worker count, after one checked run of each against the oracle.
+/// Both dataflows on every worker count and exchange, after one checked run of each against the
+/// oracle.
 fn sum(c: &mut Criterion) {
     let rows = Arc::new(units(UPDATES));
     let expected = oracle(&rows);
 
-    for workers in WORKERS {
-        let shared = Arc::clone(&rows);
-        let exact = run(workers, move |worker| exact_sum(worker, &shared));
-        let totals: Vec<(u32, Exact)> = exact.into_iter().map(|(d, _, _)| d).collect();
-        let oracle: Vec<(u32, Exact)> = expected
-            .iter()
-            .map(|&(account, units)| (account, Exact::from(amount(units))))
-            .collect();
-        assert_eq!(totals.len(), ACCOUNTS as usize);
-        assert_eq!(totals, oracle, "Exact totals on {workers} workers");
+    for exchange in Exchange::ALL {
+        for workers in WORKERS {
+            let shared = Arc::clone(&rows);
+            let exact = run(workers, exchange, move |worker| exact_sum(worker, &shared));
+            let totals: Vec<(u32, Exact)> = exact.into_iter().map(|(d, _, _)| d).collect();
+            let oracle: Vec<(u32, Exact)> = expected
+                .iter()
+                .map(|&(account, units)| (account, Exact::from(amount(units))))
+                .collect();
+            assert_eq!(totals.len(), ACCOUNTS as usize);
+            assert_eq!(totals, oracle, "Exact totals on {workers} workers");
 
-        let shared = Arc::clone(&rows);
-        let baseline = run(workers, move |worker| isize_sum(worker, &shared));
-        let totals: Vec<(u32, isize)> = baseline.into_iter().map(|(d, _, _)| d).collect();
-        let oracle: Vec<(u32, isize)> = expected
-            .iter()
-            .map(|&(account, units)| (account, units as isize))
-            .collect();
-        assert_eq!(totals, oracle, "isize totals on {workers} workers");
+            let shared = Arc::clone(&rows);
+            let baseline = run(workers, exchange, move |worker| isize_sum(worker, &shared));
+            let totals: Vec<(u32, isize)> = baseline.into_iter().map(|(d, _, _)| d).collect();
+            let oracle: Vec<(u32, isize)> = expected
+                .iter()
+                .map(|&(account, units)| (account, units as isize))
+                .collect();
+            assert_eq!(totals, oracle, "isize totals on {workers} workers");
+        }
     }
 
     let mut g = c.benchmark_group("dd_sum");
     g.throughput(Throughput::Elements(UPDATES));
     g.sampling_mode(SamplingMode::Flat);
-    for workers in WORKERS {
-        let shared = Arc::clone(&rows);
-        g.bench_function(format!("exact/{workers}w"), |b| {
-            b.iter(|| {
-                let rows = Arc::clone(&shared);
-                black_box(run(workers, move |worker| exact_sum(worker, &rows)))
+    for exchange in Exchange::ALL {
+        for workers in WORKERS {
+            let name = exchange.name();
+            let shared = Arc::clone(&rows);
+            g.bench_function(format!("exact/{workers}w/{name}"), |b| {
+                b.iter(|| {
+                    let rows = Arc::clone(&shared);
+                    black_box(run(workers, exchange, move |worker| {
+                        exact_sum(worker, &rows)
+                    }))
+                });
             });
-        });
-        let shared = Arc::clone(&rows);
-        g.bench_function(format!("isize/{workers}w"), |b| {
-            b.iter(|| {
-                let rows = Arc::clone(&shared);
-                black_box(run(workers, move |worker| isize_sum(worker, &rows)))
+            let shared = Arc::clone(&rows);
+            g.bench_function(format!("isize/{workers}w/{name}"), |b| {
+                b.iter(|| {
+                    let rows = Arc::clone(&shared);
+                    black_box(run(workers, exchange, move |worker| {
+                        isize_sum(worker, &rows)
+                    }))
+                });
             });
-        });
+        }
     }
     g.finish();
 }
@@ -199,7 +240,7 @@ criterion_group! {
     config = Criterion::default()
         .sample_size(10)
         .warm_up_time(Duration::from_secs(1))
-        .measurement_time(Duration::from_secs(120));
+        .measurement_time(Duration::from_secs(30));
     targets = sum
 }
 criterion_main!(benches);
