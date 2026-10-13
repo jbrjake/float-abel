@@ -46,3 +46,6 @@ The owner writes the line this task's verify looks for, dated.
 
 ## log
 - 2026-10-13T16:09Z created
+
+## comments
+- 2026-10-13T16:26Z [claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)] Owner, 2026-10-13, in session: "add a task for the next session to speed up the differential forms, like the serialization stuff you think is a likely culprit". Filed as , seq 140, leading the queue; it moves the number and this ruling on what ratio is acceptable stays open.
