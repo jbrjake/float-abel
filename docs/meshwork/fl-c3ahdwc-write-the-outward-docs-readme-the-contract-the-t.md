@@ -15,6 +15,44 @@ covers:
   - ref: docs/DESIGN.md#sp-not-a-group
     sha: 373785c4859c6da80c731d8709b693004ccff63b692a79548c0e60e956976708
 handoff: |
+  The tree at 76ee02a: Measure (fl-e4jjqf1) is closed, and BENCH.md now
+  carries every number the
+  kill conditions read, NEON (this machine) and AVX2 (jons-amd-mini) side
+  by side, led by a "Terms"
+  glossary and a "What reproducibility costs" table of multiples against
+  plain f64 and the engine's
+  isize diff, which is how the owner reads it ("how much performance do we
+  lose for
+  reproducibility?"). The README this task writes can cite that section
+  for the price of the
+  guarantee: Exact one row at a time is 11× a hardware add on NEON and
+  22× on AVX2; the SIMD
+  kernels sum a column at about 2 ns a value, 5–7× (AVX2) to 19–25×
+  (NEON) the vectorised float sum;
+  inside differential-dataflow Exact is 2–4× the native integer diff.
+  Three rulings for the owner
+  sit in `ready` above this task: fl-bbevtyv (the end-to-end ratio is past
+  the design's 2× kill
+  line on every serialized row), fl-cbtfmqz (every absolute target is
+  missed on both machines, with
+  the un-inlined operators, the 34-limb carry chain and the shared read
+  routine as leads), and
+  fl-mj3tcta (the product kernel, now with its row: the scalar product
+  path is 7–23× the bulk
+  deposit kernel). fl-jqbhm8j files the per-machine bench-baseline.json
+  CLAUDE.md § Performance
+  asks for. The push gate was not re-run after the bench commits (7792a3f,
+  fdf0575, 76ee02a); the
+  commit gate passed on each, and `cargo clippy --workspace --all-targets
+  -- -D warnings` was green
+  on the bench targets before 7792a3f. main is unpushed, so every CI claim
+  stays unverified until
+  the owner pushes. The owner's instruction at the end of that session was
+  to wrap up once the
+  numbers were recorded and explained, not to start new work.
+  
+  The brief below is the one written before Measure ran and still holds.
+  
   The tree at 31dfbe8 has the push gate green end to end
   (`./scripts/regression.sh`, sandbox off
   for cargo-deny), with the tarball digests in golden.yml, dependabot on
@@ -104,3 +142,4 @@ else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
 - 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T15:14Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T15:15Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
+- 2026-10-13T16:09Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
