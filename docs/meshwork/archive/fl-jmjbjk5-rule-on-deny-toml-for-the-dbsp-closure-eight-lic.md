@@ -1,7 +1,7 @@
 ---
 id: fl-jmjbjk5
 title: "Rule on deny.toml for the dbsp closure — eight licences, thirty duplicate majors and RUSTSEC-2026-0235 in rkyv 0.7 fail cargo-deny on all features"
-status: open
+status: done
 category: crate/adapters
 labels: [reproducible-floats]
 relates: [fl-06sggdc, fl-yzy8bwc, fl-e4jjqf1, fl-ajqrs9p, fl-c3ahdwc, fl-ceyy1h6]
@@ -10,52 +10,6 @@ docs:
 seq: 135
 created: 2026-10-12T22:39Z
 verify: contains docs/meshwork/fl-jmjbjk5-rule-on-deny-toml-for-the-dbsp-closure-eight-lic.md /2026-[0-9][0-9]-[0-9][0-9] owner ruled/
-handoff: |
-  State of the tree at afccf59 plus the store commit after it: the dbsp
-  feature is shipped and
-  closed ("Ship the dbsp feature", verify green), and this task is the
-  owner's ruling, not a build. Nothing in
-  it is for a session to write except, once the owner has ruled, the
-  deny.toml edit the ruling
-  names: (a) is eight `allow` entries, thirty `skip` rows each naming
-  dbsp, and one advisory ignore
-  by id; (b) is `[graph] all-features = false` plus `features = [...]`
-  naming every feature but
-  dbsp, a second deny-dbsp.toml for the dbsp CI job (`cargo deny --config
-  deny-dbsp.toml check`
-  as a step after its clippy), and a sentence in DESIGN.md § DBSP's
-  constraints paragraph, which
-  today records the counts. Either way the ruling is a dated "owner ruled"
-  line in this task's
-  file, which its verify looks for; then `cargo deny check` (sandbox off:
-  the advisory fetch
-  needs github.com) and `./scripts/regression.sh` must both be watched
-  green before the task
-  closes, and fl-fm78m8d's gate is this.
-  
-  Until then the push gate is red at its last leg, cargo-deny, and green
-  on every leg before it
-  (clippy on three feature sets, rustdoc, the full suite with ignored,
-  release every_build,
-  noalloc, golden, MSRV 1.74 on the 488-package lockfile, and the new dbsp
-  leg on 1.99.0). Do
-  not push; the owner pushes. Work that is unblocked meanwhile: fl-e4jjqf1
-  Measure and fl-ajqrs9p
-  Fuzz, both ready; fl-c3ahdwc the outward docs; fl-ceyy1h6 the trybuild
-  pin, which now has a
-  fourth snapshot to cover. fl-yzy8bwc, the dependency-line ruling,
-  changes one line of
-  Cargo.toml and one sentence of DESIGN.md if the owner picks the caret,
-  and nothing otherwise.
-  
-  Facts a session needs and the tree does not say: the `1.99.0` toolchain
-  has no clippy, so the
-  feature's local lint is `cargo +stable clippy --features dbsp
-  --all-targets -- -D warnings`
-  while stable is 1.99.0; the probe crate's source is attached to the
-  closed "Ship the dbsp feature" task; and
-  `cargo +1.99.0 run --features dbsp --example dbsp_uda` is the example's
-  run line.
 ---
 
 Owner's call, surfaced from "Ship the dbsp feature" (fl-06sggdc). deny.toml runs with `[graph] all-features = true`, so cargo-deny sees the dbsp closure, 440 crates against the crate's 114, every extra one reached only through dbsp. On 2026-10-12 with cargo-deny 0.20.2 (`cargo deny check` reproduces each list; DESIGN.md § DBSP records the counts): `licenses FAILED` on 18 crates carrying eight licences the allow-list lacks (BSD-3-Clause, ISC, Zlib, MIT-0, CC0-1.0, BSL-1.0, CDLA-Permissive-2.0, bzip2-1.0.6); `bans FAILED` on 30 crates at two or more majors, hashbrown at five; `advisories FAILED` on RUSTSEC-2026-0235, a vulnerability in rkyv 0.7.46 (checked access of archives holding `Rc`/`Arc` to unsized data; fixed in 0.8.17, 0.7 unsupported upstream). rkyv 0.7 is dbsp 0.364's own storage format, so this crate's rkyv line must stay 0.7; `Exact`'s archive is six integers with no pointer, so the flaw is not reachable through it. The differential precedent is an ignore by id naming the dragging crate (owner: "Ignore both by id"); this one is a vulnerability, so it is asked, not assumed.
@@ -72,3 +26,11 @@ Recommendation: (b): the crate's posture is zero required dependencies, and a se
 - 2026-10-12T22:39Z created
 - 2026-10-12T22:43Z handoff by claude (70076334-fceb-445b-b3a5-700374edbd88)
 - 2026-10-12T22:44Z handoff by claude (70076334-fceb-445b-b3a5-700374edbd88)
+- 2026-10-13T00:44Z open→doing — claimed by claude (70076334-fceb-445b-b3a5-700374edbd88)
+- 2026-10-13T00:50Z doing→done — verify exit 0 @ 53b1b5d+1
+
+## comments
+- 2026-10-13T00:44Z [claude (70076334-fceb-445b-b3a5-700374edbd88)] 2026-10-12 owner ruled, in session: "yes follow your rec on dbsp's CI job", which is option (b): dbsp leaves deny.toml's graph, and a second config, deny-dbsp.toml, states the dbsp closure's licences, duplicate majors and the rkyv advisory by id, run by the dbsp CI job and the push gate's dbsp leg.
+- 2026-10-13T00:50Z [claude (70076334-fceb-445b-b3a5-700374edbd88)] Built under the ruling, 2026-10-12: deny-dbsp.toml (all features; eight licences with their carrying crates; thirty-seven skip rows, the older major of each duplicate with what sits on each side, the `syn@2` row repeated from deny.toml; five advisory ignores by id), deny.toml's graph narrowed to every feature but dbsp, the deny CI job naming its config (the action's default `--all-features` would have overridden the graph), a deny-dbsp.toml step in the dbsp CI job, both configs in the push gate, and the sentence in DESIGN.md § DBSP and CLAUDE.md's standing decision. Watched: `cargo deny check` → advisories ok, bans ok, licenses ok, sources ok; `cargo deny --config deny-dbsp.toml check` → the same; `./scripts/regression.sh` → OK end to end, MSRV and dbsp legs included.
+  
+  Derived from the ruling, read back for the owner: the closure carries two advisories beyond the rkyv one this task presented, which the first gate run's tail had cut. RUSTSEC-2026-0258, a vulnerability in h2 0.3.27 (unbounded empty DATA frames), reached through actix-http 3.18 → actix-web → feldera-types from dbsp; this crate opens no HTTP connection, and the fix is in the h2 0.4 line hyper is already on, so nothing in dbsp's closure can take it. RUSTSEC-2024-0370, proc-macro-error 1.0.4 unmaintained, through utoipa-gen → utoipa → feldera-ir/feldera-types, a build-time macro. Both are ignored by id in deny-dbsp.toml with the dragging crates named, the same shape as the rkyv row; if the owner would rather not carry an ignore for a vulnerability they did not see, those two rows are the ones to strike and the dbsp CI job goes red by design.
