@@ -17,15 +17,20 @@ else
   scope="tree"
 fi
 
-rust=0 store=0
+rust=0 store=0 actions=0
 for f in "${files[@]}"; do
   case "$f" in
     *.rs|Cargo.toml|Cargo.lock|scripts/*|.githooks/*|.cargo/*|deny.toml) rust=1 ;;
     docs/meshwork/*) store=1 ;;
+    .github/workflows/*) actions=1 ;;
   esac
 done
 
 ./scripts/check-file-length.sh "${files[@]}"
+
+if [ "$actions" -eq 1 ]; then
+  ./scripts/check-actions-pinned.sh "${files[@]}"
+fi
 
 if [ "$store" -eq 1 ]; then
   if [ -x docs/meshwork/meshwork ]; then

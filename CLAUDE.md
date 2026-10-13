@@ -67,6 +67,10 @@ outside `~/Documents`.
   question, not a broken build.
 - `cargo publish` runs only with `--dry-run`. A publish, the crates.io name reservation included, is
   the owner's act.
+- Every `uses:` in a workflow names a commit hash, with the tag it stood for in a trailing comment,
+  and `scripts/check-actions-pinned.sh` fails both gates on a tag or a branch, because a tag can be
+  moved to code nobody reviewed (owner: "use git hashes to reference dependencies not git labels
+  that can be manipulated"; "security is absolutely critical here").
 
 ## Boundaries
 
