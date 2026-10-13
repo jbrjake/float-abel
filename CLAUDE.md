@@ -73,6 +73,9 @@ outside `~/Documents`.
   and `scripts/check-actions-pinned.sh` fails both gates on a tag or a branch, because a tag can be
   moved to code nobody reviewed (owner: "use git hashes to reference dependencies not git labels
   that can be manipulated"; "security is absolutely critical here").
+- Dependabot refreshes those hashes by PR, one `github-actions` entry in `.github/dependabot.yml`
+  on a weekly schedule, and nothing merges on its own (owner: "yes have dependabot open prs that
+  update the pinned hashes"). golden.yml's tarball digests are not actions and move by hand.
 
 ## Boundaries
 

@@ -1,0 +1,13 @@
+# Every `uses:` in the workflows names a commit hash (CLAUDE.md § Standing decisions), and a hash
+# does not move: dependabot opens a PR per upstream release that rewrites the hash and the version
+# comment together, and scripts/check-actions-pinned.sh holds that PR to the hash-only form like
+# any other. Nothing merges on its own. The tarball digests in golden.yml are not actions and stay
+# by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci(actions)"
