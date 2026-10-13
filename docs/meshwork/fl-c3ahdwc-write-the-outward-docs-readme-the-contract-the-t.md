@@ -4,7 +4,7 @@ title: "Write the outward docs — README (the contract, the trilemma, the tiers
 category: crate/docs
 labels: [reproducible-floats, rf-tail]
 docs: [docs/DESIGN.md#documentation-sp-docs, docs/DESIGN.md#why-the-adaptive-binned-accumulator-is-not-a-group-sp-not-a-group]
-needs: [fl-6shtzpj, fl-pmqp4rh]
+needs: [fl-6shtzpj]
 seq: 160
 verify: "all(exists README.md, contains README.md /not a group/, exists SECURITY.md, exists CHANGELOG.md, exists src/lib.rs, contains src/lib.rs missing_docs)"
 status: open
@@ -81,17 +81,12 @@ handoff: |
   files to existing. Commit the docs apart from the store, and run the
   push gate before closing:
   rustdoc with `-D warnings` is in it and a broken intra-doc link fails
-  there.
-  
-  Also ready, all owner's calls, each with options and a recommendation in
-  its body: fl-yzy8bwc
-  (the dbsp dependency line), fl-cb4pxq1 (a SIMD product kernel,
-  recommended to wait on
-  fl-e4jjqf1's bench row). fl-e4jjqf1 (Measure) is the next build task
-  after this one; its body
-  says to re-read it before starting because Exact's shape changed under
-  it. fl-qv0vh39 (AVX-512)
-  needs a machine with the flag, which neither x86 box has.
+  there. The rest of the
+  queue is rulings and the Measure task, which `prime` lists; Measure's
+  body says to re-read it
+  before starting, and the AVX-512 task needs a machine with the flag,
+  which neither x86 box has.
+relates: [fl-pmqp4rh]
 ---
 Per DESIGN.md § Documentation. The not-a-group argument is the README's centrepiece, because nobody
 else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
@@ -100,4 +95,5 @@ else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-docs @7e33ab21417f
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-not-a-group @373785c4859c
+- 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
