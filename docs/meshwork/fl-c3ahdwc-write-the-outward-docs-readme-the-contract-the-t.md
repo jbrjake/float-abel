@@ -4,7 +4,7 @@ title: "Write the outward docs — README (the contract, the trilemma, the tiers
 category: crate/docs
 labels: [reproducible-floats, rf-tail]
 docs: [docs/DESIGN.md#documentation-sp-docs, docs/DESIGN.md#why-the-adaptive-binned-accumulator-is-not-a-group-sp-not-a-group]
-needs: [fl-6shtzpj]
+needs: [fl-6shtzpj, fl-pmqp4rh]
 seq: 160
 verify: "all(exists README.md, contains README.md /not a group/, exists SECURITY.md, exists CHANGELOG.md, exists src/lib.rs, contains src/lib.rs missing_docs)"
 status: open
@@ -14,6 +14,84 @@ covers:
     sha: 7e33ab21417fb13cc9dd4b1853f2e1acb70c1b497b75a9174f779ac844aabb40
   - ref: docs/DESIGN.md#sp-not-a-group
     sha: 373785c4859c6da80c731d8709b693004ccff63b692a79548c0e60e956976708
+handoff: |
+  The tree at 31dfbe8 has the push gate green end to end
+  (`./scripts/regression.sh`, sandbox off
+  for cargo-deny), with the tarball digests in golden.yml, dependabot on
+  the action hashes (owner:
+  "yes have dependabot open prs that update the pinned hashes"), and the
+  compile-fail wording
+  pinned to stable 1.99 with rust-src (tests/ui.rs, BLESSED_RUSTC; any
+  other compiler skips the
+  compile-fail cases and the gate says so). main is some eighty commits
+  ahead of origin and
+  unpushed, so every CI claim is unverified until the owner pushes.
+  
+  This task per DESIGN.md § Documentation (line 594) and § Why the
+  adaptive binned accumulator is
+  not a group (line 81), both covered by hash on this task; re-read them
+  first, and `spec audit
+  docs/DESIGN.md` says whether either drifted.
+  
+  What is there: README.md is 1.9 KB, a two-paragraph pitch, the build
+  commands and the licence,
+  and it points at DESIGN.md for the not-a-group argument instead of
+  making it. SECURITY.md and
+  CHANGELOG.md do not exist. src/lib.rs has `#![no_std]`,
+  `#![deny(unsafe_code)]` and a doc_cfg
+  line, no `missing_docs`. On 2026-10-13 `RUSTDOCFLAGS="-W missing_docs"
+  cargo doc --no-deps`
+  printed no warning, so every public item may already carry rustdoc;
+  prove it by adding
+  `#![deny(missing_docs)]` under `#![deny(unsafe_code)]` and running
+  `cargo clippy --workspace
+  --all-targets -- -D warnings` plus `RUSTDOCFLAGS="-D warnings" cargo doc
+  --no-deps` on every
+  feature set the gate builds (the lib alone with `--no-default-features`,
+  the default, and the
+  dbsp feature on `+1.99.0`), since a feature-gated item is only linted
+  when its feature is on.
+  
+  What to write: the README's contract (same bits under any order, worker
+  count or architecture:
+  DESIGN.md's opening and § Bit-identical across architectures), the
+  trilemma (DESIGN.md names
+  it; quote its three corners, not a paraphrase), the tiers table (Fixed,
+  Wide, Exact, and Binned
+  as batch-only; widths, what each refuses, which engine traits each
+  implements), and the
+  not-a-group argument as the centrepiece, in the README's own words with
+  the mechanism from
+  § sp-not-a-group: retraction after promotion lands different bits, so
+  the adaptive accumulator
+  has no inverse. Keep the build block (it is what CLAUDE.md § Commands
+  says, plus the ui_ line
+  now) and the CARGO_TARGET_DIR note. CHANGELOG.md: Keep a Changelog
+  shape, one `Unreleased`
+  section listing what 0.1.0 will ship (DESIGN.md § Release lists it), no
+  dates on unreleased
+  work. SECURITY.md: the disclosure address is owner-scoped and not in the
+  tree; the ask is in
+  the owner's inbox from this session, and the file waits on the answer,
+  so write everything else
+  first.
+  
+  The verify holds the README to the literal "not a group", lib.rs to
+  `missing_docs`, and the two
+  files to existing. Commit the docs apart from the store, and run the
+  push gate before closing:
+  rustdoc with `-D warnings` is in it and a broken intra-doc link fails
+  there.
+  
+  Also ready, all owner's calls, each with options and a recommendation in
+  its body: fl-yzy8bwc
+  (the dbsp dependency line), fl-cb4pxq1 (a SIMD product kernel,
+  recommended to wait on
+  fl-e4jjqf1's bench row). fl-e4jjqf1 (Measure) is the next build task
+  after this one; its body
+  says to re-read it before starting because Exact's shape changed under
+  it. fl-qv0vh39 (AVX-512)
+  needs a machine with the flag, which neither x86 box has.
 ---
 Per DESIGN.md § Documentation. The not-a-group argument is the README's centrepiece, because nobody
 else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
@@ -22,3 +100,4 @@ else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-docs @7e33ab21417f
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-not-a-group @373785c4859c
+- 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
