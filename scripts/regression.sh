@@ -57,8 +57,11 @@ else
   echo "regression: SKIPPED the dbsp feature (rustup toolchain $DBSP_TOOLCHAIN is not installed; CI runs it)" >&2
 fi
 
+# deny.toml is the crate's posture over every feature but dbsp; deny-dbsp.toml states what dbsp's
+# own closure carries. Both must hold.
 if command -v cargo-deny >/dev/null 2>&1; then
   cargo deny --log-level warn check
+  cargo deny --config deny-dbsp.toml --log-level warn check
 else
   echo "regression: SKIPPED cargo-deny (not installed; CI runs it)" >&2
 fi

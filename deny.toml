@@ -1,8 +1,12 @@
-# cargo-deny: licenses, advisories and duplicate majors over every feature's dependency closure.
+# cargo-deny: licenses, advisories and duplicate majors over every feature's dependency closure but
+# `dbsp`'s. That closure is an engine's, 440 crates against this crate's 114, and is checked by
+# deny-dbsp.toml instead, in the dbsp CI job and the push gate, so the posture stated here stays the
+# crate's own (owner: "follow your rec on dbsp's CI job"). A new feature goes in the list below.
 # https://embarkstudios.github.io/cargo-deny/
 
 [graph]
-all-features = true
+all-features = false
+features = ["std", "serde", "differential", "laws", "simd", "arbitrary"]
 
 # The two ignores are the owner's ruling for the `differential` feature's closure, each named with
 # the crate that drags it in. Neither is a dependency of this crate, and a third advisory still
