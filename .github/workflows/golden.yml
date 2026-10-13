@@ -55,6 +55,9 @@ jobs:
     timeout-minutes: 20
     env:
       WASMTIME_VERSION: v49.0.2
+      # sha256 of wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz: the release API's asset digest
+      # (`gh api repos/bytecodealliance/wasmtime/releases/tags/${WASMTIME_VERSION}`). Bump both.
+      WASMTIME_SHA256: a4d6e9e3a5a60f527cf7793d674c48930c80c2e8977995b8a275cad3254b9322
       CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -64,10 +67,15 @@ jobs:
           rustup default stable
           rustup target add wasm32-wasip1
           cargo --version && rustc --version
+      # Download to a file and check its digest before anything unpacks: a replaced release asset
+      # fails here instead of running on the runner.
       - name: Install wasmtime
         run: |
-          curl -sSfL "https://github.com/bytecodealliance/wasmtime/releases/download/${WASMTIME_VERSION}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz" | tar xJ
-          echo "${PWD}/wasmtime-${WASMTIME_VERSION}-x86_64-linux" >> "$GITHUB_PATH"
+          tarball="${RUNNER_TEMP}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          curl -sSfL -o "$tarball" "https://github.com/bytecodealliance/wasmtime/releases/download/${WASMTIME_VERSION}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          echo "${WASMTIME_SHA256}  ${tarball}" | sha256sum -c -
+          tar xJf "$tarball" -C "$RUNNER_TEMP"
+          echo "${RUNNER_TEMP}/wasmtime-${WASMTIME_VERSION}-x86_64-linux" >> "$GITHUB_PATH"
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
@@ -91,6 +99,9 @@ jobs:
         target: [riscv64gc-unknown-linux-gnu, s390x-unknown-linux-gnu]
     env:
       CROSS_VERSION: v0.2.5
+      # sha256 of cross-x86_64-unknown-linux-gnu.tar.gz, computed from the download: the release
+      # predates the API's asset digest. The binary inside reports `cross 0.2.5`. Bump both.
+      CROSS_SHA256: 642375d1bcf3bd88272c32ba90e999f3d983050adf45e66bd2d3887e8e838bad
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install the toolchain and the target
@@ -99,9 +110,13 @@ jobs:
           rustup default stable
           rustup target add ${{ matrix.target }}
           cargo --version && rustc --version
+      # Download to a file and check its digest before anything unpacks, as the wasm32 job does.
       - name: Install cross
         run: |
-          curl -sSfL "https://github.com/cross-rs/cross/releases/download/${CROSS_VERSION}/cross-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C ~/.cargo/bin
+          tarball="${RUNNER_TEMP}/cross-${CROSS_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfL -o "$tarball" "https://github.com/cross-rs/cross/releases/download/${CROSS_VERSION}/cross-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${CROSS_SHA256}  ${tarball}" | sha256sum -c -
+          tar xzf "$tarball" -C ~/.cargo/bin
           cross --version
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
