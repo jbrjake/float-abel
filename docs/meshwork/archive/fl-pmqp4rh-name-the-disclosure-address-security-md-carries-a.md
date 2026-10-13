@@ -1,7 +1,7 @@
 ---
 id: fl-pmqp4rh
 title: "Name the disclosure address SECURITY.md carries — a private email, GitHub's private vulnerability reporting on the repository, or both"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-c3ahdwc
@@ -25,3 +25,7 @@ The owner writes the line this task's verify looks for, dated, with the address 
 
 ## log
 - 2026-10-13T15:11Z created
+- 2026-10-13T15:14Z open→done — verify exit 0 @ 656c340+5
+
+## comments
+- 2026-10-13T15:14Z [claude (ace5f87f-8122-4167-a02a-0a2238009e67)] 2026-10-13 owner ruled, in session: "GitHub reporting only", which is option (b): SECURITY.md points at GitHub's private vulnerability reporting on the repository and carries no email; switching the form on in the repository settings is the owner's act.

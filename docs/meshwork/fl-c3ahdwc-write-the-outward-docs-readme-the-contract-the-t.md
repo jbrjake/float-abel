@@ -70,11 +70,16 @@ handoff: |
   shape, one `Unreleased`
   section listing what 0.1.0 will ship (DESIGN.md § Release lists it), no
   dates on unreleased
-  work. SECURITY.md: the disclosure address is owner-scoped and not in the
-  tree; the ask is in
-  the owner's inbox from this session, and the file waits on the answer,
-  so write everything else
-  first.
+  work. SECURITY.md: the owner ruled "GitHub reporting only" (the address
+  ruling, closed, is in
+  this task's relates): the file points at
+  GitHub's private vulnerability reporting on the repository (Security →
+  Advisories → "Report a
+  vulnerability") and carries no email; switching the form on in the
+  repository settings is the
+  owner's act, so say in the file that reports go there and note in the
+  handoff whether the
+  switch has been confirmed.
   
   The verify holds the README to the literal "not a group", lib.rs to
   `missing_docs`, and the two
@@ -97,3 +102,5 @@ else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-not-a-group @373785c4859c
 - 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T15:11Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
+- 2026-10-13T15:14Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
+- 2026-10-13T15:15Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)

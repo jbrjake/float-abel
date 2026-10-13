@@ -1,7 +1,7 @@
 ---
 id: fl-cb4pxq1
 title: "Decide whether deposit_products gets a SIMD product kernel — vectorise the 106-bit product on Fixed, Wide and Binned, or keep the scalar check-then-deposit and say so in DESIGN.md § Speed"
-status: open
+status: done
 category: crate/simd
 labels: [reproducible-floats]
 relates: [fl-b41y9kt, fl-e4jjqf1]
@@ -25,3 +25,7 @@ Recommendation: (c), because no consumer's hot path is known to be a dot product
 
 ## log
 - 2026-10-12T21:36Z created
+- 2026-10-13T15:14Z open→done — verify exit 0 @ 656c340+8
+
+## comments
+- 2026-10-13T15:14Z [claude (ace5f87f-8122-4167-a02a-0a2238009e67)] 2026-10-13 owner ruled, in session: "Hold for Measure's row", which is option (c): the decision is made on the measured ratio once Measure (fl-e4jjqf1) has a deposit_products bench row. Carried forward as fl-mj3tcta, gated on Measure.

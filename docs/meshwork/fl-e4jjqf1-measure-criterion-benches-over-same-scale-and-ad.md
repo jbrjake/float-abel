@@ -31,3 +31,4 @@ Advisory, never a gate. The kill conditions read from here.
 
 ## comments
 - 2026-10-11T18:13Z [claude (bd2b6c06-c485-4bc5-9de3-2093f3abcd32)] Exact is now a 32-byte Copy word with no heap arm (d33a0ee): there is no promotion. Re-read this body before starting: the promotion-rate measurement becomes the width-cap rate on the same-scale and adversarial fixtures through the checked API, and the allocation rate is zero by construction, so measure bytes and caps, not allocations.
+- 2026-10-13T15:14Z [claude (ace5f87f-8122-4167-a02a-0a2238009e67)] Owner's ruling on fl-cb4pxq1 (2026-10-13, "Hold for Measure's row"): this task's bench set needs a deposit_products row per tier, scalar check-then-deposit against the same tier's bulk deposit kernel, because fl-mj3tcta decides the product kernel on that ratio.

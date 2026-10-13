@@ -1,7 +1,7 @@
 ---
 id: fl-yzy8bwc
 title: "Rule on the dbsp dependency line — the exact pin =0.364.0 the design names, or a caret like differential's"
-status: open
+status: done
 category: crate/adapters
 labels: [reproducible-floats]
 relates: [fl-06sggdc]
@@ -26,3 +26,8 @@ Recommendation: (a), because on a 0.x crate the two spellings admit the same ver
 
 ## log
 - 2026-10-12T22:39Z created
+- 2026-10-13T15:14Z open→doing — claimed by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
+- 2026-10-13T15:15Z doing→done — verify exit 0 @ 9c8e821+8
+
+## comments
+- 2026-10-13T15:15Z [claude (ace5f87f-8122-4167-a02a-0a2238009e67)] 2026-10-13 owner ruled, in session: "Caret: dbsp = "0.364"", which is option (b), against the recommendation. Landed in 9c8e821: Cargo.toml takes dbsp = "0.364", DESIGN.md § DBSP says the probe runs at the floor of the range, CLAUDE.md's standing decision says the same; Cargo.lock unchanged, 1.99.0 check with dbsp --locked, 1.74.0 build --locked and both cargo-deny configs green.
