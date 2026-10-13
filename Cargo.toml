@@ -84,13 +84,26 @@ criterion = { version = "=0.8.2", default-features = false, features = ["cargo_b
 name = "main"
 path = "tests/main.rs"
 
-# The SIMD kill condition, DESIGN.md § Targets and kill conditions: each tier's bulk entry against
-# its one-at-a-time deposits. `cargo bench --bench simd`; advisory, measured into BENCH.md, never a
-# gate. The requirement keeps a `--no-default-features` build of the benches from failing.
+# The benches are advisory, measured into BENCH.md and never a gate, DESIGN.md § Targets and kill
+# conditions; benches/support/ holds the fixtures they share. `simd` is the SIMD kill condition,
+# each tier's bulk entry against its one-at-a-time deposits, and the product-kernel row; `ops`
+# re-takes the prototype table on the compact tier and `Wide` and counts the width caps; `dd_sum`
+# is the differential-dataflow end-to-end `SUM` against `isize`. A requirement keeps a
+# `--no-default-features` build of the benches from failing.
 [[bench]]
 name = "simd"
 harness = false
 required-features = ["simd"]
+
+[[bench]]
+name = "ops"
+harness = false
+required-features = ["std"]
+
+[[bench]]
+name = "dd_sum"
+harness = false
+required-features = ["differential"]
 
 # The `explode` + `count_total` idiom, DESIGN.md § differential-dataflow: `cargo run --example
 # dd_sum -- -w 3`. The self dev-dependency turns the feature on for a bare run; the requirement

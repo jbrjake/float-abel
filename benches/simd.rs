@@ -4,49 +4,17 @@
 //! simd`, and the numbers go into BENCH.md with the machine and the commit. The fixtures are the
 //! design's: magnitudes within 2^±20 with random signs, and, for `Wide`, the 2^±300 band whose
 //! tiles span more than one window.
+//!
+//! The `products` group is the product-kernel question, DESIGN.md § Speed: each tier's bulk
+//! `deposit_products`, the scalar check-then-deposit as it stands, against the same tier's bulk
+//! `deposit` kernel on one corpus, so the ratio says what a product kernel could gain.
 
-// The fixture builds doubles from their bits and moves bits between integer widths on purpose.
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss,
-    clippy::cast_possible_wrap
-)]
+mod support;
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use float_abel::{Binned, Fixed256, Wide};
 
-const N: usize = 1 << 20;
-
-/// splitmix64, the suite's stream.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    /// A normal double with its leading bit at 2^e for e in [lo, hi), a full random fraction, and
-    /// either sign.
-    fn on_grid(&mut self, lo: i32, hi: i32) -> f64 {
-        let e = lo + (self.next() % (hi - lo) as u64) as i32;
-        let frac = self.next() >> 12;
-        let x = f64::from_bits(((e + 1023) as u64) << 52 | frac);
-        if self.next() & 1 == 0 {
-            x
-        } else {
-            -x
-        }
-    }
-}
-
-fn fixture(lo: i32, hi: i32) -> Vec<f64> {
-    let mut rng = Rng(0xBE4C_4D41_524B);
-    (0..N).map(|_| rng.on_grid(lo, hi)).collect()
-}
+use support::{fixture, product_fixture, N};
 
 fn wide(c: &mut Criterion) {
     for (name, xs) in [
@@ -141,5 +109,95 @@ fn naive(c: &mut Criterion) {
     g.finish();
 }
 
-criterion_group!(benches, wide, fixed, binned, naive);
+/// The product-kernel row, per tier: the bulk `deposit_products` as it stands (every pair checked
+/// against the window, then deposited one at a time), the one-at-a-time `deposit_product` loop
+/// that shows the check pass's share, and the same tier's bulk `deposit` kernel on the `a` slice
+/// of the same corpus. The ratio of the first to the last bounds what a product kernel could
+/// gain; a kernel's lane does the multiply where the sum's lane does a shift.
+fn products(c: &mut Criterion) {
+    let (lhs, rhs) = product_fixture();
+
+    let mut g = c.benchmark_group("products/wide");
+    g.throughput(Throughput::Elements(N as u64));
+    g.bench_function("deposit_products", |bch| {
+        bch.iter(|| {
+            let mut w = Wide::ZERO;
+            w.deposit_products(&lhs, &rhs).unwrap();
+            w
+        });
+    });
+    g.bench_function("deposit_product loop", |bch| {
+        bch.iter(|| {
+            let mut w = Wide::ZERO;
+            for (&x, &y) in lhs.iter().zip(&rhs) {
+                w.deposit_product(x, y).unwrap();
+            }
+            w
+        });
+    });
+    g.bench_function("extend_from_slice", |bch| {
+        bch.iter(|| {
+            let mut w = Wide::ZERO;
+            w.extend_from_slice(&lhs);
+            w
+        });
+    });
+    g.finish();
+
+    let mut g = c.benchmark_group("products/fixed256");
+    g.throughput(Throughput::Elements(N as u64));
+    g.bench_function("deposit_products", |bch| {
+        bch.iter(|| {
+            let mut f = Fixed256::ZERO;
+            f.deposit_products(&lhs, &rhs).unwrap();
+            f
+        });
+    });
+    g.bench_function("deposit_product loop", |bch| {
+        bch.iter(|| {
+            let mut f = Fixed256::ZERO;
+            for (&x, &y) in lhs.iter().zip(&rhs) {
+                f.deposit_product(x, y).unwrap();
+            }
+            f
+        });
+    });
+    g.bench_function("extend_from_slice", |bch| {
+        bch.iter(|| {
+            let mut f = Fixed256::ZERO;
+            f.extend_from_slice(&lhs).unwrap();
+            f
+        });
+    });
+    g.finish();
+
+    let mut g = c.benchmark_group("products/binned3");
+    g.throughput(Throughput::Elements(N as u64));
+    g.bench_function("deposit_products", |bch| {
+        bch.iter(|| {
+            let mut bins = Binned::<3>::ZERO;
+            bins.deposit_products(&lhs, &rhs).unwrap();
+            bins
+        });
+    });
+    g.bench_function("deposit_product loop", |bch| {
+        bch.iter(|| {
+            let mut bins = Binned::<3>::ZERO;
+            for (&x, &y) in lhs.iter().zip(&rhs) {
+                bins.deposit_product(x, y).unwrap();
+            }
+            bins
+        });
+    });
+    g.bench_function("extend_from_slice", |bch| {
+        bch.iter(|| {
+            let mut bins = Binned::<3>::ZERO;
+            bins.extend_from_slice(&lhs);
+            bins
+        });
+    });
+    g.finish();
+}
+
+criterion_group!(benches, wide, fixed, binned, naive, products);
 criterion_main!(benches);
