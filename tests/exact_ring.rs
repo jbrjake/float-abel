@@ -5,7 +5,7 @@
 
 use float_abel::{Exact, PastCap, Wide};
 
-use crate::support::{hash, Rng};
+use crate::support::{hash, rounds, Rng};
 
 const NAN: f64 = f64::NAN;
 const INF: f64 = f64::INFINITY;
@@ -88,7 +88,8 @@ fn exact_ring_is_a_32_byte_copy_word_that_counts_specials() {
 fn exact_ring_group_laws_hold_with_specials_in_the_multiset() {
     let mut rng = Rng(40);
     let mut specials = 0;
-    for _ in 0..20_000 {
+    let draws = rounds(20_000);
+    for _ in 0..draws {
         let (a, b, c) = (draw(&mut rng), draw(&mut rng), draw(&mut rng));
         specials += usize::from(!a.is_finite());
         assert_eq!(a + b, b + a);
@@ -102,7 +103,10 @@ fn exact_ring_group_laws_hold_with_specials_in_the_multiset() {
         assert_eq!(a * 0i64, Exact::ZERO);
         assert_eq!((a + b) * 5i64, a * 5i64 + b * 5i64);
     }
-    assert!(specials > 800, "{specials} specials in 20000 draws");
+    assert!(
+        specials > draws / 25,
+        "{specials} specials in {draws} draws"
+    );
     // Folds are order independent, specials included.
     let xs: Vec<Exact> = (0..2_000).map(|_| draw(&mut rng)).collect();
     let forward: Exact = xs.iter().sum();
@@ -121,7 +125,8 @@ fn exact_ring_mul_is_a_commutative_ring_with_integer_special_amounts() {
     let mut rng = Rng(41);
     let one = e(1.0);
     let mut special_products = 0;
-    for _ in 0..100_000 {
+    let draws = rounds(100_000);
+    for _ in 0..draws {
         let (a, b, c) = (small(&mut rng), small(&mut rng), small(&mut rng));
         special_products += usize::from(!(a * b).is_finite());
         assert_eq!(a * b, b * a);
@@ -133,8 +138,8 @@ fn exact_ring_mul_is_a_commutative_ring_with_integer_special_amounts() {
         assert_eq!(a * (-b), -(a * b));
     }
     assert!(
-        special_products > 10_000,
-        "{special_products} special products"
+        special_products > draws / 10,
+        "{special_products} special products in {draws}"
     );
 }
 
@@ -201,6 +206,7 @@ fn exact_ring_a_fractional_special_amount_panics_by_name_on_the_operator() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "the refusal rate over 10 000 pairs is the assertion")]
 fn exact_ring_the_width_stops_a_wide_cancellation_that_wide_holds() {
     // 1e30 and 1e-10 are 186 bits apart with full mantissas, past the 127-bit width: Exact says
     // so by name, and Wide holds the history exactly.

@@ -98,3 +98,35 @@ jobs:
         with:
           command: check
           arguments: --config deny-dbsp.toml
+
+  # Undefined behaviour under the interpreter, DESIGN.md § Hardening: the lib's unit tests, the
+  # no-feature build and the integration suite. Under `cfg(miri)` the statistical sweeps run a
+  # hundredth of their rounds, because miri runs a limb operation some thousand times slower than
+  # the machine does; trybuild (spawns cargo) and the timely topics (three worker threads) are
+  # ignored, the laws kit is out (a proptest case runs minutes under the interpreter), and every
+  # bulk entry takes the portable kernel, because miri interprets no vector intrinsic. The dbsp
+  # feature stays out: its toolchain is pinned, and nothing in it reads bytes from outside except
+  # through `Exact::from_bytes`, which the suite covers.
+  miri:
+    name: cargo miri test (nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install nightly with miri
+        run: |
+          rustup toolchain install nightly --profile minimal --component miri,rust-src
+          rustup default nightly
+          cargo miri setup
+          cargo --version && rustc --version && cargo miri --version
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: miri-${{ hashFiles('Cargo.lock') }}
+          restore-keys: miri-
+      - run: cargo miri test --locked --lib
+      - run: cargo miri test --locked -p float-abel-noalloc
+      - run: cargo miri test --locked --test main

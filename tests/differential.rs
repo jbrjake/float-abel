@@ -193,6 +193,7 @@ fn w110() -> Exact {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_explode_and_count_total_land_the_oracle_bits_on_three_workers() {
     let ledger = units(2_000);
     let expected = sorted(oracle(&ledger).into_iter().map(|d| (d, 0, 1)).collect());
@@ -204,6 +205,7 @@ fn differential_explode_and_count_total_land_the_oracle_bits_on_three_workers() 
 
 /// One worker and three, the rows as drawn and reversed: four runs, one answer, byte for byte.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_worker_count_and_input_order_do_not_move_the_bits() {
     let forward = tenths(2_000);
     let mut backward = forward.clone();
@@ -229,6 +231,7 @@ fn differential_worker_count_and_input_order_do_not_move_the_bits() {
 /// which `is_zero` deleted. The control folds the same rows in `f64`, where the same inserts and
 /// retractions leave residue.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_a_retraction_epoch_nets_to_nothing_where_f64_leaves_residue() {
     let rows = tenths(2_000);
     let mut folded = [0.0f64; 16];
@@ -259,6 +262,7 @@ fn differential_a_retraction_epoch_nets_to_nothing_where_f64_leaves_residue() {
 /// retract a NaN. The duplicate row arrives with multiplicity two and scales through
 /// `Multiply<isize>`.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_specials_ride_the_diff_and_retract_exactly() {
     let rows: Vec<Row> = [1.5, f64::NAN, f64::INFINITY, 2.5, 2.5]
         .map(|x| (7, x.to_bits()))
@@ -286,6 +290,7 @@ fn differential_specials_ride_the_diff_and_retract_exactly() {
 /// read back as collections. A collection concatenated with its own negation consolidates to
 /// nothing, and the rest is a known multiset.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_linear_operators_and_arrangements_carry_exact_diffs() {
     let out = over_fixture(|weighted| {
         let doubled = weighted.clone().map(|(k, v)| (k, v * 2));
@@ -330,6 +335,7 @@ fn differential_linear_operators_and_arrangements_carry_exact_diffs() {
 /// `reduce` with `Exact` as the output diff (each key's total weight) and with `isize` as the
 /// output diff (how many values the key has).
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_reduce_puts_exact_or_isize_out() {
     let totals = over_fixture(|weighted| {
         weighted.reduce(|_k, values, output: &mut Vec<(u8, Exact)>| {
@@ -354,6 +360,7 @@ fn differential_reduce_puts_exact_or_isize_out() {
 /// `count_core::<Exact>` and `distinct_core::<Exact>` put `Exact::from(1i8)` out; `threshold` and
 /// `threshold_total` map an `Exact` weight to an `Exact` weight.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_count_distinct_and_threshold_take_exact() {
     let total = w110() + e(1.0);
     let counted = over_fixture(|weighted| weighted.map(|(k, _)| k).count());
@@ -395,6 +402,7 @@ fn keys<'scope>(weighted: &Fixture<'scope>) -> VecCollection<'scope, u64, u32, i
 /// on `Multiply<isize> for Exact` and `Multiply<Exact> for isize`, and the multiplicity scales
 /// the weight.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_join_multiplies_exact_by_isize_in_either_order() {
     let exact_times_isize = over_fixture(|weighted| {
         let tagged = keys(&weighted).map(|k| (k, k * 100));
@@ -426,6 +434,7 @@ fn differential_join_multiplies_exact_by_isize_in_either_order() {
 /// `semijoin` keeps the rows whose key the `isize` collection has, scaled by its multiplicity;
 /// `antijoin` keeps the rows whose key it lacks, through `Multiply<isize, Output = Exact>`.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_semijoin_and_antijoin_with_isize() {
     let kept = over_fixture(|weighted| {
         let keys = keys(&weighted);
@@ -451,6 +460,7 @@ fn differential_semijoin_and_antijoin_with_isize() {
 /// into a nested scope, each step joins them with `isize` edges and `distinct_core::<Exact>`
 /// normalises, and the fixed point leaves with every reachable node at weight one.
 #[test]
+#[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_iterate_carries_exact_diffs() {
     let out = netted(3, |worker| {
         let (mut roots, mut edges, captured) = worker.dataflow::<u64, _, _>(|scope| {

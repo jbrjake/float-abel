@@ -20,10 +20,10 @@ use crate::wide::Wide;
 
 mod scalar;
 
-#[cfg(all(feature = "simd", target_arch = "x86_64"))]
+#[cfg(all(feature = "simd", target_arch = "x86_64", not(miri)))]
 #[allow(unsafe_code)] // the AVX2 intrinsics; every block states its invariant
 mod avx2;
-#[cfg(all(feature = "simd", target_arch = "aarch64"))]
+#[cfg(all(feature = "simd", target_arch = "aarch64", not(miri)))]
 #[allow(unsafe_code)] // the NEON intrinsics; every block states its invariant
 mod neon;
 
@@ -103,11 +103,12 @@ fn fold_tile<const LIMBS: usize, const TRUNC: bool>(
     partials: &mut Partials<LIMBS>,
     leftover: &mut dyn FnMut(f64) -> bool,
 ) -> bool {
-    #[cfg(all(feature = "simd", target_arch = "aarch64"))]
+    // miri interprets no vector intrinsic, so under it every tile takes the portable kernel.
+    #[cfg(all(feature = "simd", target_arch = "aarch64", not(miri)))]
     if neon::handles::<LIMBS, TRUNC>() {
         return neon::fold_tile::<LIMBS, TRUNC>(xs, lsb, partials, leftover);
     }
-    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    #[cfg(all(feature = "simd", target_arch = "x86_64", not(miri)))]
     if avx2::handles::<LIMBS, TRUNC>() && avx2::available() {
         return avx2::fold_tile::<LIMBS, TRUNC>(xs, lsb, partials, leftover);
     }
@@ -135,37 +136,37 @@ fn binned_index<const K: usize>(xs: &[f64]) -> i16 {
 /// The tile's span by whichever kernel runs; a debug build holds the vector pass to the portable
 /// one.
 fn span(xs: &[f64]) -> (i32, i32) {
-    #[cfg(all(feature = "simd", target_arch = "aarch64"))]
+    #[cfg(all(feature = "simd", target_arch = "aarch64", not(miri)))]
     {
         let v = neon::span(xs);
         debug_assert_eq!(v, scalar::span(xs));
         v
     }
-    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    #[cfg(all(feature = "simd", target_arch = "x86_64", not(miri)))]
     if avx2::available() {
         let v = avx2::span(xs);
         debug_assert_eq!(v, scalar::span(xs));
         return v;
     }
-    #[cfg(not(all(feature = "simd", target_arch = "aarch64")))]
+    #[cfg(not(all(feature = "simd", target_arch = "aarch64", not(miri))))]
     scalar::span(xs)
 }
 
 /// The tile's top limb by whichever kernel runs, held to the portable pass in a debug build.
 fn top_limb(xs: &[f64]) -> i16 {
-    #[cfg(all(feature = "simd", target_arch = "aarch64"))]
+    #[cfg(all(feature = "simd", target_arch = "aarch64", not(miri)))]
     {
         let v = neon::top_limb(xs);
         debug_assert_eq!(v, scalar::top_limb(xs));
         v
     }
-    #[cfg(all(feature = "simd", target_arch = "x86_64"))]
+    #[cfg(all(feature = "simd", target_arch = "x86_64", not(miri)))]
     if avx2::available() {
         let v = avx2::top_limb(xs);
         debug_assert_eq!(v, scalar::top_limb(xs));
         return v;
     }
-    #[cfg(not(all(feature = "simd", target_arch = "aarch64")))]
+    #[cfg(not(all(feature = "simd", target_arch = "aarch64", not(miri))))]
     scalar::top_limb(xs)
 }
 

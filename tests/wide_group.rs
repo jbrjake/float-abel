@@ -6,7 +6,7 @@
 use core::cmp::Ordering;
 use float_abel::Wide;
 
-use crate::support::{hash, Rng};
+use crate::support::{hash, rounds, Rng};
 
 const NAN: f64 = f64::NAN;
 const INF: f64 = f64::INFINITY;
@@ -75,7 +75,8 @@ fn wide_specials_are_counted_and_projected_at_read() {
 fn wide_group_laws_hold_with_specials_in_the_multiset() {
     let mut rng = Rng(14);
     let mut specials_seen = 0;
-    for _ in 0..5_000 {
+    let draws = rounds(5_000);
+    for _ in 0..draws {
         let (a, b, c) = (w(rng.any()), w(rng.any()), w(rng.any()));
         specials_seen += usize::from(!a.is_finite());
         assert_eq!(a + b, b + a);
@@ -97,8 +98,8 @@ fn wide_group_laws_hold_with_specials_in_the_multiset() {
         assert_eq!((a + b) * 5i64, a * 5i64 + b * 5i64);
     }
     assert!(
-        specials_seen > 200,
-        "{specials_seen} specials in 5000 draws"
+        specials_seen > draws / 25,
+        "{specials_seen} specials in {draws} draws"
     );
 }
 
@@ -113,7 +114,7 @@ fn wide_folds_are_order_independent() {
     let by_ref: Wide = states.iter().sum();
     assert_eq!(by_ref, forward);
     // Random partitions, merged in random order.
-    for round in 0..50 {
+    for round in 0..rounds(50) {
         let mut parts = vec![Wide::ZERO; 1 + round % 7];
         for &x in &xs {
             let i = (rng.next() % parts.len() as u64) as usize;
@@ -150,7 +151,7 @@ fn wide_folds_are_order_independent() {
 #[test]
 fn wide_order_is_numeric_then_lexicographic_on_the_counters() {
     let mut rng = Rng(16);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let (a, b) = (rng.finite(), rng.finite());
         assert_eq!(
             w(a).cmp(&w(b)),

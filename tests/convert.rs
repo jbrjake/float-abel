@@ -7,7 +7,7 @@
 
 use float_abel::{Exact, Fixed256, OutOfWindow, PastCap, Wide};
 
-use crate::support::{pow2, Rng};
+use crate::support::{pow2, rounds, Rng};
 
 /// `n` on-grid doubles with their leading bits in `[lo, hi)`, each paired with whether it is a
 /// retraction, so a multiset exercises both signs of the limbs and of the counts.
@@ -176,7 +176,8 @@ fn convert_exact_refuses_a_wide_counter_outside_i32_as_count_and_keeps_one_insid
 fn convert_wide_try_from_exact_product_matches_deposit_product_on_random_factors() {
     let mut rng = Rng(0x9d0d);
     let (mut ok, mut off_grid, mut above) = (0, 0, 0);
-    for _ in 0..4096 {
+    let draws = rounds(4096);
+    for _ in 0..draws {
         let (a, b) = (rng.any(), rng.any());
         let mut w = Wide::ZERO;
         let want = w.deposit_product(a, b).map(|()| w);
@@ -189,8 +190,8 @@ fn convert_wide_try_from_exact_product_matches_deposit_product_on_random_factors
         assert_eq!(Wide::try_from(&Exact::product(a, b)), want, "{a:e} × {b:e}");
     }
     assert!(
-        ok >= 256 && off_grid >= 64 && above >= 64,
-        "{ok} accepted, {off_grid} off the grid, {above} above the ceiling"
+        ok >= draws / 16 && off_grid >= draws / 64 && above >= draws / 64,
+        "{ok} accepted, {off_grid} off the grid, {above} above the ceiling, of {draws}"
     );
 }
 

@@ -8,6 +8,8 @@
 use core::mem::{align_of, size_of};
 use float_abel::{Exact, Fixed256, Wide};
 
+use crate::support::pow2;
+
 const WIDE_BYTES: usize = 34 * 8 + 3 * 8;
 const FIXED256_BYTES: usize = 4 * 8;
 
@@ -100,7 +102,7 @@ fn layout_wide_bytes_are_the_limbs_then_the_counters_and_rebuild_the_value() {
 #[test]
 fn layout_fixed256_bytes_are_its_limbs_and_rebuild_the_value() {
     let mut f = Fixed256::ZERO;
-    for x in [-1.5, 2f64.powi(90), 2f64.powi(-44)] {
+    for x in [-1.5, pow2(90), pow2(-44)] {
         f.try_deposit(x).unwrap();
     }
     let bytes = fixed_bytes(&f);

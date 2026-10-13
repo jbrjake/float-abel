@@ -8,6 +8,7 @@
 /// `Wide: From<Fixed<LSB, LIMBS>>` is pinned to the pairs it is exact for, and
 /// `Fixed::to_bytes` to the one array length its encoding has.
 #[test]
+#[cfg_attr(miri, ignore = "trybuild spawns cargo, which miri cannot")]
 fn ui_const_assertions_refuse_the_pairs_and_lengths_they_name() {
     let t = trybuild::TestCases::new();
     t.pass("tests/ui/fixed256_into_wide.rs");
@@ -20,6 +21,7 @@ fn ui_const_assertions_refuse_the_pairs_and_lengths_they_name() {
 /// it as a diff where it takes `Exact`, and `K` is pinned to `1..=33`. The `binned_` filter of the
 /// task verify reaches this through its name.
 #[test]
+#[cfg_attr(miri, ignore = "trybuild spawns cargo, which miri cannot")]
 fn ui_binned_is_no_engine_weight_and_k_is_bounded() {
     let t = trybuild::TestCases::new();
     t.pass("tests/ui/exact_as_differential_diff.rs");
@@ -32,6 +34,7 @@ fn ui_binned_is_no_engine_weight_and_k_is_bounded() {
 /// the harness can name `dbsp`; the `dbsp_` filter of the task verify reaches it through its name.
 #[cfg(feature = "dbsp")]
 #[test]
+#[cfg_attr(miri, ignore = "trybuild spawns cargo, which miri cannot")]
 fn ui_dbsp_binned_is_no_dbsp_weight() {
     let t = trybuild::TestCases::new();
     t.pass("tests/ui/exact_as_dbsp_weight.rs");

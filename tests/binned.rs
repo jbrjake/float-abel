@@ -10,7 +10,7 @@ use core::mem::{align_of, size_of};
 
 use float_abel::{Binned, Exact, Wide};
 
-use crate::support::{hash, pow2, Rng};
+use crate::support::{hash, pow2, rounds, Rng};
 
 const _: () = assert!(size_of::<Binned<3>>() == 80 && align_of::<Binned<3>>() == 8);
 
@@ -132,7 +132,7 @@ fn binned_a_fold_is_bit_identical_under_a_thousand_shuffles() {
             "the multiset carries every special"
         );
         assert!(!base.is_zero());
-        for round in 0..1000 {
+        for round in 0..rounds(1000) {
             shuffle(&mut rng, &mut xs);
             let b = fold::<K>(&xs);
             assert_same_bits(&b, &base, &format!("K={K} shuffle {round}"));
@@ -148,7 +148,7 @@ fn binned_a_fold_is_bit_identical_under_a_thousand_shuffles() {
 fn binned_a_fold_is_bit_identical_across_one_to_sixty_four_merge_partitions() {
     fn check<const K: usize>(seed: u64) {
         let mut rng = Rng(seed);
-        let xs: Vec<f64> = (0..1000).map(|_| rng.any()).collect();
+        let xs: Vec<f64> = (0..rounds(1000)).map(|_| rng.any()).collect();
         let base = fold::<K>(&xs);
         for parts in 1..=64 {
             let size = xs.len().div_ceil(parts);
@@ -180,7 +180,7 @@ fn binned_a_fold_is_bit_identical_across_one_to_sixty_four_merge_partitions() {
 #[test]
 fn binned_add_is_associative_and_commutative_on_random_states() {
     let mut rng = Rng(21);
-    for _ in 0..2000 {
+    for _ in 0..rounds(2000) {
         // States of very different index, so alignment drops bins on one side or the other.
         let mut state = || {
             let len = 1 + (rng.next() % 8) as usize;
@@ -205,10 +205,12 @@ fn binned_into_wide_is_the_sum_of_the_inputs_truncated_below_the_window() {
         assert_eq!(b.into_wide(), truncated_sum(xs, lo), "{what}");
     }
     let mut rng = Rng(31);
-    let uniform: Vec<f64> = (0..5000).map(|_| rng.any()).collect();
-    let narrow: Vec<f64> = (0..5000).map(|_| rng.on_grid(-20, 20)).collect();
-    let tiny: Vec<f64> = (0..5000).map(|_| rng.on_grid(-1022, -1000)).collect();
-    let huge: Vec<f64> = (0..5000).map(|_| rng.on_grid(960, 1024)).collect();
+    let uniform: Vec<f64> = (0..rounds(5000)).map(|_| rng.any()).collect();
+    let narrow: Vec<f64> = (0..rounds(5000)).map(|_| rng.on_grid(-20, 20)).collect();
+    let tiny: Vec<f64> = (0..rounds(5000))
+        .map(|_| rng.on_grid(-1022, -1000))
+        .collect();
+    let huge: Vec<f64> = (0..rounds(5000)).map(|_| rng.on_grid(960, 1024)).collect();
     for (xs, what) in [
         (&uniform, "uniform"),
         (&narrow, "narrow"),
@@ -250,7 +252,7 @@ fn binned_is_within_the_bound_of_the_exact_sum_on_random_and_adversarial_multise
 
     let mut rng = Rng(41);
     // A real column: spread 2^±20 fits three limbs with room, so nothing is lost.
-    let narrow: Vec<f64> = (0..10_000).map(|_| rng.on_grid(-20, 20)).collect();
+    let narrow: Vec<f64> = (0..rounds(10_000)).map(|_| rng.on_grid(-20, 20)).collect();
     let exact = narrow
         .iter()
         .fold(Exact::ZERO, |acc, &x| acc + Exact::from(x));
@@ -271,14 +273,14 @@ fn binned_is_within_the_bound_of_the_exact_sum_on_random_and_adversarial_multise
     // The adversaries: uniform exponents (most inputs fall below the window), a column at the
     // edge of the window with full mantissas (every input loses part of itself), the same with
     // alternating signs (truncation toward zero on both sides), and specials mixed in.
-    let uniform: Vec<f64> = (0..10_000).map(|_| rng.finite()).collect();
+    let uniform: Vec<f64> = (0..rounds(10_000)).map(|_| rng.finite()).collect();
     let edge: Vec<f64> = core::iter::once(1.0)
-        .chain((0..10_000).map(|_| rng.on_grid(-172, -168).abs()))
+        .chain((0..rounds(10_000)).map(|_| rng.on_grid(-172, -168).abs()))
         .collect();
     let signed: Vec<f64> = core::iter::once(-1.0)
-        .chain((0..10_000).map(|_| rng.on_grid(-172, -168)))
+        .chain((0..rounds(10_000)).map(|_| rng.on_grid(-172, -168)))
         .collect();
-    let mixed: Vec<f64> = (0..10_000).map(|_| rng.any()).collect();
+    let mixed: Vec<f64> = (0..rounds(10_000)).map(|_| rng.any()).collect();
     let mut lossy = 0;
     for (xs, what) in [
         (&uniform, "uniform"),
@@ -359,6 +361,10 @@ fn binned_a_fresh_fold_of_the_not_a_group_history_shows_the_documented_truncatio
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "the carry count after 100 000 deposits is the assertion"
+)]
 fn binned_carries_outlast_sixteen_deposits_and_borrows_cancel_them() {
     // (2^53 − 1) · 2^25: 53 ones landing in bits 11..64 of Wide limb 17, so almost every deposit
     // wraps the bin's limb, and the carry counts the wraps.
@@ -427,7 +433,7 @@ fn binned_specials_are_counted_and_ride_both_conversions() {
 fn binned_to_binned_keeps_the_top_k_limbs_and_round_trips_a_double_exactly() {
     let mut rng = Rng(51);
     // A double spans at most two limbs, so two bins hold it whole.
-    for _ in 0..10_000 {
+    for _ in 0..rounds(10_000) {
         let x = rng.finite();
         let w = Wide::from(x);
         assert_eq!(w.to_binned::<2>().into_wide(), w, "{x:e}");
@@ -441,7 +447,7 @@ fn binned_to_binned_keeps_the_top_k_limbs_and_round_trips_a_double_exactly() {
     assert_eq!(Wide::ZERO.to_binned::<3>(), Binned::<3>::ZERO);
     // A sum wider than the window: the top K limbs of the magnitude survive, the sign is kept,
     // and the index is the magnitude's top limb.
-    for _ in 0..200 {
+    for _ in 0..rounds(200) {
         let xs: Vec<f64> = (0..50).map(|_| rng.finite()).collect();
         let w = xs.iter().fold(Wide::ZERO, |acc, &x| acc + Wide::from(x));
         let top = w.to_binned::<1>().index() as usize;
@@ -471,7 +477,7 @@ fn binned_to_binned_keeps_the_top_k_limbs_and_round_trips_a_double_exactly() {
 #[test]
 fn binned_sum_and_extend_from_slice_are_the_fold() {
     let mut rng = Rng(61);
-    let xs: Vec<f64> = (0..3000).map(|_| rng.any()).collect();
+    let xs: Vec<f64> = (0..rounds(3000)).map(|_| rng.any()).collect();
     let base = fold::<3>(&xs);
     let mut bulk = Binned::<3>::ZERO;
     bulk.extend_from_slice(&xs);

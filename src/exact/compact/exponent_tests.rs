@@ -49,6 +49,10 @@ fn compact_exponent_at_the_bound_holds_and_one_past_it_is_refused_by_name() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "a million products reach the bound, and their count is the assertion"
+)]
 fn compact_exponent_chain_of_smallest_subnormals_stops_at_the_bound() {
     // Each factor lowers the exponent by 1074; the chain stops on the product that would pass
     // the bound, which names the exponent and not the width, since the mantissa stays one bit.
@@ -75,7 +79,7 @@ fn compact_exponent_chain_of_smallest_subnormals_stops_at_the_bound() {
 #[test]
 fn compact_exponent_never_limits_sums_or_two_factor_products() {
     let mut rng = Rng(28);
-    for _ in 0..100_000 {
+    for _ in 0..crate::exact::testing::rounds(100_000) {
         let (a, b) = (rng.finite(), rng.finite());
         assert_ne!(
             c(a).checked_add(c(b)),

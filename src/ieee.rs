@@ -152,13 +152,14 @@ pub(crate) const fn special_times_special(s: Special, t: Special) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exact::testing::pow2;
 
-    /// `powi` of a negative exponent reciprocates the positive power, and 2^1049 is already
-    /// infinite, so the scaling goes in two exact halves.
+    /// 2^1049 is already infinite and 2^-1075 already zero, so the scaling goes in two halves,
+    /// each a power of two the double range holds, and each multiply exact.
     #[allow(clippy::cast_precision_loss)] // a mantissa has at most 53 bits: the cast is exact
     fn recompose(d: Dyadic) -> f64 {
         let half = d.exp / 2;
-        let m = d.mant as f64 * 2f64.powi(half) * 2f64.powi(d.exp - half);
+        let m = d.mant as f64 * pow2(half) * pow2(d.exp - half);
         if d.negative {
             -m
         } else {
@@ -199,7 +200,7 @@ mod tests {
             f64::MAX,
             f64::MIN_POSITIVE,
             5e-324,
-            f64::from_bits(2), // 2^-1073: `powi` would reciprocate an infinite 2^1073
+            f64::from_bits(2), // 2^-1073, a subnormal
             1.0 + f64::EPSILON,
         ] {
             let d = decompose(x).unwrap();

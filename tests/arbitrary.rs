@@ -18,6 +18,7 @@ fn bytes(seed: u64, len: usize) -> Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "the distribution over 4000 draws is the assertion")]
 fn arbitrary_exact_draws_are_canonical_and_reach_the_operators() {
     let data = bytes(1, 1 << 20);
     let mut u = Unstructured::new(&data);

@@ -8,7 +8,7 @@
 use float_abel::{Binned, Exact, OutOfWindow, Wide};
 
 use crate::binned::{assert_same_bits, shuffle};
-use crate::support::{pow2, Rng};
+use crate::support::{pow2, rounds, Rng};
 
 const INF: f64 = f64::INFINITY;
 const NINF: f64 = f64::NEG_INFINITY;
@@ -136,7 +136,7 @@ fn binned_product_is_the_exact_products_truncated_below_the_window_and_the_grid(
     }
     let mut rng = Rng(71);
     // Pairs Wide holds too, where the hand-built oracle must agree with it.
-    let held: Vec<(f64, f64)> = (0..3000)
+    let held: Vec<(f64, f64)> = (0..rounds(3000))
         .map(|_| (rng.on_grid(-480, 480), rng.on_grid(-480, 480)))
         .collect();
     for &(a, b) in &held {
@@ -147,7 +147,7 @@ fn binned_product_is_the_exact_products_truncated_below_the_window_and_the_grid(
         );
     }
     // Small normals with full mantissas, whose products reach below the unit.
-    let low: Vec<(f64, f64)> = (0..3000)
+    let low: Vec<(f64, f64)> = (0..rounds(3000))
         .map(|_| (rng.on_grid(-560, -460), rng.on_grid(-560, -460)))
         .collect();
     let off_grid = low
@@ -155,10 +155,11 @@ fn binned_product_is_the_exact_products_truncated_below_the_window_and_the_grid(
         .filter(|&&(a, b)| wide_product(a, b) == Err(OutOfWindow::OffGrid))
         .count();
     assert!(
-        off_grid > 1000,
-        "{off_grid} of the low band's products reach below the unit"
+        off_grid > low.len() / 3,
+        "{off_grid} of the low band's {} products reach below the unit",
+        low.len()
     );
-    let any = any_pairs(&mut rng, 3000);
+    let any = any_pairs(&mut rng, rounds(3000).max(200));
     assert!(any.iter().any(|(a, b)| !a.is_finite() || !b.is_finite()));
     for (pairs, what) in [(&held, "held"), (&low, "low"), (&any, "any")] {
         check::<1>(pairs, what);
@@ -317,6 +318,10 @@ fn binned_product_specials_and_zeros_follow_wides_rule_and_never_move_the_window
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "the refusal rate and the carry count over 10⁵ products are the assertions"
+)]
 fn binned_product_refuses_the_ceiling_by_name_and_leaves_the_state_untouched() {
     let before = fold::<3>(&[(1.0, 1.0)]);
     let mut same = before;
@@ -368,6 +373,10 @@ fn binned_product_refuses_the_ceiling_by_name_and_leaves_the_state_untouched() {
 }
 
 #[test]
+#[cfg_attr(
+    miri,
+    ignore = "2000 pairs under 200 shuffles and 32 partitions, per width"
+)]
 fn binned_product_is_bit_identical_under_shuffles_and_partitions() {
     fn check<const K: usize>(seed: u64) {
         let mut rng = Rng(seed);
@@ -400,8 +409,8 @@ fn binned_product_is_bit_identical_under_shuffles_and_partitions() {
 fn binned_product_deposit_products_is_the_pairwise_fold_or_nothing() {
     let mut rng = Rng(81);
     // Any double times one below 2^10 is under the ceiling.
-    let lhs: Vec<f64> = (0..3000).map(|_| rng.any()).collect();
-    let rhs: Vec<f64> = (0..3000).map(|_| rng.on_grid(-600, 10)).collect();
+    let lhs: Vec<f64> = (0..rounds(3000)).map(|_| rng.any()).collect();
+    let rhs: Vec<f64> = (0..rounds(3000)).map(|_| rng.on_grid(-600, 10)).collect();
     let pairs: Vec<(f64, f64)> = lhs.iter().copied().zip(rhs.iter().copied()).collect();
     assert!(pairs
         .iter()
@@ -460,13 +469,13 @@ fn binned_product_is_within_the_bound_with_its_floor() {
         !diff.is_zero()
     }
     let mut rng = Rng(101);
-    let uniform: Vec<(f64, f64)> = (0..5000)
+    let uniform: Vec<(f64, f64)> = (0..rounds(5000))
         .map(|_| (rng.on_grid(-480, 480), rng.on_grid(-480, 480)))
         .collect();
     // A unit product fixes the window, and every other product's 106 bits sit at its edge with
     // alternating signs, so each one loses part of itself on both sides of zero.
     let edge: Vec<(f64, f64)> = core::iter::once((1.0, 1.0))
-        .chain((0..5000).map(|_| (rng.on_grid(-100, -90), rng.on_grid(-100, -90))))
+        .chain((0..rounds(5000)).map(|_| (rng.on_grid(-100, -90), rng.on_grid(-100, -90))))
         .collect();
     let mut lossy = 0;
     for (pairs, what) in [(&uniform, "uniform"), (&edge, "edge")] {
@@ -479,7 +488,7 @@ fn binned_product_is_within_the_bound_with_its_floor() {
 
     // The floor: products straddling the unit lose their bits below it, which the unfloored term
     // does not cover, and `n · 2^-1074` does. `Exact` holds the exact sum of this narrow band.
-    let band: Vec<(f64, f64)> = (0..1000)
+    let band: Vec<(f64, f64)> = (0..rounds(1000))
         .map(|_| (rng.on_grid(-540, -536), rng.on_grid(-540, -536)))
         .collect();
     let exact = band

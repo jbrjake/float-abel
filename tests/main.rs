@@ -22,6 +22,9 @@ mod differential;
 mod exact_cap;
 mod exact_ring;
 mod fixed;
+// A proptest case of the kit runs minutes under the interpreter, and the operators it exercises
+// are the tier topics' own.
+#[cfg(not(miri))]
 mod laws;
 mod layout;
 mod posture;

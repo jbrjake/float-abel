@@ -10,7 +10,7 @@
 
 use float_abel::{OutOfWindow, Wide};
 
-use crate::support::Rng;
+use crate::support::{pow2, rounds, Rng};
 
 const _: () = assert!(core::mem::size_of::<Wide>() == 296);
 
@@ -105,7 +105,7 @@ fn wide_reproduces_every_bitrep_conformance_vector() {
 #[test]
 fn wide_limbs_and_value_match_bitrep_on_random_multisets() {
     let mut rng = Rng(10);
-    for round in 0..300 {
+    for round in 0..rounds(300) {
         let len = 1 + (rng.next() % 400) as usize;
         let xs: Vec<f64> = (0..len)
             .map(|_| match round % 3 {
@@ -144,7 +144,7 @@ fn wide_limbs_and_value_match_bitrep_on_random_multisets() {
 #[test]
 fn wide_from_f64_is_total_and_single_deposits_read_back_bit_for_bit() {
     let mut rng = Rng(11);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let x = rng.finite();
         let s = w(x);
         assert_eq!(s.to_f64().to_bits(), x.to_bits(), "{x:e}");
@@ -191,7 +191,7 @@ fn wide_from_f64_is_total_and_single_deposits_read_back_bit_for_bit() {
 #[test]
 fn wide_pair_sums_round_like_ieee_addition() {
     let mut rng = Rng(12);
-    for i in 0..100_000 {
+    for i in 0..rounds(100_000) {
         let (a, b) = if i % 2 == 0 {
             (rng.finite(), rng.finite())
         } else {
@@ -223,7 +223,7 @@ fn wide_pair_sums_round_like_ieee_addition() {
 #[test]
 fn wide_products_round_like_ieee_multiply_and_fma() {
     let mut rng = Rng(13);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         // Leading bits within ±480: the product's lowest bit is at or above 2^-1064, on the grid,
         // and its magnitude is below 2^962, under the ceiling.
         let (a, b) = (rng.on_grid(-480, 480), rng.on_grid(-480, 480));
@@ -238,41 +238,38 @@ fn wide_products_round_like_ieee_multiply_and_fma() {
     }
     // A product IEEE would flush to a subnormal or zero is exact while its lowest bit reaches the
     // unit.
+    assert_eq!(product(pow2(-537), pow2(-537)).try_to_f64(), Some(5e-324));
     assert_eq!(
-        product(2f64.powi(-537), 2f64.powi(-537)).try_to_f64(),
-        Some(5e-324)
-    );
-    assert_eq!(
-        product(3.0 * 2f64.powi(-537), 2f64.powi(-537)).try_to_f64(),
+        product(3.0 * pow2(-537), pow2(-537)).try_to_f64(),
         Some(f64::from_bits(3))
     );
-    // 2^-1070 is 16 units; `powi(-1070)` would reciprocate an infinite 2^1070 and return 0.
+    // 2^-1070 is 16 units.
     assert_eq!(
-        product(2f64.powi(-600), 2f64.powi(-470)).try_to_f64(),
+        product(pow2(-600), pow2(-470)).try_to_f64(),
         Some(f64::from_bits(16))
     );
     // Below the unit or at the ceiling the product is refused by name, and the state is untouched.
     let mut p = w(1.0);
     assert_eq!(p.deposit_product(5e-324, 0.5), Err(OutOfWindow::OffGrid));
     assert_eq!(
-        p.deposit_product(2f64.powi(-537), 1.5 * 2f64.powi(-537)),
+        p.deposit_product(pow2(-537), 1.5 * pow2(-537)),
         Err(OutOfWindow::OffGrid)
     );
     assert_eq!(
-        p.deposit_product(2f64.powi(1000), 2f64.powi(37)),
+        p.deposit_product(pow2(1000), pow2(37)),
         Err(OutOfWindow::AboveCeiling)
     );
     assert_eq!(
-        p.deposit_product(f64::MAX, 2f64.powi(14)),
+        p.deposit_product(f64::MAX, pow2(14)),
         Err(OutOfWindow::AboveCeiling)
     );
     assert_eq!(p, w(1.0));
     // Just under the ceiling is accepted, and reads as the overflow it is.
-    assert_eq!(p.deposit_product(2f64.powi(1000), 2f64.powi(36)), Ok(()));
+    assert_eq!(p.deposit_product(pow2(1000), pow2(36)), Ok(()));
     assert_eq!(p.to_f64(), INF);
-    assert_eq!(product(f64::MAX, 2f64.powi(13)).to_f64(), INF);
+    assert_eq!(product(f64::MAX, pow2(13)).to_f64(), INF);
     assert_eq!(
-        (product(f64::MAX, 2f64.powi(13)) - product(f64::MAX, 2f64.powi(13))),
+        (product(f64::MAX, pow2(13)) - product(f64::MAX, pow2(13))),
         Wide::ZERO
     );
     // A zero factor makes the exact product zero, whatever the other factor: bilinearity, not
@@ -327,7 +324,7 @@ fn wide_products_with_special_factors_follow_the_nan_algebra() {
 #[test]
 fn wide_div_f64_rounds_like_ieee_division() {
     let mut rng = Rng(17);
-    for i in 0..50_000 {
+    for i in 0..rounds(50_000) {
         let x = if i % 2 == 0 {
             rng.finite()
         } else {
@@ -364,7 +361,7 @@ fn wide_div_f64_rounds_like_ieee_division() {
     assert_eq!(w(5e-324).div_f64(2).to_bits(), 0.0f64.to_bits());
     assert_eq!(w(-5e-324).div_f64(2).to_bits(), (-0.0f64).to_bits());
     assert_eq!(w(3.0 * 5e-324).div_f64(2), 2.0 * 5e-324);
-    assert_eq!(w(7.0).div_f64(u64::MAX), 7.0 * 2f64.powi(-64));
+    assert_eq!(w(7.0).div_f64(u64::MAX), 7.0 * pow2(-64));
 }
 
 #[test]
@@ -373,16 +370,13 @@ fn wide_reads_round_at_both_ends_of_the_double_range() {
     // it rounds away, to ∞. MAX + less than half an ulp stays MAX.
     assert_eq!((w(f64::MAX) + w(f64::MAX)).to_f64(), INF);
     assert_eq!((w(-f64::MAX) + w(-f64::MAX)).to_f64(), NINF);
-    assert_eq!((w(f64::MAX) + w(2f64.powi(970))).to_f64(), INF);
-    assert_eq!((w(f64::MAX) + w(2f64.powi(969))).to_f64(), f64::MAX);
-    assert_eq!((w(f64::MAX) + w(2f64.powi(969))).try_to_f64(), None);
+    assert_eq!((w(f64::MAX) + w(pow2(970))).to_f64(), INF);
+    assert_eq!((w(f64::MAX) + w(pow2(969))).to_f64(), f64::MAX);
+    assert_eq!((w(f64::MAX) + w(pow2(969))).try_to_f64(), None);
     // 2^1024 is ∞ as a double but a finite state; retracting half of it is exact.
-    let two_1024 = w(2f64.powi(1023)) + w(2f64.powi(1023));
+    let two_1024 = w(pow2(1023)) + w(pow2(1023));
     assert_eq!(two_1024.to_f64(), INF);
-    assert_eq!(
-        (two_1024 - w(2f64.powi(1023))).try_to_f64(),
-        Some(2f64.powi(1023))
-    );
+    assert_eq!((two_1024 - w(pow2(1023))).try_to_f64(), Some(pow2(1023)));
     // Every nonzero state is at least one unit, and the unit is the smallest subnormal, so the
     // finite part never rounds to zero and the smallest sums read exactly.
     assert_eq!(

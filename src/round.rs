@@ -181,6 +181,7 @@ pub(crate) fn div_window(mag: &[u64], exp: i32, n: u64) -> ([u64; 3], i32, bool)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exact::testing::pow2;
 
     fn r(limbs: &[u64], exp: i32) -> (f64, bool) {
         let (bits, inexact) = round(false, limbs, exp, false, F64);
@@ -198,7 +199,7 @@ mod tests {
         assert_eq!(r(&[1], 0), (1.0, false));
         assert_eq!(r(&[3], -1), (1.5, false));
         assert_eq!(r(&[(1 << 53) - 1], 0), (9_007_199_254_740_991.0, false));
-        assert_eq!(r(&[0, 1], 0), (2f64.powi(64), false));
+        assert_eq!(r(&[0, 1], 0), (pow2(64), false));
         assert_eq!(r(&[1], -1074), (5e-324, false));
         assert_eq!(r(&[(1 << 53) - 1], 971), (f64::MAX, false));
         assert_eq!(r(&[], 0), (0.0, false));
@@ -214,7 +215,7 @@ mod tests {
         assert_eq!(r(&[two53 + 5], 0), (exact(two53 + 4), true));
         assert_eq!(r(&[two53 + 7], 0), (exact(two53 + 8), true));
         // A tie that carries into the next binade.
-        assert_eq!(r(&[(1 << 54) - 1], 0), (2f64.powi(54), true));
+        assert_eq!(r(&[(1 << 54) - 1], 0), (pow2(54), true));
     }
 
     #[test]
@@ -267,14 +268,14 @@ mod tests {
         assert_eq!(div([7, 0], 1), (7.0, false));
         assert_eq!(div([1, 0], 3), (1.0 / 3.0, true));
         assert_eq!(div([5, 0], 7), (5.0 / 7.0, true));
-        assert_eq!(div([0, 1], 3), (2f64.powi(64) / 3.0, true));
-        assert_eq!(div([0, 1], 1 << 40), (2f64.powi(24), false));
+        assert_eq!(div([0, 1], 3), (pow2(64) / 3.0, true));
+        assert_eq!(div([0, 1], 1 << 40), (pow2(24), false));
         // (2^128 - 1) / (2^64 - 1) = 2^64 + 1, which rounds down to 2^64.
-        assert_eq!(div([u64::MAX, u64::MAX], u64::MAX), (2f64.powi(64), true));
+        assert_eq!(div([u64::MAX, u64::MAX], u64::MAX), (pow2(64), true));
         // (2^128 - 1) / 2 = 2^127 - 1/2, which rounds up to 2^127.
-        assert_eq!(div([u64::MAX, u64::MAX], 2), (2f64.powi(127), true));
+        assert_eq!(div([u64::MAX, u64::MAX], 2), (pow2(127), true));
         // A quotient below one: the window is entirely fractional.
-        assert_eq!(div([1, 0], u64::MAX), (2f64.powi(-64), true));
+        assert_eq!(div([1, 0], u64::MAX), (pow2(-64), true));
         assert_eq!(div([3, 0], 4), (0.75, false));
     }
 }

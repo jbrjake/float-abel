@@ -51,8 +51,26 @@ impl Rng {
     }
 }
 
+/// `n` natively, and a hundredth of it (at least one) under miri, which interprets a limb
+/// operation some thousand times slower than the machine runs it. For a sweep whose assertions
+/// hold at any count; a loop whose count is the assertion keeps its literal and is ignored under
+/// miri.
+pub(crate) const fn rounds(n: usize) -> usize {
+    if cfg!(miri) {
+        let cut = n / 100;
+        if cut == 0 {
+            1
+        } else {
+            cut
+        }
+    } else {
+        n
+    }
+}
+
 /// 2^e as a double, by its bits: `powi` reciprocates, so it returns 0 for `e <= -1024` where the
-/// subnormals still reach down to -1074.
+/// subnormals still reach down to -1074, and miri perturbs it by a few ulps on purpose, as it
+/// does every operation whose result is not specified to the bit.
 pub(crate) fn pow2(e: i32) -> f64 {
     assert!((-1074..=1023).contains(&e));
     if e >= -1022 {

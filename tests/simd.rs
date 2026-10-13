@@ -7,9 +7,11 @@
 
 use float_abel::{Binned, Fixed, Fixed256, OutOfWindow, Wide};
 
-use crate::support::Rng;
+use crate::support::{rounds, Rng};
 
-const MULTISETS: u64 = 10_000;
+/// 10⁴ seeded multisets, and twenty under miri, which runs the portable kernel alone and some
+/// thousand times slower.
+const MULTISETS: u64 = if cfg!(miri) { 20 } else { 10_000 };
 
 /// The scalar definition of correct for each tier: one deposit at a time, in slice order, with
 /// `Fixed`'s first refusal ending the fold.
@@ -173,7 +175,7 @@ fn simd_fixed_extend_from_slice_lands_the_loops_bits_and_refuses_the_first_refus
 #[test]
 fn simd_fixed_bulk_refusal_leaves_a_held_state_as_it_was() {
     let mut rng = Rng(7);
-    for _ in 0..1000 {
+    for _ in 0..rounds(1000) {
         let held = Fixed256::try_from(rng.on_grid(-20, 20)).unwrap();
         let mut xs: Vec<f64> = (0..(rng.next() % 2100) as usize)
             .map(|_| rng.on_grid(-44, 95))
@@ -246,9 +248,10 @@ fn mixing_multiset(rng: &mut Rng, round: u64) -> Vec<f64> {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "multisets of up to 2600 doubles, four folds each")]
 fn simd_wide_tiles_mixing_spans_specials_zeros_and_subnormals_match_the_loop() {
     let mut rng = Rng(0xA5);
-    for round in 0..400 {
+    for round in 0..rounds(400) as u64 {
         let xs = mixing_multiset(&mut rng, round);
         let len = xs.len();
         let mut bulk = Wide::ZERO;
@@ -265,6 +268,7 @@ fn simd_wide_tiles_mixing_spans_specials_zeros_and_subnormals_match_the_loop() {
 }
 
 #[test]
+#[cfg_attr(miri, ignore = "three million deposits across a tile's lengths")]
 fn simd_bulk_entries_take_every_slice_length_across_a_tile() {
     let mut rng = Rng(0x7E);
     let xs: Vec<f64> = (0..4200).map(|_| rng.on_grid(-44, 95)).collect();

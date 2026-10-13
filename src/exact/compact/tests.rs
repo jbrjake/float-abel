@@ -13,7 +13,7 @@ use core::cmp::Ordering;
 use std::vec::Vec;
 
 use super::{Compact, Overflow};
-use crate::exact::testing::{add, c, hash, mul, pow2, product, widest, Rng};
+use crate::exact::testing::{add, c, hash, mul, pow2, product, rounds, widest, Rng};
 use crate::exact::Exact;
 use crate::Wide;
 
@@ -28,7 +28,7 @@ fn compact_storage_form_round_trips_and_exact_is_32_bytes() {
         "the working form, with i128's alignment"
     );
     let mut rng = Rng(20);
-    for _ in 0..10_000 {
+    for _ in 0..rounds(10_000) {
         let v = add(c(rng.on_grid(-20, 20)), c(rng.on_grid(-20, 20)));
         let (lo, hi, exp) = v.parts();
         assert_eq!(Compact::from_parts(lo, hi, exp), v);
@@ -44,7 +44,7 @@ fn compact_storage_form_round_trips_and_exact_is_32_bytes() {
 #[test]
 fn compact_from_f64_is_exact_on_finite_doubles_and_needs_wide_on_specials() {
     let mut rng = Rng(21);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let x = rng.finite();
         let v = c(x);
         assert_eq!(v.read(), (x, false), "{x:e}");
@@ -130,7 +130,8 @@ fn compact_add_detects_promotion_at_the_127_bit_span() {
     // A refusal is symmetric and leaves both operands as they were, being values.
     let mut rng = Rng(22);
     let (mut refused, mut accepted) = (0, 0);
-    for _ in 0..20_000 {
+    let draws = rounds(20_000);
+    for _ in 0..draws {
         let (a, b) = (c(rng.finite()), c(rng.finite()));
         let ab = a.checked_add(b);
         assert_eq!(ab, b.checked_add(a), "{a:?} + {b:?}");
@@ -142,8 +143,8 @@ fn compact_add_detects_promotion_at_the_127_bit_span() {
         }
     }
     assert!(
-        refused > 10_000 && accepted > 500,
-        "{refused} refused, {accepted} accepted"
+        refused > draws / 2 && accepted > draws / 40,
+        "{refused} refused, {accepted} accepted of {draws}"
     );
 }
 
@@ -152,7 +153,7 @@ fn compact_add_detects_promotion_at_the_127_bit_span() {
 fn compact_group_laws_hold_on_same_scale_inputs() {
     let mut rng = Rng(23);
     let by = |k: i64| Compact::from_i64(k);
-    for _ in 0..20_000 {
+    for _ in 0..rounds(20_000) {
         let (a, b, cc) = (
             c(rng.on_grid(-20, 20)),
             c(rng.on_grid(-20, 20)),
@@ -188,7 +189,7 @@ fn compact_group_laws_hold_on_same_scale_inputs() {
 #[test]
 fn compact_a_plus_b_minus_b_is_a_on_a_million_random_pairs() {
     let mut rng = Rng(24);
-    for _ in 0..1_000_000 {
+    for _ in 0..rounds(1_000_000) {
         let (a, b) = (c(rng.on_grid(-20, 20)), c(rng.on_grid(-20, 20)));
         assert_eq!(add(add(a, b), -b), a, "{a:?} + {b:?} - {b:?}");
     }
@@ -219,7 +220,7 @@ fn compact_canonical_form_makes_structural_eq_and_hash_numeric() {
     assert_eq!(hash(&Compact::from_i64(12)), hash(&c(12.0)));
     // Every sum of random terms is odd or the zero form.
     let mut rng = Rng(25);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let v = add(c(rng.on_grid(-30, 30)), c(rng.on_grid(-30, 30)));
         let (lo, _, exp) = v.parts();
         assert!(lo & 1 == 1 || (v.is_zero() && exp == 0), "{v:?}");
@@ -235,7 +236,7 @@ fn compact_canonical_form_makes_structural_eq_and_hash_numeric() {
 #[test]
 fn compact_order_is_numeric_and_total() {
     let mut rng = Rng(26);
-    for _ in 0..100_000 {
+    for _ in 0..rounds(100_000) {
         let (a, b) = (rng.finite(), rng.finite());
         assert_eq!(
             c(a).cmp(&c(b)),
@@ -290,7 +291,8 @@ fn compact_order_is_numeric_and_total() {
 fn compact_reads_round_like_ieee_and_agree_with_wide() {
     let mut rng = Rng(27);
     let mut from_finite = 0;
-    for i in 0..100_000 {
+    let draws = rounds(100_000);
+    for i in 0..draws {
         let (a, b) = if i % 2 == 0 {
             (rng.finite(), rng.finite())
         } else {
@@ -326,10 +328,14 @@ fn compact_reads_round_like_ieee_and_agree_with_wide() {
             "{a:e} + {b:e} / {n}"
         );
     }
-    assert!(from_finite > 1_000, "{from_finite} finite pairs fit");
+    assert!(
+        from_finite > draws / 100,
+        "{from_finite} finite pairs of {draws} fit"
+    );
     // Products: the exact 106-bit product reads as IEEE's multiply, and plus a term as its fma.
     let mut fmas = 0;
-    for _ in 0..50_000 {
+    let draws = rounds(50_000);
+    for _ in 0..draws {
         let (a, b) = (rng.on_grid(-480, 480), rng.on_grid(-480, 480));
         let cc = rng.on_grid(-20, 20);
         let p = product(a, b);
@@ -351,9 +357,12 @@ fn compact_reads_round_like_ieee_and_agree_with_wide() {
             );
         }
     }
-    assert!(fmas > 500, "{fmas} products fit beside the third term");
+    assert!(
+        fmas > draws / 100,
+        "{fmas} products of {draws} fit beside the third term"
+    );
     // Division: the quotient of a single double is IEEE's.
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let x = rng.finite();
         let n = (rng.next() >> 11).max(1);
         assert_eq!(

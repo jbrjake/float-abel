@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use float_abel::{Exact, Fixed, Fixed256, Wide, WireError, EXACT_MAX_EXP};
 
-use crate::support::Rng;
+use crate::support::{pow2, rounds, Rng};
 
 /// A two-limb grid: the narrowest `Fixed`, 17 bytes on the wire.
 type Narrow = Fixed<-20, 2>;
@@ -134,7 +134,8 @@ fn wire_exact_is_the_version_byte_then_its_layout_and_round_trips() {
 fn wire_exact_round_trips_random_multisets_and_distinct_values_have_distinct_bytes() {
     let mut rng = Rng(0x77);
     let mut seen: HashMap<[u8; Exact::BYTES], Exact> = HashMap::new();
-    for _ in 0..2000 {
+    let draws = rounds(2000);
+    for _ in 0..draws {
         let mut s = Exact::ZERO;
         for _ in 0..8 {
             s.deposit(rng.on_grid(-10, 10));
@@ -152,7 +153,11 @@ fn wire_exact_round_trips_random_multisets_and_distinct_values_have_distinct_byt
         }
     }
     // Eight random same-scale doubles rarely sum to the same value twice.
-    assert!(seen.len() > 1900, "{} distinct encodings", seen.len());
+    assert!(
+        seen.len() > draws * 19 / 20,
+        "{} distinct encodings in {draws}",
+        seen.len()
+    );
 }
 
 #[test]
@@ -472,7 +477,7 @@ fn wire_vectors_in_format_md_are_to_bytes_byte_for_byte() {
             b.to_vec()
         }),
         ("`Fixed256::try_from(2f64.powi(-44))`", {
-            let b: [u8; 33] = Fixed256::try_from(2f64.powi(-44)).unwrap().to_bytes();
+            let b: [u8; 33] = Fixed256::try_from(pow2(-44)).unwrap().to_bytes();
             b.to_vec()
         }),
     ];

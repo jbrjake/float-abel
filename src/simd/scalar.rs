@@ -248,11 +248,11 @@ mod tests {
     #[test]
     fn simd_portable_kernel_lands_the_same_bits_at_one_two_four_and_eight_lanes() {
         let mut state = 0x4C41_4E45;
-        for round in 0..300 {
+        for round in 0..crate::exact::testing::rounds(300) {
             let len = (next(&mut state) % 2048) as usize;
             let xs = multiset(&mut state, len);
             let xs = &xs[..len];
-            let lsb = -1074 + 64 * (round % 20);
+            let lsb = -1074 + 64 * (round % 20) as i32;
             let (p1, r1) = run::<1, 4, true>(xs, lsb);
             let (p2, r2) = run::<2, 4, true>(xs, lsb);
             let (p4, r4) = run::<4, 4, true>(xs, lsb);
@@ -289,11 +289,11 @@ mod tests {
         // The oracle is the tier's own arithmetic: set_shifted, negate and add_assign on four
         // limbs, over every input the kernel vouched for; the kernel's words never enter it.
         let mut state = 0x4F52_4143;
-        for round in 0..300 {
+        for round in 0..crate::exact::testing::rounds(300) {
             let len = (next(&mut state) % 2048) as usize;
             let xs = multiset(&mut state, len);
             let xs = &xs[..len];
-            let lsb = -60 + (round % 40);
+            let lsb = -60 + (round % 40) as i32;
             let (p, rest) = run::<4, 4, false>(xs, lsb);
             let mut want = [0u64; 4];
             let mut placed = 0usize;
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn simd_portable_lane_places_what_set_shifted_writes() {
         let mut state = 7;
-        for _ in 0..20_000 {
+        for _ in 0..crate::exact::testing::rounds(20_000) {
             let bits = next(&mut state);
             let lsb = -1200 + (next(&mut state) % 2400) as i32;
             let lane = Lane::decode::<4, true>(bits, lsb);
@@ -366,7 +366,7 @@ mod tests {
     fn simd_portable_soundness_test_refuses_nothing_the_window_holds_and_vouches_for_nothing_else()
     {
         let mut state = 99;
-        for _ in 0..50_000 {
+        for _ in 0..crate::exact::testing::rounds(50_000) {
             let bits = next(&mut state);
             let x = f64::from_bits(bits);
             let lsb = -1100 + (next(&mut state) % 2200) as i32;
@@ -386,7 +386,7 @@ mod tests {
             }
         }
         // And the other direction on normals: a normal the window holds is never suspect.
-        for _ in 0..50_000 {
+        for _ in 0..crate::exact::testing::rounds(50_000) {
             let bits = next(&mut state) & !(0x7FFu64 << 52) | ((1 + next(&mut state) % 2046) << 52);
             let x = f64::from_bits(bits);
             let d = crate::ieee::decompose(x).unwrap();

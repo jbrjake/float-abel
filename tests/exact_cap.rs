@@ -7,7 +7,7 @@
 use core::cmp::Ordering;
 use float_abel::{Exact, Fixed256, PastCap, Wide, EXACT_MAX_EXP};
 
-use crate::support::{hash, pow2, Rng};
+use crate::support::{hash, pow2, rounds, Rng};
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 
@@ -90,7 +90,7 @@ fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
 #[allow(clippy::op_ref)] // the reference operators are the surface under test here
 fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
     let mut rng = Rng(30);
-    for _ in 0..20_000 {
+    for _ in 0..rounds(20_000) {
         let (a, b, cc) = (
             e(rng.on_grid(-20, 20)),
             e(rng.on_grid(-20, 20)),
@@ -143,7 +143,7 @@ fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
 #[test]
 fn exact_cap_a_plus_b_minus_b_is_a_on_random_pairs() {
     let mut rng = Rng(31);
-    for _ in 0..200_000 {
+    for _ in 0..rounds(200_000) {
         let (a, b) = (e(rng.on_grid(-20, 20)), e(rng.on_grid(-20, 20)));
         assert_eq!((a + b) - b, a, "{a:?} + {b:?} - {b:?}");
     }
@@ -160,7 +160,7 @@ fn exact_cap_canonical_form_makes_eq_hash_and_order_numeric() {
     assert_eq!(e(12.0), e(3.0) * e(4.0));
     assert_eq!(e(12.0), e(1.5) * 8i64);
     let mut rng = Rng(32);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let (a, b) = (rng.finite(), rng.finite());
         assert_eq!(
             e(a).cmp(&e(b)),
@@ -195,7 +195,7 @@ fn exact_cap_canonical_form_makes_eq_hash_and_order_numeric() {
 #[test]
 fn exact_cap_reads_round_like_ieee_and_agree_with_wide_and_fixed() {
     let mut rng = Rng(33);
-    for _ in 0..50_000 {
+    for _ in 0..rounds(50_000) {
         let (a, b) = (rng.on_grid(-1000, 1000), rng.on_grid(-1000, 1000));
         let Ok(sum) = e(a).checked_add(&e(b)) else {
             continue;
@@ -210,7 +210,7 @@ fn exact_cap_reads_round_like_ieee_and_agree_with_wide_and_fixed() {
             "{a:e} + {b:e} / {n}"
         );
     }
-    for _ in 0..20_000 {
+    for _ in 0..rounds(20_000) {
         // Leading bits within [-44, 30): on Fixed256's grid, and a pair spans at most 127 bits.
         let (a, b) = (rng.on_grid(-44, 30), rng.on_grid(-44, 30));
         let fixed = Fixed256::try_from(a).unwrap() + Fixed256::try_from(b).unwrap();
@@ -224,7 +224,7 @@ fn exact_cap_reads_round_like_ieee_and_agree_with_wide_and_fixed() {
         let n = (rng.next() >> 11).max(1);
         assert_eq!(exact.div_f64(n).to_bits(), fixed.div_f64(n).to_bits());
     }
-    for _ in 0..20_000 {
+    for _ in 0..rounds(20_000) {
         let (a, b) = (rng.on_grid(-480, 480), rng.on_grid(-480, 480));
         let mut p = Exact::ZERO;
         p.deposit_product(a, b);
