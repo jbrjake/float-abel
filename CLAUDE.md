@@ -11,6 +11,7 @@ no group and stays out, and so does `f32`.
 ```bash
 cargo test                                             # what every task verify runs; the self dev-dependency turns the test features on
 cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
+cargo +1.99.0 test --test main ui_                     # the compile-fail wording, blessed on stable 1.99 with rust-src; any other compiler runs the pass cases alone and says so
 cargo +nightly miri test --test main                   # the suite under miri: sweeps at a hundredth, trybuild and timely ignored
 cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total_time=60   # one target; CI runs each ten minutes nightly
 ./scripts/smoke.sh                                     # commit gate (pre-commit hook)

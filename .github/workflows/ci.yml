@@ -1,7 +1,7 @@
 # The functional gate, in CI. The gate job runs the same scripts the git hooks run, so local and
 # remote green have one definition. The other jobs cover what a local run may skip: the MSRV build
-# on exactly the default features, cargo-deny, and the dbsp feature on the one toolchain it builds
-# on. Benchmarks and the golden hash have their own workflows.
+# on exactly the default features, cargo-deny, and on the one toolchain dbsp builds on, the dbsp
+# feature and the compile-fail wording. Benchmarks and the golden hash have their own workflows.
 name: ci
 
 on:
@@ -70,16 +70,19 @@ jobs:
   # dbsp declares rust-version 1.96.1 and builds there and on 1.99.0; rustc 1.97 and 1.98 ICE
   # inside it, so this job pins rather than tracking stable. The gate job's clippy never sees the
   # feature (it is out of the self dev-dependency's list), so this job lints it too, and runs the
-  # UDA example, which the `--test main` filter never builds.
+  # UDA example, which the `--test main` filter never builds. The same pin is the release tests/ui's
+  # .stderr files are blessed on (BLESSED_RUSTC in tests/ui.rs), with rust-src, which the blessed
+  # wording renders core's source through; so the compile-fail wording is asserted here, where the
+  # gate job, on a moving stable without rust-src, only runs the pass cases.
   dbsp:
-    name: dbsp feature on rustc 1.99.0
+    name: dbsp feature and compile-fail wording on rustc 1.99.0
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Install rustc 1.99.0
+      - name: Install rustc 1.99.0 with rust-src
         run: |
-          rustup toolchain install 1.99.0 --profile minimal --component clippy
+          rustup toolchain install 1.99.0 --profile minimal --component clippy,rust-src
           rustup default 1.99.0
           cargo --version && rustc --version
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -93,6 +96,9 @@ jobs:
       - run: cargo clippy --locked --features dbsp --all-targets -- -D warnings
       - run: cargo test --locked --features dbsp --test main dbsp_
       - run: cargo run --locked --features dbsp --example dbsp_uda
+      # The compile-fail cases on the test features a bare `cargo test` has, the set that blessed
+      # their .stderr files; the dbsp one ran under the `dbsp_` filter above.
+      - run: cargo test --locked --test main ui_
       # The dbsp closure's licences, duplicate majors and advisories, stated in deny-dbsp.toml.
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:

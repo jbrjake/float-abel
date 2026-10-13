@@ -37,6 +37,18 @@ cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null
 RUSTDOCFLAGS="-D warnings" cargo doc --quiet --no-deps
 
 cargo test --quiet -- --include-ignored >/dev/null
+# tests/ui's .stderr files match one compiler, stable 1.99 with rust-src (BLESSED_RUSTC in
+# tests/ui.rs); on any other the harness runs its pass cases alone and says so on stderr, which
+# the run above swallows, so the topic runs once more with its output kept and the line surfaces
+# here. CI asserts the wording on the blessed compiler (ci.yml's rustc 1.99.0 job).
+ui_log=$(mktemp)
+if ! cargo test --quiet --test main ui_ -- --nocapture >"$ui_log" 2>&1; then
+  cat "$ui_log" >&2
+  rm -f "$ui_log"
+  exit 1
+fi
+sed -n 's/^ui: skipping/regression: SKIPPED/p' "$ui_log" | sort -u >&2
+rm -f "$ui_log"
 # The headroom and counter overflow panics are asserted in every build, and only a release run can
 # show that: a debug run would pass with a `debug_assert!` too.
 cargo test --quiet --release --test main every_build >/dev/null
