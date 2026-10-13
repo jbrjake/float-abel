@@ -9,7 +9,7 @@ relates: [fl-e4jjqf1]
 verify: "all(exists bench-baseline.json, exists scripts/bench-baseline.sh)"
 docs:
   - CLAUDE.md#performance
-seq: 170
+seq: 175
 created: 2026-10-13T16:09Z
 ---
 

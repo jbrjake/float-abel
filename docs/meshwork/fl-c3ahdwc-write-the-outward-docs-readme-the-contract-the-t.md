@@ -15,8 +15,8 @@ covers:
   - ref: docs/DESIGN.md#sp-not-a-group
     sha: 373785c4859c6da80c731d8709b693004ccff63b692a79548c0e60e956976708
 handoff: |
-  The tree at 76ee02a: Measure (fl-e4jjqf1) is closed, and BENCH.md now
-  carries every number the
+  The tree at 76ee02a: Measure is closed, and BENCH.md now carries every
+  number the
   kill conditions read, NEON (this machine) and AVX2 (jons-amd-mini) side
   by side, led by a "Terms"
   glossary and a "What reproducibility costs" table of multiples against
@@ -143,3 +143,4 @@ else on crates.io makes it. `#![deny(missing_docs)]` in `src/lib.rs`.
 - 2026-10-13T15:14Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T15:15Z handoff by claude (ace5f87f-8122-4167-a02a-0a2238009e67)
 - 2026-10-13T16:09Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
+- 2026-10-13T16:10Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
