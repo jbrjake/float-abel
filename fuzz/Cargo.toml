@@ -1,0 +1,59 @@
+# The fuzz targets, DESIGN.md § Hardening, as cargo-fuzz lays them out: a package of its own,
+# excluded from the workspace, because libFuzzer wants nightly and a sanitizer build, and its
+# closure (libfuzzer-sys, num-bigint) has no place in the crate's lockfile or its MSRV build. The
+# lib is the oracle and its tests; each target is a bin. Run from the repo root:
+# `cargo fuzz run <target> --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total_time=60`.
+[package]
+name = "float-abel-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary = { version = "1", features = ["derive"] }
+# `simd` on, so the bulk entries run the machine's kernel under the sanitizer too.
+float-abel = { path = "..", features = ["arbitrary", "serde", "simd"] }
+libfuzzer-sys = "0.4"
+# The oracle's integers.
+num-bigint = "0.5"
+num-traits = "0.2"
+# The serde path beside `from_bytes`, framed as tests/wire.rs frames it.
+postcard = { version = "1", default-features = false, features = ["use-std"] }
+
+[dev-dependencies]
+# Reads the committed rounding vectors, which pin the oracle's own rounding.
+serde_json = "1"
+
+[[bin]]
+name = "decode_robustness"
+path = "fuzz_targets/decode_robustness.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sum_vs_oracle"
+path = "fuzz_targets/sum_vs_oracle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sub_roundtrip"
+path = "fuzz_targets/sub_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+# The workspace's lint posture, restated because an excluded package cannot inherit it.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }

@@ -18,6 +18,7 @@ cargo test                                             # the self dev-dependency
 cargo test -p float-abel-noalloc                       # Exact with no features: the compact tier alone
 cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
 cargo run --example dd_sum -- -w 3                     # Exact as a differential-dataflow diff: SUM on three workers
+cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total_time=60   # a fuzz target; nightly + cargo-fuzz
 ./scripts/smoke.sh                                     # commit gate
 ./scripts/regression.sh                                # push gate
 git config core.hooksPath .githooks                    # run the gates from git

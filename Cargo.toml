@@ -148,6 +148,9 @@ workspace = true
 # package alone, because a package at the workspace root is its default member.
 [workspace]
 members = ["tests/noalloc", "tests/golden"]
+# The cargo-fuzz package stands alone: libFuzzer wants nightly and a sanitizer build, and its
+# closure has no place in this lockfile, which the MSRV build parses whole.
+exclude = ["fuzz"]
 
 # Lints warn here and fail only at the gate (`cargo clippy --all-targets -- -D warnings` and
 # `RUSTDOCFLAGS="-D warnings" cargo doc` in scripts/regression.sh). `unsafe_code` is denied in

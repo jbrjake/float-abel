@@ -17,9 +17,10 @@ else
   scope="tree"
 fi
 
-rust=0 store=0 actions=0
+rust=0 store=0 fuzz=0 actions=0
 for f in "${files[@]}"; do
   case "$f" in
+    fuzz/*) rust=1 fuzz=1 ;;
     *.rs|Cargo.toml|Cargo.lock|scripts/*|.githooks/*|.cargo/*|deny.toml) rust=1 ;;
     docs/meshwork/*) store=1 ;;
     .github/workflows/*) actions=1 ;;
@@ -52,6 +53,15 @@ fi
 
 ./scripts/check-test-topics.sh
 cargo fmt --all -- --check
+
+# The fuzz package is outside the workspace, so the root test below never reaches its oracle.
+if [ "$fuzz" -eq 1 ]; then
+  cargo fmt --manifest-path fuzz/Cargo.toml -- --check
+  if ! cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null; then
+    echo "smoke: FAILED (the fuzz oracle's tests)" >&2
+    exit 1
+  fi
+fi
 
 if out=$(cargo test --quiet 2>&1); then
   passed=$(printf '%s\n' "$out" | { grep -Eo '[0-9]+ passed' || true; } | awk '{s += $1} END {print s + 0}')

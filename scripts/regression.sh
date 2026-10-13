@@ -21,12 +21,18 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 cargo fmt --all -- --check
+cargo fmt --manifest-path fuzz/Cargo.toml -- --check
 
 # The lib alone, on each feature set a consumer can pick without the test features.
 cargo clippy --quiet --lib --no-default-features -- -D warnings
 cargo clippy --quiet --lib -- -D warnings
 # Every target of every member: the self dev-dependency turns the test features on here.
 cargo clippy --quiet --workspace --all-targets -- -D warnings
+# The fuzz package stands outside the workspace (fuzz/Cargo.toml), so the lint above never sees
+# it. Stable builds everything in it but the sanitizer, so its targets are linted and its oracle's
+# tests run here; the targets themselves run in .github/workflows/fuzz.yml, nightly.
+cargo clippy --quiet --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
+cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null
 
 RUSTDOCFLAGS="-D warnings" cargo doc --quiet --no-deps
 
