@@ -55,8 +55,8 @@ impl Exact {
     }
 
     /// The word with these fields, if it is a canonical form: the one constructor every decoder
-    /// goes through, the DBSP adapter's archived form included.
-    pub(super) fn canonical(
+    /// goes through, the DBSP adapter's archived form and the `Arbitrary` draw included.
+    pub(crate) fn canonical(
         lo: u64,
         hi: u64,
         exp: i32,

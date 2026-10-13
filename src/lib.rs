@@ -20,7 +20,9 @@
 //! Each group type has one canonical encoding, `FORMAT.md`: `to_bytes` and `from_bytes` on every
 //! feature set, and `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A
 //! decoder refuses anything that is not a canonical value, as a [`WireError`], never a panic.
-//! `Binned` has none, and crosses a boundary as the `Wide` it converts to.
+//! `Binned` has none, and crosses a boundary as the `Wide` it converts to. Behind the `arbitrary`
+//! feature each group type implements `Arbitrary`, so a fuzz target draws canonical values
+//! directly; the crate's own targets live under `fuzz/`.
 //!
 //! Behind the `differential` feature, [`Exact`] implements differential-dataflow's weight traits
 //! (`Semigroup`, `Monoid`, `Abelian`, and `Multiply` by `Exact`, `i64` or `isize` on either side),
@@ -47,6 +49,8 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(feature = "arbitrary")]
+mod arbitrary;
 mod binned;
 mod exact;
 mod fixed;

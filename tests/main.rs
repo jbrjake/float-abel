@@ -12,6 +12,7 @@
     clippy::unreadable_literal
 )]
 
+mod arbitrary;
 mod binned;
 mod binned_product;
 mod convert;
