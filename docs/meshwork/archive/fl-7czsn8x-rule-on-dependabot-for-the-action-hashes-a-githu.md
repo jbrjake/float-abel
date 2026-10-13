@@ -1,7 +1,7 @@
 ---
 id: fl-7czsn8x
 title: "Rule on dependabot for the action hashes — a github-actions ecosystem that refreshes each pin and its version comment by PR, or pins refreshed by hand"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-cvpya2q
@@ -24,3 +24,7 @@ The owner writes the line this task's verify looks for, dated.
 
 ## log
 - 2026-10-13T14:51Z created
+- 2026-10-13T14:57Z open→done — verify exit 0 @ f5d48a7+3
+
+## comments
+- 2026-10-13T14:57Z [claude (ace5f87f-8122-4167-a02a-0a2238009e67)] 2026-10-13 owner ruled, in session: "yes have dependabot open prs that update the pinned hashes", which is option (a): .github/dependabot.yml with one github-actions entry, weekly, each PR rewriting the hash and its version comment, reviewed by the owner and held to the hash-only form by scripts/check-actions-pinned.sh.
