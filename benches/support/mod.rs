@@ -100,10 +100,15 @@ pub(crate) fn units(n: u64) -> Vec<Row> {
     (0..n)
         .map(|i| {
             let account = ((i * 7919) % ACCOUNTS) as u32;
-            let units = ((i * 2_654_435_761) % (1 << 21)) as i64 - (1 << 20);
-            (account, units)
+            (account, nth_units(i))
         })
         .collect()
+}
+
+/// The `i`-th amount of the fixture, a signed count of units of 2⁻²⁰ below 2²⁰ in magnitude. The
+/// multiplier is odd, so the first 2²¹ amounts are distinct and the sequence then repeats.
+pub(crate) fn nth_units(i: u64) -> i64 {
+    ((i.wrapping_mul(2_654_435_761)) % (1 << 21)) as i64 - (1 << 20)
 }
 
 /// `units × 2⁻²⁰` as a double, exactly: the power of two by its bits, never `powi`.
