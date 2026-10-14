@@ -79,7 +79,9 @@ engine does per update, `Exact` is 1.8–2.2× the native integer diff; the next
 between the word and its wire form. Reading a total out (`to_f64`, 9.8 ns and 17.8 ns) happens
 once per aggregate, not once per row, and is not in the table. What the tiers buy for that: the
 same bits under any order, worker count or architecture, and exact retraction, where the `f64`
-column in tests/differential.rs leaves residue after inserting and deleting the same rows.
+column in tests/differential.rs leaves residue after inserting and deleting the same rows. The
+other reading that matters, the group size past which a change through the engine beats
+re-summing the group's floats, is § The crossover.
 
 ## The prototype table, re-taken
 
@@ -313,6 +315,98 @@ less the typed one), for 8 bytes of length an update more on the wire than the t
 carry. The field tuple's row is the bench newtype's, which gathers the seven elements back into
 33 bytes for `from_bytes`; a crate impl would build the word from the fields directly, and would
 still make nine calls.
+
+## The crossover
+
+The question the crate's usefulness turns on. An engine cannot hold a float `SUM` incrementally
+(DESIGN.md § The problem), so the alternative to the crate is the recompute: keep the group's
+floats and re-sum them whenever one changes, O(group) per change and no engine around it. The
+crossover is the group size past which one change through differential-dataflow with `Exact` as
+the diff, with everything the engine does per change, costs less than that re-sum.
+`benches/crossover.rs`, at commit fa2e7b5. The incremental side is one worker, one group
+preloaded at N rows under one key and stepped to the probe untimed, then one change an epoch,
+each epoch stepped to the probe before the next; a change is an insert and, the epoch after, its
+retraction, so the group holds at N through the sample. The dataflow is `explode` into the diff
+then `count_total`, with `Exact` and, beside it as the floor, the amount scaled by 2²⁰ into an
+`isize` (the fixed-point workaround), on serialized and typed exchange as in § The end-to-end
+SUM, and both are oracle-checked before timing. The recompute side is a `Vec<f64>` of the group
+re-summed per change: vectorised, eight accumulators, the shape a column engine re-sums a block
+in; and as the dependent chain, a running total's shape. A reading is the time of one change;
+the engine's rows are criterion's `iter_custom` over whole epochs, the re-sum's its plain loop.
+The docs/CROSSOVER.md memo reads this section for the owner's decision.
+
+| one change, group of N | 100 | 1,000 | 10,000 | 100,000 | 1,000,000 |
+|---|--:|--:|--:|--:|--:|
+| NEON: re-sum, vectorised | 5.3 ns | 62.0 ns | 751 ns | 7.55 µs | 77.2 µs |
+| NEON: re-sum, chain | 14.6 ns | 409 ns | 4.90 µs | 49.8 µs | 499 µs |
+| NEON: `Exact` in differential, typed | 3.98 µs | 4.04 µs | 4.07 µs | 4.09 µs | 4.10 µs |
+| NEON: `Exact` in differential, serialized | 4.54 µs | 4.55 µs | 4.57 µs | 4.52 µs | 4.58 µs |
+| NEON: `isize` in differential, typed | 3.98 µs | 3.97 µs | 3.94 µs | 3.98 µs | 4.04 µs |
+| NEON: `isize` in differential, serialized | 4.46 µs | 4.44 µs | 4.54 µs | 4.49 µs | 4.52 µs |
+| AVX2: re-sum, vectorised | 9.8 ns | 87.3 ns | 885 ns | 9.46 µs | 364 µs |
+| AVX2: re-sum, chain | 47.8 ns | 672 ns | 6.92 µs | 69.4 µs | 740 µs |
+| AVX2: `Exact` in differential, typed | 14.95 µs | 14.94 µs | 14.88 µs | 14.77 µs | 12.65 µs |
+| AVX2: `Exact` in differential, serialized | 15.51 µs | 15.52 µs | 15.45 µs | 15.37 µs | 11.50 µs |
+| AVX2: `isize` in differential, typed | 14.74 µs | 14.69 µs | 14.73 µs | 14.60 µs | 12.73 µs |
+| AVX2: `isize` in differential, serialized | 15.62 µs | 15.52 µs | 15.58 µs | 15.46 µs | 12.94 µs |
+
+The same dataflows at a thousand changes an epoch, where the engine amortises one epoch over the
+batch, per change; the re-sum rows do not move, because a re-sum is per change whatever the
+batch. The `Exact` deposit into a running slot with no engine, the incremental side's own floor,
+is 4.71 ns a change on NEON and 13.16 ns on AVX2 in the same sittings.
+
+| a thousand changes an epoch, group of N | 10,000 | 100,000 | 1,000,000 |
+|---|--:|--:|--:|
+| NEON: `Exact`, typed | 22.6 ns | 21.5 ns | 21.3 ns |
+| NEON: `Exact`, serialized | 37.4 ns | 37.2 ns | 36.6 ns |
+| NEON: `isize`, typed | 10.2 ns | 10.0 ns | 10.2 ns |
+| NEON: `isize`, serialized | 19.7 ns | 19.5 ns | 19.3 ns |
+| AVX2: `Exact`, typed | 69.7 ns | 69.1 ns | 71.4 ns |
+| AVX2: `Exact`, serialized | 104.4 ns | 104.0 ns | 102.4 ns |
+| AVX2: `isize`, typed | 30.2 ns | 30.0 ns | 26.4 ns |
+| AVX2: `isize`, serialized | 47.2 ns | 46.7 ns | 43.4 ns |
+
+The crossover, the group size at which the re-sum costs what the engine's change does, by linear
+interpolation between the measured sizes. The re-sum is linear in N from 10⁴ up on NEON, 0.075 ns
+a value vectorised and 0.50 ns as the chain, and on AVX2 to 10⁵, 0.09 and 0.69 ns; below 10⁴
+criterion's independent iterations overlap on the core and the chain reads 0.15–0.41 ns a value
+on NEON and 0.48–0.67 on AVX2, which flatters the re-sum and is the conservative side. On AVX2
+the vectorised series bends at 10⁶, where 8 MB of doubles leaves the cache (0.36 ns a value, the
+bulk floor of § SIMD earns its feature), so the one-change crossover against it lies between the
+interpolated figure in the table and the 150,000 the in-cache rate gives.
+
+| crossover, group size | NEON: against the chain | against the vectorised re-sum | AVX2: against the chain | against the vectorised re-sum |
+|---|--:|--:|--:|--:|
+| `Exact`, one change an epoch, typed | 8,300 | 54,000 | 20,800 | 113,000 |
+| `Exact`, one change an epoch, serialized | 9,300 | 60,000 | 21,200 | 113,000 |
+| `isize`, one change an epoch, typed | 8,200 | 53,000 | 20,600 | 112,000 |
+| `isize`, one change an epoch, serialized | 9,200 | 60,000 | 21,700 | 114,000 |
+| `Exact`, a thousand changes an epoch, typed | 116 | 362 | 132 | 800 |
+| `Exact`, a thousand changes an epoch, serialized | 151 | 604 | 180 | 1,180 |
+| `isize`, a thousand changes an epoch, typed | 69 | 177 | 60 | 321 |
+| `isize`, a thousand changes an epoch, serialized | 111 | 325 | 96 | 518 |
+
+Four readings. The engine's change is flat in N: 3.98–4.10 µs typed and 4.52–4.58 µs serialized
+on NEON across four decades of group size, within 3%, and 14.6–15.0 and 15.4–15.6 µs on AVX2 from
+10² to 10⁵, within 3% again, because `count_total` arranges `(account, ())` with the total as its
+diff and the rows are never stored, so the state is per key, not per row, while the re-sum holds
+every row and grows with them. (AVX2's 10⁶ rows ran at 11.5–12.9 µs, 15–25% under the rest, on
+both diffs and both exchanges alike; the only difference in what runs is the longer untimed
+preload before each sample, so that reads as the host's clock, not the group, and is unverified.)
+At one change an epoch the epoch is the cost: `Exact` and `isize` sit within 3% of each other on
+both machines (AVX2's 10⁶ rows aside), and the word's own deposit, 4.7 ns on NEON and 13 ns on
+AVX2, is a thousandth of the epoch, which is timely's step and progress machinery for one epoch
+on one worker. The
+crossover therefore moves with the epoch granularity and not with the word: a thousand changes an
+epoch takes the engine's share per change from 4 µs to 10–20 ns on `isize` and 21–37 ns on
+`Exact` (NEON), and from 15 µs to 26–47 and 69–104 ns (AVX2), and the crossover from about 10⁴
+rows (NEON) and 2×10⁴ (AVX2) against the chain and 5×10⁴ and 10⁵ against the vectorised sum
+down to about 120–180 and 360–1,200. The word's whole cost over an integer diff a change, 11 ns
+typed and 17 ns serialized on NEON and 40 and 57 ns on AVX2 (the 1.9–2.7× of the batched rows,
+the band § The end-to-end SUM measures at scale), moves the batched crossover by 1.4–2.5× and the
+one-change crossover by 2% or less. Below the crossover the re-sum wins because a few
+nanoseconds of adds beat an engine epoch; above it the gap grows linearly in N, and at 10⁶ rows
+one change costs 19× (vectorised) and 122× (chain) the engine's on NEON, 29× and 59× on AVX2.
 
 ## Binned kernel (ii)
 
