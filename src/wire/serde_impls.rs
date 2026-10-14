@@ -1,10 +1,14 @@
-//! `Serialize` and `Deserialize` as the wire bytes. A value is a fixed-length tuple of the bytes
-//! `to_bytes` gives, which is how a `[u8; N]` serialises, so a format frames it as it frames an
-//! array: one that writes a tuple's elements back to back, postcard or bincode 1's fixed-int
-//! encoding, emits `to_bytes` byte for byte with no length prefix, and `serde_json` carries it as
-//! an array of numbers. A decoder gathers the bytes and runs `from_bytes`, so canonical form is
-//! validated in one place and a refusal is the decoder's message. Nothing here needs `std` or an
-//! allocator.
+//! `Serialize` and `Deserialize` as the wire bytes. `Exact` and `Wide` serialise as one byte
+//! string, the bytes `to_bytes` gives handed to `serialize_bytes`, so a format frames them with its
+//! own length (a `u64` on bincode 1, a varint on postcard, an array of numbers on `serde_json`) and
+//! the serializer runs about once per value rather than once per byte, which is what an engine's
+//! exchange pays per update, three passes over. `Fixed` serialises as a fixed-length tuple of its
+//! bytes, one element each, because its length is `1 + 8 * LIMBS`, which stable Rust cannot spell
+//! as an array type inside the impl, and a byte string needs one slice; a format that writes a
+//! tuple's elements back to back emits its `to_bytes` byte for byte. Every decoder gathers the
+//! bytes, from a byte string or from a sequence of numbers, and runs `from_bytes`, so canonical
+//! form is validated in one place and a refusal is the decoder's message. Nothing here needs `std`
+//! or an allocator.
 
 use core::fmt;
 
@@ -12,15 +16,6 @@ use serde::de::{self, Deserialize, Deserializer, Expected, SeqAccess, Visitor};
 use serde::ser::{Serialize, SerializeTuple, Serializer};
 
 use crate::{Exact, Fixed, Wide};
-
-/// The bytes as a tuple of `u8`, one element each.
-fn serialize_bytes<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-    let mut tuple = serializer.serialize_tuple(bytes.len())?;
-    for b in bytes {
-        tuple.serialize_element(b)?;
-    }
-    tuple.end()
-}
 
 /// Fills `buf` from the sequence, one byte per element, where `buf` starts at element `from`.
 /// A sequence that ends first is `invalid_length` at the element it lacks.
@@ -40,9 +35,9 @@ fn fill<'de, A: SeqAccess<'de>>(
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Exact {
-    /// [`Exact::to_bytes`] as a 33-element tuple of `u8`.
+    /// [`Exact::to_bytes`] as one byte string of 33 bytes.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_bytes(&self.to_bytes(), serializer)
+        serializer.serialize_bytes(&self.to_bytes())
     }
 }
 
@@ -55,6 +50,12 @@ impl<'de> Visitor<'de> for ExactVisitor {
         write!(f, "the {}-byte wire encoding of an Exact", Exact::BYTES)
     }
 
+    /// The byte string, whatever its length: [`Exact::from_bytes`] refuses the wrong one by name.
+    fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Exact, E> {
+        Exact::from_bytes(v).map_err(de::Error::custom)
+    }
+
+    /// A human-readable format's array of numbers, one byte each.
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Exact, A::Error> {
         let mut buf = [0u8; Exact::BYTES];
         fill(&mut seq, &mut buf, 0, &self)?;
@@ -64,18 +65,18 @@ impl<'de> Visitor<'de> for ExactVisitor {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Exact {
-    /// The 33-element tuple through [`Exact::from_bytes`], so a non-canonical word is refused
-    /// with the decoder's reason.
+    /// The byte string through [`Exact::from_bytes`], so a non-canonical word is refused with
+    /// the decoder's reason.
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_tuple(Exact::BYTES, ExactVisitor)
+        deserializer.deserialize_bytes(ExactVisitor)
     }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Wide {
-    /// [`Wide::to_bytes`] as a 297-element tuple of `u8`.
+    /// [`Wide::to_bytes`] as one byte string of 297 bytes.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_bytes(&self.to_bytes(), serializer)
+        serializer.serialize_bytes(&self.to_bytes())
     }
 }
 
@@ -88,6 +89,12 @@ impl<'de> Visitor<'de> for WideVisitor {
         write!(f, "the {}-byte wire encoding of a Wide", Wide::BYTES)
     }
 
+    /// The byte string, whatever its length: [`Wide::from_bytes`] refuses the wrong one by name.
+    fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Wide, E> {
+        Wide::from_bytes(v).map_err(de::Error::custom)
+    }
+
+    /// A human-readable format's array of numbers, one byte each.
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Wide, A::Error> {
         let mut buf = [0u8; Wide::BYTES];
         fill(&mut seq, &mut buf, 0, &self)?;
@@ -97,9 +104,9 @@ impl<'de> Visitor<'de> for WideVisitor {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Wide {
-    /// The 297-element tuple through [`Wide::from_bytes`].
+    /// The byte string through [`Wide::from_bytes`].
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_tuple(Wide::BYTES, WideVisitor)
+        deserializer.deserialize_bytes(WideVisitor)
     }
 }
 

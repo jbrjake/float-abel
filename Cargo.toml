@@ -59,9 +59,10 @@ float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", 
 # The differential oracle for `Wide`'s limbs: the same multiset must land the same 272 limb bytes.
 # Pinned to the version tests/data/bitrep/vectors.json was taken from.
 bitrep = "=0.5.1"
-# A maintained `no_std` serde format that writes a tuple's elements back to back with no length
-# prefix, so tests/wire.rs can assert its bytes equal `to_bytes`. Pinned because the assertion is
-# about its framing.
+# A maintained `no_std` serde format that frames a byte string with a varint length and writes a
+# tuple's elements back to back, so tests/wire.rs can assert its bytes are the length then
+# `to_bytes` for `Exact` and `Wide`, and `to_bytes` itself for `Fixed`. Pinned because the
+# assertion is about its framing.
 postcard = { version = "=1.1.3", default-features = false, features = ["use-std"] }
 # Reads the committed conformance vectors.
 serde_json = "1"
@@ -90,8 +91,8 @@ path = "tests/main.rs"
 # re-takes the prototype table on the compact tier and `Wide` and counts the width caps; `dd_sum`
 # is the differential-dataflow end-to-end `SUM` against `isize`; `wire` is timely's serialized
 # exchange of a batch of `Exact` diffs alone, the three bincode passes of one crossing, against
-# `isize` and two candidate forms. A requirement keeps a `--no-default-features` build of the
-# benches from failing.
+# `isize` and two other forms. A requirement keeps a `--no-default-features` build of the benches
+# from failing.
 [[bench]]
 name = "simd"
 harness = false

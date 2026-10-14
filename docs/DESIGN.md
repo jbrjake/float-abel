@@ -341,13 +341,16 @@ mantissa is not a value.
 **Decoding validates canonical form and refuses anything else.** A non-canonical value smuggled
 through a batch would break `Eq`-substitutability in differential-dataflow's builder, so a decoder
 that accepted one would be a correctness hole, not a leniency. A refusal is a typed error,
-`WireError`, never a panic. Under `serde` a value is a fixed-length tuple of its `to_bytes` bytes, as
-a `[u8; N]` serialises, so a format that writes a tuple's elements back to back emits `to_bytes` byte
-for byte with no length prefix: `tests/wire.rs` proves it with postcard, which is maintained, and
-bincode 1's fixed-int encoding frames the same way. Through differential-dataflow the encoding rides
-whatever timely frames exchanged data with, which at timely 0.30 is bincode 1.3; through DBSP it is
-rkyv 0.7. The format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with
-vectors.
+`WireError`, never a panic. Under `serde`, `Exact` and `Wide` serialise as one byte string, the
+`to_bytes` bytes handed to `serialize_bytes`, so a format frames them with its own length (a `u64` on
+bincode 1, a varint on postcard, an array of numbers on serde_json) and the serializer runs about
+once per value rather than once per byte, which is what an engine's exchange pays per update, three
+passes over; `tests/wire.rs` pins the framing with postcard, which is maintained. `Fixed` serialises
+as a fixed-length tuple of its bytes, as a `[u8; N]` does, because its length is not a constant the
+impl can spell, so a format writing elements back to back emits its `to_bytes` byte for byte. Through
+differential-dataflow the encoding rides whatever timely frames exchanged data with, which at timely
+0.31 is bincode 1.3; through DBSP it is rkyv 0.7. The format freezes at 1.0 and is documented in
+`FORMAT.md`, in bitrep's style, with vectors.
 
 ## Crate posture {#sp-posture}
 

@@ -76,13 +76,15 @@ the finite part alone, rounded as above.
 
 ## serde
 
-Under the `serde` feature a value serialises as a tuple of `BYTES` elements of `u8`, the bytes of
-`to_bytes` in order, which is how a `[u8; BYTES]` serialises. A format therefore frames it as it
-frames a fixed-length array: one that writes a tuple's elements back to back with no length prefix,
-postcard or bincode 1's fixed-int encoding, emits `to_bytes` byte for byte, and serde_json carries it
-as an array of numbers. `tests/wire.rs` asserts the first with postcard and the second with
-serde_json. Deserialisation gathers the elements and runs `from_bytes`, so every refusal above
-applies, as the deserialiser's error.
+Under the `serde` feature an `Exact` or a `Wide` serialises as one byte string, the bytes of
+`to_bytes` in order, so a format frames it with its own length: bincode 1 a `u64` little-endian
+(41 bytes for an `Exact`, 305 for a `Wide`), postcard a varint (34 and 299), and serde_json an array
+of numbers. A `Fixed` serialises as a tuple of `BYTES` elements of `u8`, which is how a
+`[u8; BYTES]` serialises, so a format that writes a tuple's elements back to back, postcard or
+bincode 1's fixed-int encoding, emits its `to_bytes` byte for byte, and serde_json carries it as an
+array of numbers. `tests/wire.rs` asserts the framing with postcard and the arrays with serde_json.
+Deserialisation takes the byte string, or gathers the array's elements, and runs `from_bytes`, so
+every refusal above applies, as the deserialiser's error.
 
 ## Vectors
 
