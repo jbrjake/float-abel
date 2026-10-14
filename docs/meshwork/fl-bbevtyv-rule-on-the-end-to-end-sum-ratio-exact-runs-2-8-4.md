@@ -69,3 +69,12 @@ The owner writes the line this task's verify looks for, dated.
   it carries today. Option (b) is therefore two options: (b1) `serialize_bytes`, the larger saving,
   with a prefix; (b2) the field tuple, no prefix on bincode, bincode's bytes unchanged. Neither is
   built: the build task waits on this ruling.
+- 2026-10-14T13:30Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Owner, 2026-10-14, in session, after BENCH.md § The wire form: "running bincode 3 times is crazy if
+  it could be avoided, and if there is a way we can avoid it by making a small modification to the
+  design that doesn't impact capabilities and does improve performance, i am all for it". The three
+  passes are timely's and the crate cannot cut them; read as the go-ahead on option (b) in its (b1)
+  form, one `serialize_bytes` call, which makes each pass about one serializer call and leaves
+  `to_bytes`, `from_bytes`, FORMAT.md's encoding, the validating decoder, JSON's array and DBSP's
+  rkyv path as they are; the clause that a tuple-writing format emits `to_bytes` with no prefix is
+  the modification. Built under fl-11k5gz6. The ratio question, (a) against (c), stays open here for
+  the re-measured rows.

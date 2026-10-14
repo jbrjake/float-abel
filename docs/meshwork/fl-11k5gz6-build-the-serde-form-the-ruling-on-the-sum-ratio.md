@@ -1,19 +1,22 @@
 ---
 id: fl-11k5gz6
 title: "Build the serde form the ruling on the SUM ratio picks — serialize_bytes with the format's length prefix or the 7-element field tuple — red in tests/wire.rs first, then serde_impls.rs, DESIGN.md § Wire format and FORMAT.md § serde, and re-take the wire and end-to-end rows on both machines"
-status: open
+status: doing
 category: crate/differential
 labels: [reproducible-floats]
-needs: [fl-bbevtyv]
 discovered-from: fl-s9hcne6
-relates: [fl-s9hcne6]
+relates: [fl-s9hcne6, fl-bbevtyv]
 verify: "all(lacks BENCH.md /commit a22fae7/, run cargo test package=float-abel wire_)"
 docs:
   - docs/DESIGN.md#wire-format-sp-wire
   - FORMAT.md#serde
   - BENCH.md#the-wire-form
-seq: 145
+seq: 160
 created: 2026-10-14T13:21Z
+claimed-by: claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
+covers:
+  - ref: docs/DESIGN.md#sp-wire
+    sha: a91277dc1dac9b46521d0d088b4442aa4c3bc85a6d5ec5ad8921385c74f6a30d
 ---
 
 Contingent on fl-bbevtyv: build whichever serde form the owner picks there, or drop this task if
@@ -42,3 +45,8 @@ end-to-end SUM on both machines at the new commit, and move "What reproducibilit
 
 ## log
 - 2026-10-14T13:21Z created
+- 2026-10-14T13:30Z open→doing — claimed by claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
+- 2026-10-14T13:36Z cover docs/DESIGN.md#sp-wire @a91277dc1dac
+
+## comments
+- 2026-10-14T13:30Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Owner, 2026-10-14, in session: "if there is a way we can avoid it by making a small modification to the design that doesn't impact capabilities and does improve performance, i am all for it" (the full quote is on fl-bbevtyv). Building (b1), serialize_bytes, on every type: the larger saving, and one rule across the types.
