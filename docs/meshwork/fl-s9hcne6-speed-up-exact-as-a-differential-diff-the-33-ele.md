@@ -93,3 +93,6 @@ session memory) with the serialized rows expected to approach the typed ones:
 - 2026-10-13T16:26Z created
 - 2026-10-13T16:26Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
 - 2026-10-14T13:02Z open→doing — claimed by claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
+
+## comments
+- 2026-10-14T13:59Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Progress, 2026-10-14. Lead 1 measured: benches/wire.rs (a22fae7), BENCH.md § The wire form; the cost is per serializer call on the write side. Lead 2 ruled by the owner in session and built under fl-11k5gz6 at 4153c01: Exact and Wide serialise as one byte string. Lead 3 built at 4ec1471: #[inline] on the operator chain down to the compact tier and ieee::decompose. Lead 4 pending: the a22fae7 control and the 2a82388 variant run in one quiet window on each machine (neon-quiet.sh and avx2-quiet.sh in the session scratchpad); the first attempts were contested by the owner's browser on NEON and another project's tpch test binary on AVX2, so their rows are not recorded.

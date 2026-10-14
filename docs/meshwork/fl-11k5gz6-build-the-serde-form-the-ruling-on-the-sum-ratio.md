@@ -11,7 +11,7 @@ docs:
   - docs/DESIGN.md#wire-format-sp-wire
   - FORMAT.md#serde
   - BENCH.md#the-wire-form
-seq: 160
+seq: 145
 created: 2026-10-14T13:21Z
 claimed-by: claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
 covers:
