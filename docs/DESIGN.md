@@ -510,8 +510,8 @@ blended.
 
 Products are not vectorised. `deposit_products` on every tier is the scalar check-then-deposit of
 the exact 106-bit product, the dot-product shape, exact and bit-identical, at 7–23× the same tier's
-bulk deposit kernel (BENCH.md § The product-kernel row); the owner's ruling (fl-mj3tcta) keeps the
-scalar path.
+bulk deposit kernel (BENCH.md § The product-kernel row); whether a kernel is built is the owner's
+open ruling (fl-mj3tcta).
 
 What "as fast as possible" is bounded by: a naive vectorised `f64` sum runs near 0.1 ns/value and is
 wrong in its last bits. Reading a double and placing 53 bits at a data-dependent offset costs at least
@@ -593,15 +593,15 @@ on NEON, met at 4.9 ns a deposit and 3.8 ns an add with both operands built, wit
 17.8 ns (AVX2), and `Wide`'s add at 15.6 and 29.5 ns, both accepted by the owner's ruling
 (fl-cbtfmqz) as what the un-inlined calls reach, with a carry chain on `u128` intermediates and a
 two-limb read path the leads should a consumer need less; and a differential-dataflow end-to-end
-`SUM` over 10⁷ updates at 1.8–2.2× the `isize` baseline, accepted by the owner's ruling
-(fl-bbevtyv). `BENCH.md` names the machine and the commit for every number, and `docs/CROSSOVER.md`
+`SUM` over 10⁷ updates within 1.3× of the `isize` baseline, measured at 1.8–2.2× with the ruling
+open (fl-bbevtyv). `BENCH.md` names the machine and the commit for every number, and `docs/CROSSOVER.md`
 carries the adoption question, the group size past which a change through the engine beats
 re-summing its floats.
 
 | claim | measured by | kill / done |
 |---|---|---|
 | the compact tier carries same-scale data inside the width | width-cap rate on the same-scale fixture | > 5% caps → widen the word before the adapters build on the type |
-| the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | 1.8–2.2×, accepted (fl-bbevtyv): the layout stands, the word is the price of exactness, and the adoption test is the crossover in `docs/CROSSOVER.md` |
+| the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | > 2× → revisit the layout; ≤ 1.3× → done; measured 1.8–2.2×, the ruling open (fl-bbevtyv), with the adoption question in `docs/CROSSOVER.md` |
 | SIMD earns its feature | bulk deposit, each kernel vs the scalar reference, same-scale fixture, NEON and AVX2 | < 3× over scalar → 0.1.0 ships scalar-only, and the kernels stay behind the feature as experimental |
 | `Binned` is worth a tier | `Binned<3>` bulk vs exact `Wide` bulk | < 2× faster → `Binned` remains a convenience, not a recommended default |
 | bit-identical across architectures | the golden hash | any mismatch blocks a release |
