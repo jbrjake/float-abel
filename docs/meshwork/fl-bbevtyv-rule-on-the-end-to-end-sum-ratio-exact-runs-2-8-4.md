@@ -50,3 +50,22 @@ The owner writes the line this task's verify looks for, dated.
 ## comments
 - 2026-10-13T16:26Z [claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)] Owner, 2026-10-13, in session: "add a task for the next session to speed up the differential forms, like the serialization stuff you think is a likely culprit". Filed as , seq 140, leading the queue; it moves the number and this ruling on what ratio is acceptable stays open.
 - 2026-10-13T16:26Z [claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)] Correction: the speed-up task the owner asked for is fl-s9hcne6 (the previous comment's id was blank: the add had failed on its verify's quoting).
+- 2026-10-14T13:21Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Option (b) measured, benches/wire.rs at a22fae7, BENCH.md § The wire form: timely's three bincode
+  passes on one exchanged batch (sized, written into the slab, read back), ns per update, the three
+  summed. NEON: `isize` 8.7; `Exact` as today's 33-element `u8` tuple 47.8; a 7-element tuple of the
+  fields `(u8, u64, u64, i32, i32, i32, i32)` 26.8; one `serialize_bytes` call 14.8. AVX2: 16.2;
+  115.6; 55.8; 33.5. The cost is per serializer call on the write side, not per byte: bincode 1 writes
+  each element with one `write_all` on the slab, a 1-byte copy and an 8-byte one at about the same
+  price, so the tuple's write is 41 of its 48 ns on NEON and 89 of 116 on AVX2, while the sizing pass
+  is near free and the read is cheap even byte by byte. Net of `isize` the tuple costs 39 ns an
+  update on NEON and 99 on AVX2, which is the 45 and the 111 ns the end-to-end rows attribute to the
+  wire form at one worker; the bytes form would leave 6 and 17, the fields form 18 and 40.
+  
+  Each candidate changes DESIGN.md § Wire format's clause that a format writing a tuple's elements
+  back to back emits `to_bytes` byte for byte: the bytes form adds the format's own length prefix
+  (8 bytes on bincode 1, so 41 an `Exact`; 1 on postcard, so 34), and the fields form keeps bincode's
+  33 bytes exactly but not postcard's, whose varints change with the value, so tests/wire.rs's
+  postcard assertion goes either way. serde_json carries the bytes form as the same array of numbers
+  it carries today. Option (b) is therefore two options: (b1) `serialize_bytes`, the larger saving,
+  with a prefix; (b2) the field tuple, no prefix on bincode, bincode's bytes unchanged. Neither is
+  built: the build task waits on this ruling.

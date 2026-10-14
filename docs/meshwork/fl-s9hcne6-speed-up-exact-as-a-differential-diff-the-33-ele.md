@@ -1,7 +1,7 @@
 ---
 id: fl-s9hcne6
 title: "Speed up Exact as a differential diff — the 33-element serde tuple first, then the word, re-measured by the end-to-end SUM on both machines"
-status: open
+status: doing
 category: crate/differential
 labels: [reproducible-floats]
 relates: [fl-bbevtyv, fl-cbtfmqz]
@@ -50,6 +50,7 @@ handoff: |
   The owner reads BENCH.md for the cost against plain floats first, so
   keep "What reproducibility
   costs" current when the end-to-end row moves.
+claimed-by: claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
 ---
 
 Owner's instruction, 2026-10-13, in session: "add a task for the next session to speed up the
@@ -91,3 +92,4 @@ session memory) with the serialized rows expected to approach the typed ones:
 ## log
 - 2026-10-13T16:26Z created
 - 2026-10-13T16:26Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
+- 2026-10-14T13:02Z open→doing — claimed by claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
