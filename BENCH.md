@@ -256,6 +256,46 @@ the figure is a high-water mark across every iteration of the sitting, so it car
 allocator's reuse policy as much as the dataflow: the Linux figures are the ones to read, and
 there the diff's width costs 8 MB at one worker and 53 MB at eight.
 
+## The wire form
+
+Where the serialized gap is. timely's `ProcessBinary` exchange encodes every batch of updates
+through bincode 1 three times over: `length_in_bytes` runs the serializer once to count,
+`into_bytes` runs it again into the reserved slab, and the receiver's `from_bytes` decodes it, so
+a diff's `Serialize` runs twice and its `Deserialize` once per crossing. `benches/wire.rs`, at
+commit a22fae7, runs each pass alone on one batch of `((u32, ()), u64, R)` updates, the tuple
+`count_total`'s `arrange_by_self` exchanges, at timely's buffer capacity for the tuple (170 updates
+with a 32-byte diff, 341 with `isize`), on the SUM's rows, with every form round-tripped against
+its input before timing. Four diffs: `isize`; `Exact` as the crate serialises it, the 33-element
+tuple of `u8` that DESIGN.md § Wire format specifies; and two candidate forms built in the bench
+as newtypes over `to_bytes`, neither in the crate. `bytes` is one `serialize_bytes` call, which
+bincode 1 frames with an 8-byte length (41 bytes an `Exact`) and postcard with a 1-byte one (34).
+`fields` is a 7-element tuple `(u8, u64, u64, i32, i32, i32, i32)`, which bincode's fixed-int
+encoding frames as the crate's 33 bytes exactly, checked in the bench, and a varint format such as
+postcard does not.
+
+| ns per update | NEON: size | write | read | all three | AVX2: size | write | read | all three |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| `isize`, 20 bytes an update | 0.00 | 6.33 | 2.38 | 8.7 | 0.01 | 7.72 | 8.51 | 16.2 |
+| `Exact`, the 33-element tuple, 45 bytes | 0.52 | 41.35 | 5.88 | 47.8 | 1.21 | 89.16 | 25.22 | 115.6 |
+| `fields`, the 7-element tuple, 45 bytes | 0.53 | 17.90 | 8.34 | 26.8 | 1.21 | 29.59 | 25.03 | 55.8 |
+| `bytes`, one `serialize_bytes` call, 53 bytes | 0.52 | 8.03 | 6.26 | 14.8 | 1.21 | 13.91 | 18.35 | 33.5 |
+
+The write is the cost, and it is per call, not per byte. bincode 1 writes each element with one
+`write_all` on the slab writer, a 1-byte copy for a `u8` and an 8-byte one for a `u64` at about
+the same price, so the 33-element tuple pays for 33 calls where `isize` pays for one and the bytes
+form for two, the length and then the 33 bytes in one copy: 41 ns against 6 on NEON, 89 against 8
+on AVX2. The sizing pass is near free, bincode's size counter being a sum the compiler folds, and
+the read is cheap on bincode's slice reader even one byte at a time, 6 ns for the 33-tuple on NEON
+and 25 on AVX2. Net of `isize`, the tuple's three passes cost 39 ns an update on NEON and 99 on
+AVX2, which is the 45 ns and the 111 ns that the end-to-end rows above attribute to the wire form
+on serialized exchange at one worker (the serialized gap less the typed one); the bytes form would
+leave 6 and 17, the fields form 18 and 40. The fields row's read is the bench newtype's, which
+gathers the seven elements back into 33 bytes for `from_bytes`; a crate impl would build the word
+from the fields directly. Neither candidate is the crate's. Both change DESIGN.md § Wire format's
+clause that a format writing a tuple's elements back to back emits `to_bytes` byte for byte: the
+bytes form by a length prefix in each format's own convention, the fields form by holding only on
+fixed-width formats. The call is the owner's; this table is its input.
+
 ## Binned kernel (ii)
 
 DESIGN.md § Speed names two candidate kernels for `Binned` and keeps the winner. Kernel (i) is the
