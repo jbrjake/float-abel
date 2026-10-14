@@ -47,6 +47,7 @@ impl Compact {
 
     /// `m · 2^exp` whose exponent is inside the bound by construction: a double, a product of two,
     /// or an integer, none of which lies more than `2148 + 127` from the unit.
+    #[inline]
     fn within(m: i128, exp: i64) -> Self {
         let (m, exp) = normalise(m, exp);
         debug_assert!(
@@ -57,6 +58,7 @@ impl Compact {
     }
 
     /// `(-1)^negative · mant · 2^exp` for `mant < 2^127`.
+    #[inline]
     fn from_dyadic(negative: bool, mant: u128, exp: i32) -> Self {
         debug_assert_eq!(mant >> MAGNITUDE_BITS, 0);
         let m = mant as i128;
@@ -64,6 +66,7 @@ impl Compact {
     }
 
     /// A finite double, taken apart: exactly, with a zero of either sign the zero.
+    #[inline]
     pub(crate) fn from_finite(d: Dyadic) -> Self {
         Self::from_dyadic(d.negative, u128::from(d.mant), d.exp)
     }
@@ -146,16 +149,19 @@ impl Compact {
     }
 
     /// The integer `k`, canonicalised: an even `k` moves its trailing zeros into the exponent.
+    #[inline]
     pub(crate) fn from_i64(k: i64) -> Self {
         Self::within(i128::from(k), 0)
     }
 
     /// The storage form: `m` as two's-complement limbs, low first, and the exponent.
+    #[inline]
     pub(crate) const fn parts(self) -> (u64, u64, i32) {
         (self.m as u64, (self.m >> 64) as u64, self.exp)
     }
 
     /// From the storage form, which is canonical by construction.
+    #[inline]
     pub(crate) fn from_parts(lo: u64, hi: u64, exp: i32) -> Self {
         let m = ((u128::from(hi) << 64) | u128::from(lo)) as i128;
         debug_assert!(
@@ -178,6 +184,7 @@ impl Compact {
     /// operand alone, or the sum itself. The check is on the magnitude, so `a + b` and `-a + -b`
     /// refuse together. [`Overflow::Exponent`] when the canonical sum's exponent would leave the
     /// bound, which only a sum at the bound whose trailing zeros carry it past can do.
+    #[inline]
     pub(crate) fn checked_add(self, rhs: Self) -> Result<Self, Overflow> {
         if self.m == 0 {
             return Ok(rhs);
@@ -209,6 +216,7 @@ impl Compact {
     ///
     /// [`Overflow::NeedsWide`] when the product's magnitude would reach `2^127`, and
     /// [`Overflow::Exponent`] when its exponent would leave the bound.
+    #[inline]
     pub(crate) fn checked_mul(self, rhs: Self) -> Result<Self, Overflow> {
         let m = self.m.checked_mul(rhs.m).ok_or(Overflow::NeedsWide)?;
         let (m, exp) = normalise(m, i64::from(self.exp) + i64::from(rhs.exp));
@@ -248,6 +256,7 @@ impl Compact {
 }
 
 /// `m · 2^by` for a nonzero `m`, if its magnitude still fits in 127 bits.
+#[inline]
 fn raise(m: i128, by: i64) -> Result<i128, Overflow> {
     let bits = i64::from(128 - m.unsigned_abs().leading_zeros());
     if bits + by > i64::from(MAGNITUDE_BITS) {
@@ -259,6 +268,7 @@ fn raise(m: i128, by: i64) -> Result<i128, Overflow> {
 /// Canonical form: trailing zeros move into the exponent, and a zero mantissa is the zero form.
 /// `m` is never `i128::MIN`, which no caller produces. The exponent stays in `i64`, where a shift
 /// of at most 126 cannot wrap, until [`bounded`] narrows it.
+#[inline]
 fn normalise(m: i128, exp: i64) -> (i128, i64) {
     debug_assert_ne!(
         m,
@@ -273,6 +283,7 @@ fn normalise(m: i128, exp: i64) -> (i128, i64) {
 }
 
 /// The exponent as stored, if it is inside `-EXACT_MAX_EXP..=EXACT_MAX_EXP`.
+#[inline]
 fn bounded(exp: i64) -> Result<i32, Overflow> {
     let max = i64::from(EXACT_MAX_EXP);
     if (-max..=max).contains(&exp) {
@@ -286,6 +297,7 @@ impl Neg for Compact {
     type Output = Self;
 
     /// Total: a canonical mantissa is never `i128::MIN`, and the zero stays the zero.
+    #[inline]
     fn neg(self) -> Self {
         Self {
             m: -self.m,
@@ -295,6 +307,7 @@ impl Neg for Compact {
 }
 
 impl PartialOrd for Compact {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -304,6 +317,7 @@ impl Ord for Compact {
     /// Numeric, without overflow: the sign decides first, then the position of the leading bit,
     /// and only a tie aligns the operands, which raises the higher one by at most the difference
     /// of their bit lengths.
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         let (sa, sb) = (self.m.signum(), other.m.signum());
         match sa.cmp(&sb) {
@@ -322,6 +336,7 @@ impl Ord for Compact {
 
 /// The magnitudes of two nonzero values. When their leading bits sit at the same position, the
 /// raised operand's bit length becomes the other's, so it fits.
+#[inline]
 fn cmp_magnitude(a: Compact, b: Compact) -> Ordering {
     let (ma, mb) = (a.m.unsigned_abs(), b.m.unsigned_abs());
     let lead = |m: u128, exp: i32| i64::from(MAGNITUDE_BITS - m.leading_zeros()) + i64::from(exp);

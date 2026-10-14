@@ -126,15 +126,18 @@ impl Exact {
     };
 
     /// The finite part in its working form.
+    #[inline]
     fn finite(self) -> Compact {
         Compact::from_parts(self.lo, self.hi, self.exp)
     }
 
     /// The counts as `[n, p, q]`.
+    #[inline]
     const fn counts(self) -> [i32; 3] {
         [self.nan, self.pos_inf, self.neg_inf]
     }
 
+    #[inline]
     fn assemble(finite: Compact, counts: [i32; 3]) -> Self {
         let (lo, hi, exp) = finite.parts();
         Self {
@@ -158,6 +161,7 @@ impl Exact {
 
     /// A count from a wider intermediate: inside `i32`, and never `i32::MIN`, so that negation
     /// stays total.
+    #[inline]
     pub(crate) fn narrow(v: i128) -> Result<i32, PastCap> {
         match i32::try_from(v) {
             Ok(c) if c != i32::MIN => Ok(c),
@@ -166,6 +170,7 @@ impl Exact {
     }
 
     /// One count of a special.
+    #[inline]
     fn one(s: Special) -> Self {
         let mut v = Self::ZERO;
         match s {
@@ -178,6 +183,7 @@ impl Exact {
 
     /// A fresh state holding `x`: a finite value exactly, or one count of its special.
     #[must_use]
+    #[inline]
     pub fn from_f64(x: f64) -> Self {
         match ieee::decompose(x) {
             Some(d) => Self::assemble(Compact::from_finite(d), [0; 3]),
@@ -230,6 +236,7 @@ impl Exact {
     /// [`PastCap::Width`] when the aligned sum of the finite parts needs more than the width,
     /// [`PastCap::Exponent`] when its exponent would leave the bound, and [`PastCap::Count`] when a
     /// count would leave `i32`.
+    #[inline]
     pub fn checked_add(&self, rhs: &Self) -> Result<Self, PastCap> {
         let finite = self.finite().checked_add(rhs.finite()).map_err(Self::cap)?;
         let mut counts = [0i32; 3];
@@ -247,6 +254,7 @@ impl Exact {
     /// # Errors
     ///
     /// As [`Exact::checked_add`].
+    #[inline]
     pub fn checked_sub(&self, rhs: &Self) -> Result<Self, PastCap> {
         self.checked_add(&-*rhs)
     }
@@ -269,6 +277,7 @@ impl Exact {
     /// # Errors
     ///
     /// As [`Exact::checked_mul`] by the integer.
+    #[inline]
     pub fn checked_mul_i64(&self, k: i64) -> Result<Self, PastCap> {
         let finite = self
             .finite()
@@ -323,6 +332,7 @@ impl Exact {
 
     /// Whether the state is the zero: no finite part and no counts.
     #[must_use]
+    #[inline]
     pub fn is_zero(&self) -> bool {
         *self == Self::ZERO
     }
@@ -330,6 +340,7 @@ impl Exact {
     /// Whether every count is zero, so a read rounds the finite part. The finite part may still
     /// round to `±∞` when it lies past `f64::MAX`.
     #[must_use]
+    #[inline]
     pub const fn is_finite(&self) -> bool {
         self.nan == 0 && self.pos_inf == 0 && self.neg_inf == 0
     }
@@ -337,6 +348,7 @@ impl Exact {
     /// The counts `(n, p, q)`: how many NaN, +∞ and −∞ inputs are in the multiset, each negative
     /// when more were retracted than inserted.
     #[must_use]
+    #[inline]
     pub const fn specials(&self) -> (i32, i32, i32) {
         (self.nan, self.pos_inf, self.neg_inf)
     }
@@ -401,6 +413,7 @@ impl Exact {
 }
 
 impl Default for Exact {
+    #[inline]
     fn default() -> Self {
         Self::ZERO
     }
@@ -424,6 +437,7 @@ impl fmt::Debug for Exact {
 }
 
 impl PartialOrd for Exact {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -431,6 +445,7 @@ impl PartialOrd for Exact {
 
 impl Ord for Exact {
     /// Numeric on the finite part, then `(n, p, q)` lexicographic: a total order.
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.finite()
             .cmp(&other.finite())

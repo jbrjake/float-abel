@@ -28,6 +28,7 @@ pub(crate) enum Special {
 
 /// The special a non-finite double is, by its bits. The caller has seen [`decompose`] return
 /// `None` for it.
+#[inline]
 pub(crate) fn special(x: f64) -> Special {
     let bits = x.to_bits();
     debug_assert_eq!((bits >> FRAC_BITS) & EXP_MASK, EXP_MASK, "{x} is finite");
@@ -76,6 +77,7 @@ pub(crate) fn project(n: i64, p: i64, q: i64) -> Option<Special> {
 }
 
 /// The dyadic a finite double denotes, or `None` for NaN and ±∞.
+#[inline]
 pub(crate) fn decompose(x: f64) -> Option<Dyadic> {
     let bits = x.to_bits();
     let negative = (bits >> 63) != 0;
