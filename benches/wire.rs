@@ -53,9 +53,10 @@ struct AsTuple(Exact);
 
 impl Serialize for AsTuple {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut tuple = serializer.serialize_tuple(Exact::BYTES)?;
-        for b in self.0.to_bytes() {
-            tuple.serialize_element(&b)?;
+        let bytes = self.0.to_bytes();
+        let mut tuple = serializer.serialize_tuple(bytes.len())?;
+        for b in &bytes {
+            tuple.serialize_element(b)?;
         }
         tuple.end()
     }
