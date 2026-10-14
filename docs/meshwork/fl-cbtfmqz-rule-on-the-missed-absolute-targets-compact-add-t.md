@@ -48,3 +48,6 @@ dated.
 
 ## log
 - 2026-10-13T16:09Z created
+
+## comments
+- 2026-10-14T14:43Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] After 4ec1471 (#[inline] on the operator chain down to the compact tier), the compact add meets its 5 ns target on NEON in a clean A/B at 2a82388 against a22fae7: deposit 5.80 → 4.94 ns, add with both operands built 8.54 → 3.74, += 7.20 → 3.81. to_f64 (9.8 ns) and Wide's add (15.6 ns) are unchanged, neither being inlined, so the ruling narrows to those two and to AVX2's rows, pending its sitting.
