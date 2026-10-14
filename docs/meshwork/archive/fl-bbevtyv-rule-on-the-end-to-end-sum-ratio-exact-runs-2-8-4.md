@@ -1,7 +1,7 @@
 ---
 id: fl-bbevtyv
 title: "Rule on the end-to-end SUM ratio — Exact runs 2.8–4.2× isize on serialized exchange and 1.9–2.8× on typed, past the design's 2× kill line: accept, fix the wire form, or revisit the layout"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-e4jjqf1
@@ -48,6 +48,7 @@ The owner writes the line this task's verify looks for, dated.
 - 2026-10-13T16:09Z created
 - 2026-10-14T21:21Z open→done — verify exit 0 @ e628ed5+4
 - 2026-10-14T21:37Z done→open
+- 2026-10-14T21:45Z open→done — verify exit 0 @ d91007d+1
 
 ## comments
 - 2026-10-13T16:26Z [claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)] Owner, 2026-10-13, in session: "add a task for the next session to speed up the differential forms, like the serialization stuff you think is a likely culprit". Filed as , seq 140, leading the queue; it moves the number and this ruling on what ratio is acceptable stays open.
@@ -93,3 +94,4 @@ The owner writes the line this task's verify looks for, dated.
 - 2026-10-14T19:20Z [claude (c5fe58ea-7ba0-49b4-9459-0877a7ec2d6d)] Input from fl-034trfq (done, dc4273f): docs/CROSSOVER.md and BENCH.md § The crossover. At one change an epoch the word's cost over isize is invisible (Exact and isize within 3% of a 4 µs NEON / 15 µs AVX2 epoch), so the 1.8–2.2× this task rules on is a throughput question at batch scale, not an adoption question: at a thousand changes an epoch Exact runs 1.9–2.7× isize a change and that moves the crossover against a plain f64 re-sum by 1.4–2.5×, from tens to a few hundred rows either way. The memo recommends moving on from benchmarking for the adoption question and leaves (a) against (c) here as the owner's call on throughput.
 - 2026-10-14T21:21Z [claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)] 2026-10-14 the session took as ruled, withdrawn in the next comment: owner, in session, after docs/CROSSOVER.md landed: "let's move on from benchmarking. i am happy with the results from last session, showing that the incremental version wins out well below 1M records." Read as option (a): the ratio stands as measured, 1.77–2.07× `isize` at 8 workers and 2.01–2.20× at 1 (BENCH.md § The end-to-end SUM, 6be0b49), the layout is not revisited, and DESIGN.md § Targets and kill conditions restates the diff row to what was accepted, with docs/CROSSOVER.md as the adoption test. The reading from the owner's line to option (a) is the session's, read back in the closing report; a correction reopens this.
 - 2026-10-14T21:37Z [claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)] 2026-10-14 owner, in session, on the reading recorded above: "i will be honest i still don't completely understand what this isize thing is you talk about. so i need way more context to answer your question on accepting 1.8-2.2x over it as okay. that doesn't sound okay on the surface." The reading to option (a) is withdrawn and the task reopened; DESIGN.md's diff row and targets clause return to the kill line as written, with the measured 1.8–2.2× beside it. Context handed to the owner in the session's report: isize is differential-dataflow's default diff, a machine integer, so the isize run is the same SUM with each amount pre-scaled to a count of integer units, the cheapest diff possible and the floor an f64 diff would cost if f64 were a group; it cannot do the job for real floats (a scale chosen in advance, nothing below it, overflow above it, no NaN or infinities). Not ruled.
+- 2026-10-14T21:45Z [claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)] 2026-10-14 owner ruled, in session, after the baseline was explained (isize as differential-dataflow's native integer diff, the amounts pre-scaled, the floor an f64 diff would cost): "yeah i am good with the isize one then. we can close it." Option (a): the ratio stands as measured, 1.77–2.07× isize at 8 workers and 2.01–2.20× at 1 (BENCH.md § The end-to-end SUM, 6be0b49), the layout is not revisited, and DESIGN.md § Targets and kill conditions states the diff row as accepted with docs/CROSSOVER.md as the adoption test.
