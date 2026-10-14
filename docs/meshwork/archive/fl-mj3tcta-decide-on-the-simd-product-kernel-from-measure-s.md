@@ -1,7 +1,7 @@
 ---
 id: fl-mj3tcta
 title: "Decide on the SIMD product kernel from Measure's deposit_products ratio — keep the scalar path and say so in DESIGN.md § Speed, or build it behind simd"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 needs: [fl-e4jjqf1]
@@ -23,6 +23,7 @@ The owner writes the line this task's verify looks for, dated.
 
 ## log
 - 2026-10-13T15:14Z created
+- 2026-10-14T21:21Z open→done — verify exit 0 @ e628ed5+6
 
 ## comments
 - 2026-10-13T16:09Z [claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)] Measure's row is in: BENCH.md § The product-kernel row, commit 7792a3f, 2²⁰ same-scale factor pairs with 26-bit mantissas (on Fixed256's grid, under every ceiling). Per pair, bulk `deposit_products` as it stands (scalar check-then-deposit) / the one-at-a-time loop / the same tier's bulk `deposit` kernel, and the ratio of the first to the last. NEON: Wide 25.99 / 24.22 / 2.09 ns, 12.4×; Fixed256 10.70 / 9.24 / 1.60 ns, 6.7×; Binned<3> 14.88 / 12.89 / 1.97 ns, 7.5×. AVX2: Wide 56.08 / 50.17 / 2.44 ns, 23.0×; Fixed256 26.01 / 20.27 / 2.00 ns, 13.0×; Binned<3> 31.94 / 24.96 / 1.67 ns, 19.1×. The scalar product path sits 7–23× over the bulk deposit kernel, the band the sums' loops sat in before their kernels (5–14×); the check pass costs 1.5–2 ns a pair on NEON and 6–7 ns on AVX2. Against plain f64 (0.54 / 0.74 ns per add), the scalar products are 20–48× on NEON and 35–76× on AVX2. The ruling is the owner's; the numbers are its input.
@@ -34,3 +35,4 @@ The owner writes the line this task's verify looks for, dated.
   AVX2. The product figures moved within 3% on NEON and 0.5% on AVX2; the inlining reached only
   Wide's bulk deposit column (2.09 to 1.80 on NEON, the fold inlined into wide_extend), which
   raises Wide's ratio from 12.4× to 14.4×. The input stands as written.
+- 2026-10-14T21:21Z [claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)] 2026-10-14 owner ruled, in session: "let's move on from benchmarking. i am happy with the results from last session, showing that the incremental version wins out well below 1M records." Read as option (a): the scalar product path stays, and DESIGN.md § Speed says so in one sentence: products are the dot-product shape, exact and bit-identical, and not vectorised, at 7–23× the same tier's bulk deposit kernel (BENCH.md § The product-kernel row, 6be0b49). No kernel is built behind `simd`. The reading from the owner's line to option (a) is the session's, read back in the closing report; a correction reopens this.

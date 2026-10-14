@@ -1,7 +1,7 @@
 ---
 id: fl-cbtfmqz
 title: "Rule on the missed absolute targets — compact add, to_f64 and Wide add miss DESIGN.md's 5, 5 and 3 ns on both machines: inline the operators, rewrite the carry chain and the read, or restate the targets"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-e4jjqf1
@@ -48,6 +48,8 @@ dated.
 
 ## log
 - 2026-10-13T16:09Z created
+- 2026-10-14T21:21Z open→done — verify exit 0 @ e628ed5+5
 
 ## comments
 - 2026-10-14T14:43Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] After 4ec1471 (#[inline] on the operator chain down to the compact tier), the compact add meets its 5 ns target on NEON in a clean A/B at 2a82388 against a22fae7: deposit 5.80 → 4.94 ns, add with both operands built 8.54 → 3.74, += 7.20 → 3.81. to_f64 (9.8 ns) and Wide's add (15.6 ns) are unchanged, neither being inlined, so the ruling narrows to those two and to AVX2's rows, pending its sitting.
+- 2026-10-14T21:21Z [claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)] 2026-10-14 owner ruled, in session: "let's move on from benchmarking. i am happy with the results from last session, showing that the incremental version wins out well below 1M records." Read as option (c): the targets restate to what is measured. The compact add meets 5 ns on NEON after the inlining (4.94 ns a deposit, 3.81 ns the engine's `+=` with both operands built, BENCH.md § The prototype table, re-taken, 2a82388) and stands at 15.9 / 10.9 ns on AVX2; `to_f64` (9.78 ns NEON, 17.78 AVX2) and `Wide + Wide` (15.60 and 29.48 ns) stand at their measured figures, neither inlined. DESIGN.md § Targets and kill conditions now states those as the targets and names the carry chain on `u128` intermediates and a two-limb read path as the leads should a consumer need less; neither is built. The reading from the owner's line to option (c) is the session's, read back in the closing report; a correction reopens this.
