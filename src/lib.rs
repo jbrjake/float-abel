@@ -37,6 +37,9 @@
 //! on the toolchain its CI job pins, because rustc 1.97 and 1.98 ICE inside dbsp.
 #![no_std]
 #![deny(unsafe_code)]
+// Every public item carries rustdoc. A warning here, not a deny: the gate's `-D warnings` is what
+// fails on a missing one, because warnings fail the gate only, never the build.
+#![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 // Limb arithmetic moves bits between u64, i64, u128, i32 and usize on purpose; each such cast is
 // the point of the line it is on, so these three lints would only add noise here.
@@ -69,3 +72,10 @@ pub use exact::{Exact, PastCap, EXACT_MAX_EXP};
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
 pub use wide::Wide;
 pub use wire::WireError;
+
+/// The README's Rust blocks, run as doctests so its claims are checked rather than asserted. Behind
+/// `differential` because one block drives a dataflow; the self dev-dependency turns that on for a
+/// bare `cargo test`.
+#[cfg(all(doctest, feature = "differential"))]
+#[doc = include_str!("../README.md")]
+mod readme {}
