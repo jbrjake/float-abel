@@ -15,12 +15,8 @@
 //! A sample is one whole run, workers spawned to workers joined, so the harness takes ten of them
 //! flat rather than criterion's hundred.
 
-// The fixture is integer arithmetic on indices and units, cast on purpose.
-#![allow(
-    clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
-    clippy::cast_precision_loss
-)]
+// The oracle is integer arithmetic on indices and units, cast on purpose.
+#![allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 
 use std::hint::black_box;
 use std::sync::mpsc::Receiver;
@@ -38,9 +34,11 @@ use timely::dataflow::operators::capture::{Event, Extract};
 use timely::dataflow::operators::Capture;
 use timely::{CommunicationConfig, Config, WorkerConfig};
 
+mod support;
+use support::{amount, units, Row, ACCOUNTS};
+
 /// The design's update count.
 const UPDATES: u64 = 10_000_000;
-const ACCOUNTS: u64 = 16;
 /// Workers per run: the one-worker shape, and the eight-worker shape the design names.
 const WORKERS: [usize; 2] = [1, 8];
 
@@ -48,25 +46,6 @@ type Worker = timely::worker::Worker;
 /// One update: data, epoch, diff.
 type Update<D, R> = (D, u64, R);
 type Captured<D, R> = Receiver<Event<u64, Vec<Update<D, R>>>>;
-/// An account and an amount as a signed count of units of 2⁻²⁰.
-type Row = (u32, i64);
-
-/// `n` rows over sixteen accounts, each amount a signed count of units of 2⁻²⁰ below 2²⁰ in
-/// magnitude: the integration harness's fixture at the design's count.
-fn units(n: u64) -> Vec<Row> {
-    (0..n)
-        .map(|i| {
-            let account = ((i * 7919) % ACCOUNTS) as u32;
-            let units = ((i * 2_654_435_761) % (1 << 21)) as i64 - (1 << 20);
-            (account, units)
-        })
-        .collect()
-}
-
-/// `units × 2⁻²⁰` as a double, exactly: the power of two by its bits, never `powi`.
-fn amount(units: i64) -> f64 {
-    units as f64 * f64::from_bits(((-20i64 + 1023) as u64) << 52)
-}
 
 /// The exact total per account by integer arithmetic on the units.
 fn oracle(rows: &[Row]) -> Vec<(u32, i64)> {

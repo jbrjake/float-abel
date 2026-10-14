@@ -88,8 +88,10 @@ path = "tests/main.rs"
 # conditions; benches/support/ holds the fixtures they share. `simd` is the SIMD kill condition,
 # each tier's bulk entry against its one-at-a-time deposits, and the product-kernel row; `ops`
 # re-takes the prototype table on the compact tier and `Wide` and counts the width caps; `dd_sum`
-# is the differential-dataflow end-to-end `SUM` against `isize`. A requirement keeps a
-# `--no-default-features` build of the benches from failing.
+# is the differential-dataflow end-to-end `SUM` against `isize`; `wire` is timely's serialized
+# exchange of a batch of `Exact` diffs alone, the three bincode passes of one crossing, against
+# `isize` and two candidate forms. A requirement keeps a `--no-default-features` build of the
+# benches from failing.
 [[bench]]
 name = "simd"
 harness = false
@@ -102,6 +104,11 @@ required-features = ["std"]
 
 [[bench]]
 name = "dd_sum"
+harness = false
+required-features = ["differential"]
+
+[[bench]]
+name = "wire"
 harness = false
 required-features = ["differential"]
 

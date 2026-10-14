@@ -3,12 +3,14 @@
 //! it as a bench target of its own. Each target is its own crate and takes the fixtures it needs,
 //! hence the `dead_code` allowances.
 
-// The fixtures build doubles from their bits and move bits between integer widths on purpose.
+// The fixtures build doubles from their bits and move bits between integer widths on purpose, and
+// the SUM's amount is a count of units below 2²⁰, exact as a double.
 #![allow(
     dead_code,
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
-    clippy::cast_possible_wrap
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss
 )]
 
 /// Elements in a fixture: 2²⁰, so a run is a few milliseconds and a rate has six digits.
@@ -82,4 +84,29 @@ pub(crate) fn product_fixture() -> (Vec<f64>, Vec<f64>) {
     (0..N)
         .map(|_| (rng.on_grid_with(-20, 20, 26), rng.on_grid_with(-20, 20, 26)))
         .unzip()
+}
+
+/// The accounts the differential-dataflow fixture spreads its rows over.
+pub(crate) const ACCOUNTS: u64 = 16;
+
+/// One row of the differential-dataflow fixture: an account and an amount as a signed count of
+/// units of 2⁻²⁰.
+pub(crate) type Row = (u32, i64);
+
+/// `n` rows over sixteen accounts, each amount a signed count of units of 2⁻²⁰ below 2²⁰ in
+/// magnitude: the integration harness's same-scale fixture (tests/differential.rs), which `Exact`
+/// carries as the double and `isize` as the count, so both diffs fold one multiset.
+pub(crate) fn units(n: u64) -> Vec<Row> {
+    (0..n)
+        .map(|i| {
+            let account = ((i * 7919) % ACCOUNTS) as u32;
+            let units = ((i * 2_654_435_761) % (1 << 21)) as i64 - (1 << 20);
+            (account, units)
+        })
+        .collect()
+}
+
+/// `units × 2⁻²⁰` as a double, exactly: the power of two by its bits, never `powi`.
+pub(crate) fn amount(units: i64) -> f64 {
+    units as f64 * f64::from_bits(((-20i64 + 1023) as u64) << 52)
 }
