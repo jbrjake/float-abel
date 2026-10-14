@@ -1,7 +1,7 @@
 ---
 id: fl-s9hcne6
 title: "Speed up Exact as a differential diff — the 33-element serde tuple first, then the word, re-measured by the end-to-end SUM on both machines"
-status: doing
+status: done
 category: crate/differential
 labels: [reproducible-floats]
 relates: [fl-bbevtyv, fl-cbtfmqz]
@@ -11,46 +11,6 @@ docs:
   - docs/DESIGN.md#wire-format-sp-wire
 seq: 140
 created: 2026-10-13T16:26Z
-handoff: |
-  The tree at b446dbd is clean and unpushed: the three bench targets,
-  BENCH.md with every number
-  DESIGN.md's kill conditions read, and the store. The commit gate passed
-  on each of this session's
-  commits; the push gate was not re-run after them, and clippy was green
-  on the bench code before
-  7792a3f, so run `./scripts/regression.sh` (sandbox off for cargo-deny)
-  before closing anything.
-  
-  Start here, not with the docs task: the owner asked for this task in
-  session on 2026-10-13 and it
-  leads the queue. The body is the brief. The files are
-  src/wire/serde_impls.rs (`Serialize for
-  Exact`, `ExactVisitor::visit_seq`), tests/wire.rs (the postcard framing
-  assertion that pins the
-  tuple form), benches/dd_sum.rs (the measurement, `cargo bench --bench
-  dd_sum`, eight rows in about
-  six minutes on this machine; the rows are read with `grep -A1
-  "^dd_sum/"` because the names wrap),
-  and BENCH.md § The end-to-end SUM, which the verify wants re-taken at a
-  newer commit than fdf0575.
-  What is proven: the gap's split between wire form and word (BENCH.md's
-  numbers, both machines);
-  the oracle check in the bench, so a changed serializer that lands wrong
-  bits fails before timing.
-  What is not: whether bincode's cost is the 33 per-element calls or
-  something else, which lead 1
-  in the body measures first with a micro-bench. A length-prefixed form
-  changes DESIGN.md § Wire
-  format, a spec clause; raise it as a conflict with the micro-bench
-  numbers and build it only on a
-  ruling. Any number that moves goes into BENCH.md with the machine and
-  the commit, both machines,
-  never blended; the AVX2 box is jons-amd-mini by the rsync-and-ssh recipe
-  in the session memory.
-  The owner reads BENCH.md for the cost against plain floats first, so
-  keep "What reproducibility
-  costs" current when the end-to-end row moves.
-claimed-by: claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
 ---
 
 Owner's instruction, 2026-10-13, in session: "add a task for the next session to speed up the
@@ -93,7 +53,26 @@ session memory) with the serialized rows expected to approach the typed ones:
 - 2026-10-13T16:26Z created
 - 2026-10-13T16:26Z handoff by claude (10cb7eaf-2ccb-44b5-b4e4-5396d637aa48)
 - 2026-10-14T13:02Z open→doing — claimed by claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)
+- 2026-10-14T16:42Z doing→done — verify exit 0 @ 6be0b49+4
 
 ## comments
 - 2026-10-14T13:59Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Progress, 2026-10-14. Lead 1 measured: benches/wire.rs (a22fae7), BENCH.md § The wire form; the cost is per serializer call on the write side. Lead 2 ruled by the owner in session and built under fl-11k5gz6 at 4153c01: Exact and Wide serialise as one byte string. Lead 3 built at 4ec1471: #[inline] on the operator chain down to the compact tier and ieee::decompose. Lead 4 pending: the a22fae7 control and the 2a82388 variant run in one quiet window on each machine (neon-quiet.sh and avx2-quiet.sh in the session scratchpad); the first attempts were contested by the owner's browser on NEON and another project's tpch test binary on AVX2, so their rows are not recorded.
 - 2026-10-14T14:42Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] NEON A/B landed, one quiet sitting 10:23-10:41 (start load 2.8, canaries f64 += 0.581 vs 0.581 ns, Wide add 15.6 vs 15.8, to_f64 9.78 vs 9.72, isize SUM rows within 4%): control a22fae7 → variant 2a82388. ops same-scale: deposit 5.80 → 4.94 ns, add both built 8.54 → 3.74, += 7.20 → 3.81, deposit_product 11.76 → 11.45; the 5 ns compact-add target is met on NEON. dd_sum, ms per run of 10^7: serialized 1w Exact 859.1 → 432.5 (isize 208.2 → 214.9; 4.13× → 2.01×), serialized 8w 141.4 → 79.7 (43.0 → 43.0; 3.29× → 1.85×), typed 1w 348.9 → 265.1 (123.1 → 123.7; 2.83× → 2.14×), typed 8w 61.1 → 50.0 (30.5 → 28.2; 2.00× → 1.77×). Per update at 1w: serialized gap 65 → 22 ns, typed gap 23 → 14, the wire's share 42 → 8. wire at 2a82388 (isize canary 5.7/2.4 as on the idle host): isize 8.1, the byte string 14.7, fields 32.2, the tuple newtype 85.2 ns a crossing. AVX2 still waiting on a window free of the other project's tpch binary (avx2-guarded.sh on the box).
+- 2026-10-14T16:42Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] Simd sitting at 2a82388 on both machines, BENCH.md commit 6be0b49. AVX2: one guarded attempt,
+  clean (load 0.00 at the start, no overlap with the other project's test binary, every row within
+  1.3% of the previous AVX2 run by criterion's own change lines). NEON: the f64 vectorised floor at
+  0.080 against 0.084, Fixed256 and Binned bulk within 0.5%. The one kernel that moved is Wide's
+  NEON bulk entry, from 2.09 to 1.82 ns with src/simd untouched. An A/B/A in one quiet window (load
+  1.9) against a simd bench built from a22fae7 in its own target dir gave 2.11 / 1.82 / 2.11 ns with
+  the one-at-a-time loop (18.66 / 18.73 / 18.64) and the floor (0.082 / 0.080 / 0.081) flat.
+  objdump explains it: at a22fae7, wide_extend calls neon::fold_tile::<4, false> out of line (191
+  instructions, 22 stp and 17 ldp, the refusal closure behind an indirect blr); at 2a82388,
+  fold_tile and the closure are inlined into wide_extend (782 instructions, no call but
+  limbs::negate and panic_fmt), because #[inline] on ieee::decompose (4ec1471) made Wide::deposit,
+  the closure's body, cheap enough to inline. The AVX2 build inlines the fold either way: 2.52 ns,
+  0.11% under the previous run. Lead status: (1) the wire bench, a22fae7 and 2a82388; (2) the
+  byte-string serde form built at 4153c01 under the owner's "running bincode 3 times is crazy"
+  message, the Fixed tuple form kept; (3) #[inline] at 4ec1471, 51 marks; (4) the SUM re-taken on
+  both machines, BENCH.md § The end-to-end SUM: serialized 8 workers 1.85× NEON and 2.07× AVX2, 1
+  worker 2.01× and 2.20×, typed 1.77–2.14×. The push gate (scripts/regression.sh, sandbox off for
+  cargo-deny) is green at 6be0b49: regression: OK, exit 0, every leg, on a warm target.

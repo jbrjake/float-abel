@@ -78,3 +78,13 @@ The owner writes the line this task's verify looks for, dated.
   rkyv path as they are; the clause that a tuple-writing format emits `to_bytes` with no prefix is
   the modification. Built under fl-11k5gz6. The ratio question, (a) against (c), stays open here for
   the re-measured rows.
+- 2026-10-14T16:42Z [claude (16e02ca3-15ad-4c80-bfb4-53e89fee757d)] The ratio at 6be0b49 (BENCH.md § The end-to-end SUM, both machines, one quiet sitting each with
+  the canaries matched), after the byte-string serde form (4153c01) and the inlining (4ec1471):
+  serialized exchange 2.01× NEON and 2.20× AVX2 at 1 worker, 1.85× and 2.07× at 8; typed exchange
+  2.14× and 2.14× at 1 worker, 1.77× and 1.78× at 8. Against the a22fae7 figures in the body
+  (2.8–4.2× serialized, 1.9–2.8× typed), each serialized row cut its excess over isize by 40–70%.
+  At 8 workers the rows sit at 1.77–2.07×, at 1 worker at 2.01–2.20×. The wire form's share, § The
+  wire form at 2a82388: Exact's three passes cost 14.7 ns an update on NEON and 33.3 on AVX2 against
+  isize's 8.1 and 16.3; the rest of the gap is the 33-byte word moving through timely's buffers and
+  the arrangement against 8 bytes. The question in the body stands for the owner: (a) accept the
+  ratio as it now is, or (c) revisit the layout.
