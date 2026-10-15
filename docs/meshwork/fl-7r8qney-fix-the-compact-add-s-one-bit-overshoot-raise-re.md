@@ -12,22 +12,25 @@ docs:
 status: open
 created: 2026-10-15T15:15Z
 ---
+
 Found in fl-h41w0tr's spike. `raise` in src/exact/compact.rs returns `Overflow::NeedsWide` when
 `bits + by > 127`, before the add, so an operand that would need exactly 128 bits at the aligned
-exponent is refused even when the other operand cancels it back under 2¹²⁷. Run this session
+exponent is refused even when the other operand cancels it back under 2¹²⁷. Run on 2026-10-15
 (`repro`, attached to fl-h41w0tr): `Exact::from(2f64.powi(127)).checked_add(&Exact::from(-1.0))`
 is `Err(PastCap::Width)`, and `Exact::try_from(&(Wide::from(2f64.powi(127)) + Wide::from(-1.0)))`
 is `Ok(1.7014118346046923e38)`: 2¹²⁷ − 1 is 127 one-bits, inside the width. `2^127 + 1` is refused
 by both routes, as it should be.
 
 Only a sum whose raised operand overshoots by exactly one bit and whose result lies under 2¹²⁷ is
-affected; an overshoot of two or more bits cannot cancel back inside the width. The fix: when
+affected; an overshoot of two or more bits cannot cancel back inside the width. On the 32-byte
+word it is a spurious cap; with the heap arm (fl-heap) it becomes a spurious promotion, an
+allocation and a demotion for a result that fit, so it is worth fixing either way. The fix: when
 `bits + by == 128`, raise by `by − 1` and add that operand twice (each add is inside `i128`, and
 an overflow on either is a true `NeedsWide`), or add in a 129-bit intermediate. Red first: a test
 named `exact_cap_a_sum_that_spans_exactly_the_width_fits` in tests/exact_cap.rs that asserts
 `checked_add` agrees with `Exact::try_from(&Wide)` on `2^127 + (−1)`, on `−2^127 + 1`, and on a
 sweep of `±2^k ± 1` and `±(2^k + 2^j) ∓ 2^j` across the boundary; then the fix; then the
-`a + b − b == a` fuzz target still green.
+`a + b − b == a` fuzz target still green. Independent of the heap work; can land before it.
 
 ## log
 - 2026-10-15T15:15Z created

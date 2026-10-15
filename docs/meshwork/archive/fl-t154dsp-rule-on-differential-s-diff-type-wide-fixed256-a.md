@@ -1,7 +1,7 @@
 ---
 id: fl-t154dsp
 title: "Rule on differential's diff type — Wide, Fixed256, a windowed Exact, or Wide and Fixed256 together — so a caller can know before inserting that a dataflow will not panic"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-zxpq1wz
@@ -14,46 +14,6 @@ docs:
   - docs/OVERFLOW.md#cost
 seq: 4
 created: 2026-10-14T23:35Z
-handoff: |
-  The spike (fl-h41w0tr, closed 2026-10-15) settled the facts: the panic
-  is real and
-  arithmetic-correct, a plain `Exact` diff is not closed under `+`, and
-  the cause is the dropped
-  heap arm with nothing in its role. Read fl-h41w0tr's "Spike findings:"
-  comment and
-  docs/OVERFLOW.md first; the probes are attached to fl-h41w0tr (`repro`,
-  `band`, `cost`) and to
-  fl-zxpq1wz (`dd`, `tiers`, `door`), and build as a scratch crate with
-  float-abel as a path
-  dependency, `CARGO_TARGET_DIR` outside ~/Documents.
-  
-  This task is the owner's ruling. Ask in session, reading back the four
-  options in this task's
-  latest comment with the numbers, and the recommendation (option 4: the
-  banded idiom as the
-  documented SUM idiom, `Wide` with the engine traits for product folds).
-  Record the ruling here,
-  quoted, then close.
-  
-  Gated on this ruling: fl-gpjzcqc (ship the banded idiom: `Exact::band`,
-  the operator, the
-  3-worker adversarial test, the criterion rows), fl-pwq0h8n (engine
-  traits on `Wide` and
-  `Fixed`), fl-v2msbby (the outward docs and the `panic = "abort"` note).
-  Not gated, ready now:
-  fl-7r8qney (the `raise` one-bit overshoot, red test first) and
-  fl-x8fwfe3 (a closure law in the
-  laws kit with the 2^±300 negative control).
-  
-  Not established, if the owner asks: a history that panics on one worker
-  count and completes on
-  another (plausible by chunking, not demonstrated); the spine's
-  after-compaction sum triggered in
-  a run; the banded idiom's and `Wide`'s cost under criterion, at eight
-  workers, on AVX2, with
-  serialized exchange. The rough sitting ran at host load 8, so its ratios
-  hold and its absolute
-  numbers do not.
 attachments: [attachments/fl-t154dsp/probe-src-bin-cost.rs]
 ---
 
@@ -85,6 +45,7 @@ Close by recording the owner's ruling in this task's comments, quoted.
 ## log
 - 2026-10-14T23:35Z created
 - 2026-10-15T15:16Z handoff by claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)
+- 2026-10-15T15:33Z open→done — verify exit 0 @ eb02478+5
 
 ## comments
 - 2026-10-15T15:14Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] fl-h41w0tr's spike (2026-10-15) adds an option and the numbers, docs/OVERFLOW.md § The banded
@@ -147,3 +108,34 @@ Close by recording the owner's ruling in this task's comments, quoted.
   target, `Exact`'s plain-word layout (fl-nna1djz keeps `Wide` and `Fixed`), the portfolio plan
   ask fl-cfx001b (reversed), and the standing decision "every type is a `Copy` plain word and
   nothing allocates". Choosing the banded idiom reopens none of those.
+- 2026-10-15T15:33Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] 2026-10-15 owner ruled, in session: "yes let's do heap and allow product fols inside a dataflow.
+  but i like your option 4 so if there's a way to get the best of both worlds, i'm all for it.
+  don't commence work this session but make sure tasks are filed and ready to go next session."
+  
+  Read back, derived from the ruling and unratified until the owner confirms:
+  
+  1. The heap arm returns as the original design had it: `Exact` promotes past the 127-bit width
+     to a boxed wide form and demotes after every op; holds every sum, every product and a fold of
+     products; the one panic is the limb cap (4.3 KB a weight, consumer-raisable) past the exponent
+     bound. `Exact` stops being `Copy`; `Wide` and `Fixed` keep the `Copy` and mapping-cast role.
+  2. "Best of both worlds" is the banded idiom kept as the fast path on top of the heap `Exact`:
+     inside a band the compact form never promotes, so a banded SUM runs at the Copy word's speed
+     with no allocation, while plain `count_total` on the same type is correct everywhere and
+     allocates only on wildly mixed data. Option 4's `Wide`-as-diff role for product folds is taken
+     by the heap arm; `Wide`/`Fixed` engine traits stay filed at lower priority for engines that
+     need a `Copy` diff or a declared window.
+  3. The heap form carries dyadic special amounts (the design at 622ad8a), so `2.5 · NaN` promotes
+     instead of capping and `PastCap::Count` goes away; the compact form keeps the inline `i32`
+     counts.
+  4. The layout is measured before it is built: a safe 40-byte enum against a 32-byte form with the
+     pointer in the mantissa's odd-only niche. The niche form needs `unsafe` in one module beside
+     `src/simd/`, which lifts a standing decision, so if it is the form that reaches the Copy
+     word's speed, that is a ruling the owner gets with the numbers, not a decision the session
+     takes.
+  5. Without `alloc` the compact-only `Exact` stands with the width cap and the checked API, per the
+     owner's 2026-10-11 "Cap panic plus checked API"; `std` implies `alloc`.
+  
+  Filed, in order: the layout measurement, the heap arm, the wire form, the proof in both engines;
+  re-aimed on the heap arm: the banded idiom (fast path), the outward docs, the `Wide`/`Fixed`
+  traits; unchanged: the `raise` fix and the closure law. fl-cfx001b (the plan ask for the POD
+  `Exact`) is dropped because its premise reversed; a new plan ask follows the heap arm.

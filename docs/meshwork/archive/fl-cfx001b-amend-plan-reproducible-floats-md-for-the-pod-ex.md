@@ -8,7 +8,7 @@ docs:
   - portfolio#PLAN-reproducible-floats.md#32-representations
 verify: contains docs/DESIGN.md /32 bytes/
 seq: 47
-status: open
+status: dropped
 created: 2026-10-11T18:00Z
 ---
 Owner's rulings, 2026-10-11, in float-abel's session: zero-copy is paramount; "in general i approve
@@ -19,3 +19,4 @@ The portfolio's open ruling task names call 7; it dissolves with the limb cap.
 
 ## log
 - 2026-10-11T18:00Z created
+- 2026-10-15T15:33Z open→dropped — Owner, 2026-10-15: 'yes let's do heap and allow product fols inside a dataflow'. The plan's §3.2 heap arm, §3.5 alloc row and §11 call 7 return; a new ask follows the heap task fl-th7g69s with the settled design.
