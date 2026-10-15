@@ -88,3 +88,6 @@ the budget. The heap task needs this one.
 - 2026-10-15T15:33Z created
 - 2026-10-15T15:33Z handoff by claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)
 - 2026-10-15T15:36Z handoff by claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)
+
+## comments
+- 2026-10-15T15:38Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Owner, 2026-10-15, in session: the whole readback on fl-t154dsp is ratified ("yes confirmed"), so next session starts building here with no ruling outstanding.

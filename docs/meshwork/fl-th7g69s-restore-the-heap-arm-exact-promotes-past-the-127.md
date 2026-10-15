@@ -81,3 +81,4 @@ settled design (fl-cfx001b was dropped because its premise reversed).
 
 ## comments
 - 2026-10-15T15:36Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Owner, 2026-10-15, in session, on the layout: "yes i'm okay with one more unsafe to save that many bits on every value". The 32-byte niche form is ruled; src/exact/heap.rs is the one module beside src/simd/ where #![deny(unsafe_code)] is lifted, each block with its // SAFETY: line, and CLAUDE.md § Standing decisions carries these words when the arm lands.
+- 2026-10-15T15:38Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Owner, 2026-10-15, in session, confirming the derived design this task builds (fl-t154dsp's readback points 1, 2, 3 and 5: the limb cap as the one residual panic, the banded fast path, dyadic special amounts in the heap form, the compact-only no-alloc build): "yes confirmed". Nothing in the body above is unratified.
