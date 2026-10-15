@@ -54,6 +54,7 @@ handoff: |
   serialized exchange. The rough sitting ran at host load 8, so its ratios
   hold and its absolute
   numbers do not.
+attachments: [attachments/fl-t154dsp/probe-src-bin-cost.rs]
 ---
 
 Owner, 2026-10-14, in session: "we should not be panicing like this. the whole point of this is to
@@ -108,3 +109,41 @@ Close by recording the owner's ruling in this task's comments, quoted.
   Recommendation: 4, with the banded idiom as the documented SUM idiom; it keeps every standing
   decision. Tasks gated on this ruling: fl-h41w0tr's spawned banded, wide-traits and docs tasks.
   The ruling is the owner's, in session, quoted here when it comes.
+- 2026-10-15T15:22Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Owner, 2026-10-15, in session, on the heap arm: "we want the _most performant_ solution. if that
+  is the heap arm and not your recommendation, it's okay to recommend it even though it was
+  dismissed previously. no one told me at the time this would be the result or i never would have
+  said no. i don't even remember what the problem was that led me to make that ruling."
+  
+  What the record holds about that ruling (2026-10-11, commits 1c81906 → 3298c25 → d33a0ee, tasks
+  fl-6zvrgbr, fl-nna1djz, fl-atkbp6q): the question put to the owner was whether `Exact` should
+  require an allocator at all ("i don't believe we should require alloc, no. doesn't that block
+  zero-copy use?"), then what a build without one does past the width ("Cap panic plus checked
+  API"), then, on the layout work for leras's and sazed's mapping casts, "i cannot stress enough
+  the paramount importance of zero-copy here" and "in general i approve dropping the heap arm".
+  The consequence recorded with the drop (d33a0ee's DESIGN.md) was the trilemma row "a sum or
+  product within a 127-bit span", the 2^±300 band as "the adversary", and a non-goal saying the arm
+  "arms when a consumer needs a float × float join weight past a 127-bit span". The store carries
+  no sentence telling the owner that two ordinary decimals 24 orders of magnitude apart in one key
+  would panic a dataflow; the test pinned with the drop refuses the `1e30, 1e-10, −1e30` history
+  through the checked API and the design kept "the exact tier exists for the latter" with the tier
+  gone. So the consequence was framed as adversarial and as a products question, not as a SUM
+  question, and the owner's "i never would have said no" is consistent with the record.
+  
+  Measured this session, with the arm back on the table (docs/OVERFLOW.md § Cost; `cost`
+  attached here): a heap-arm proxy (the design's shape as a newtype: `Exact` inline, `Box<Wide>`
+  past the width, demoted after every heap op) against the banded idiom, ns an update, release,
+  one worker, 10⁶ updates, 16 keys, load 4: same-scale `isize` 12.8, `Exact` plain 24.5, banded
+  26.5, heap proxy 33.5, `Wide` 198.3; spread 2^±60: banded 50.1, heap proxy 101.1, `Wide` 179.9;
+  mixed 2^±300: banded 43.0, heap proxy 119.4, `Wide` 180.2. The heap proxy never promotes on the
+  same-scale band, so its 37% over plain `Exact` is the enum tag, 40-byte updates and a non-`Copy`
+  clone through the sort; where promotions happen it runs 2.0–2.8× the banded idiom.
+  
+  So the most performant panic-free option measured is the banded idiom on every band, and the
+  recommendation stands as option 4 (docs/OVERFLOW.md § Options), now with the heap arm as option
+  5 beside it. Option 5 is the one that holds a fold of products or a float × float join chain
+  inside a dataflow; nothing else does. Restoring it reopens: the heap-tier scope fl-atkbp6q
+  absorbed, the `alloc` feature and the no-allocator build's loss of the arm, a variable-length
+  wire form with its serde and rkyv shapes, the golden hash's `Exact` leg and the decoder fuzz
+  target, `Exact`'s plain-word layout (fl-nna1djz keeps `Wide` and `Fixed`), the portfolio plan
+  ask fl-cfx001b (reversed), and the standing decision "every type is a `Copy` plain word and
+  nothing allocates". Choosing the banded idiom reopens none of those.
