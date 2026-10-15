@@ -14,6 +14,118 @@ docs:
   - docs/OVERFLOW.md#options
 status: open
 created: 2026-10-15T15:33Z
+handoff: |
+  Next session builds the heap arm here. Nothing is unratified: the
+  owner's words are in the body
+  and the two comments, and the closed layout measurement (search `Layout
+  findings`) settled the block shape and
+  the budget: shape B, the whole heap value in one block behind the
+  pointer, and the one-worker
+  same-scale `dd_sum` rows within 1.12× the Copy word typed and 1.20×
+  serialized, measured in one
+  sitting against a control build (the A/B recipe is in the
+  build-environment memory). Read that
+  comment and docs/OVERFLOW.md § Cost first; the probe in its attachments
+  (`probe-src-bin-cost-niche.rs`
+  and `-big.rs`) is the reference implementation of the word: `is_heap` as
+  `lo & 1 == 0 && lo != 0`,
+  `parts()` reading the block's header, `heap()` allocating one
+  `Box<[u64]>` and `Drop` freeing it
+  by the length in `lo`, `land()` demoting iff the bit length is at most
+  127, and the compact fast
+  paths the budget assumes: `ptr::write` over a compact self in
+  `plus_equals` and `negate`,
+  `mem::forget` of a compact by-value self in `multiply`, `clone_from` as
+  a copy when both sides
+  are compact, `is_zero` as the bitwise zero word, `eq` by the word first.
+  Its heap path allocates
+  a fresh block per result; the real arm should add in place when a heap
+  self's block already holds
+  the result's length, which is where the promoting bands' 1.4–2.0×
+  over the banded idiom can come
+  down.
+  
+  What is proven in the tree: `Compact::checked_add` (the closed boundary
+  fix, search `carried_at_one_exponent`) now refuses a sum iff its
+  canonical span exceeds 127 bits, the same rule `Exact::try_from(&Wide)`
+  applies, so a
+  `NeedsWide` from it is exactly "this value is not compact": promote on
+  it, and demotion after a
+  heap op lands compact iff the bit length is at most 127, with no
+  spurious promotion at the
+  boundary. `Overflow::NeedsWide`'s doc already says it is the heap tier's
+  job.
+  
+  Where `Copy` is pinned today, all of which the arm changes:
+  `#[derive(Clone, Copy, ...)]` on
+  `Exact` in src/exact/mod.rs (and `rkyv::Archive` behind `dbsp`, which
+  cannot derive over a raw
+  pointer: the archived form becomes fl-mrdqpay's, so behind `dbsp` the
+  arm needs a hand-written
+  `Archive`, or the feature waits on the wire task); by-value copies in
+  src/exact/ops.rs (`-*rhs`,
+  `*rhs * self`, `*self += &rhs`), ring.rs (`product(*self, *rhs)`),
+  convert.rs, differential.rs
+  (`*self = -*self`), dbsp.rs; `Compact` stays `Copy`. tests/layout.rs
+  pins `size_of == 32` and
+  `align_of == 8`, which hold. src/lib.rs has `#![deny(unsafe_code)]`
+  crate-wide; src/simd/ lifts
+  it at module level, and src/exact/heap.rs does the same with
+  `#![allow(unsafe_code)]` and a
+  `// SAFETY:` on every block (clippy `undocumented_unsafe_blocks` is
+  deny). tests/posture.rs
+  checks the feature set, not the unsafe posture, so the "unsafe-free with
+  simd off" sentence in
+  CLAUDE.md § Standing decisions is the one to rewrite in the owner's
+  words ("yes i'm okay with one
+  more unsafe to save that many bits on every value"). tests/noalloc is a
+  workspace member building
+  the lib with no features (scripts/regression.sh runs it, CI runs it
+  under miri): the `alloc`
+  feature gates heap.rs and the promotion arm, `std` implies it, the self
+  dev-dependency lists it,
+  and noalloc keeps the compact-only word with the width cap and the
+  checked API.
+  
+  One API point to settle before the dyadic amounts land, and to read back
+  to the owner if it
+  changes a public signature: `Exact::specials()` returns `(i32, i32,
+  i32)` and `PastCap::Count`
+  exists because the compact form's amounts are integer counts. With
+  dyadic amounts in the heap
+  form a value's amounts may be non-integer (`2.5 · NaN`), so the read
+  side needs a shape: keep
+  `specials()` for the integer case and add an amounts accessor, or return
+  the amounts as a small
+  dyadic type. `PastCap::Count` goes (the body says so); `Exact::narrow`
+  goes with it. The
+  projection rule (nonzero NaN amount reads NaN; one infinity reads by the
+  sign of its amount) is
+  unchanged, since only the sign and nonzero-ness of an amount matter at
+  read.
+  
+  Suggested order, each step red first with `exact_heap_*` tests in
+  tests/exact_heap.rs (add
+  `mod exact_heap;` to tests/main.rs, or scripts/check-test-topics.sh
+  fails): the `alloc` feature
+  and heap.rs with the block, the form switch, `Clone`, `Drop`, `Eq`,
+  `Ord`, `Hash`, `is_compact()`;
+  promotion and demotion through `checked_add`'s `NeedsWide` and the five
+  histories; `Mul<i64>` and
+  `Neg`; `Mul<Exact>` with the dyadic amounts, the schoolbook multiply and
+  `EXACT_MAX_LIMBS` with
+  its named panic and checked return; the serde encoding of a heap value
+  (fl-mrdqpay owns the
+  design, but differential's exchange needs something on day one: a tagged
+  byte string whose
+  decoder refuses a heap body that fits the compact form); the noalloc
+  build; miri over promote,
+  clone, drop and demote; then the A/B sitting against the budget with the
+  control's `dd_sum`
+  binary saved first; then DESIGN.md's sections, CLAUDE.md § Standing
+  decisions, and the ask to
+  portfolio. Keep src files under 500 lines: heap.rs for the form, the
+  multiply in its own file.
 ---
 
 Owner, 2026-10-15, in session: "yes let's do heap and allow product fols inside a dataflow."
@@ -82,6 +194,8 @@ settled design (fl-cfx001b was dropped because its premise reversed).
 
 ## log
 - 2026-10-15T15:33Z created
+- 2026-10-15T16:37Z handoff by claude (3f239526-744d-4f69-8242-cd45409a169a)
+- 2026-10-15T16:37Z handoff by claude (3f239526-744d-4f69-8242-cd45409a169a)
 
 ## comments
 - 2026-10-15T15:36Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Owner, 2026-10-15, in session, on the layout: "yes i'm okay with one more unsafe to save that many bits on every value". The 32-byte niche form is ruled; src/exact/heap.rs is the one module beside src/simd/ where #![deny(unsafe_code)] is lifted, each block with its // SAFETY: line, and CLAUDE.md § Standing decisions carries these words when the arm lands.
