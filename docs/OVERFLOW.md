@@ -34,7 +34,7 @@ such values in one total must be within about 10²² of each other in size:
 | `1 + 2^-126` | `1` | fits: a power of two uses 1 bit, not 53 |
 | `1 + 5e-324` | `1` | **past the cap** |
 | `f64::MAX + f64::MAX`, then `− f64::MAX` | `inf`, stuck | fits: reads `inf`, then exactly `f64::MAX` again |
-| `2^127 + (−1)` | `2^127` | **refused** by the add, though 2¹²⁷−1 is 127 bits and `Exact::try_from(&Wide)` accepts the same value: the boundary bug, fl-h41w0tr's findings |
+| `2^127 + (−1)` | `2^127` | fits: 127 one-bits, though 2¹²⁷ alone needs 128 at the unit, so the add takes it in two halves |
 
 The bit counts were derived from the doubles' bits in integer arithmetic and match `checked_add`.
 Inside a dataflow the same sum is a panic, because differential adds with `+=`.

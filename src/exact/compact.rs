@@ -180,10 +180,12 @@ impl Compact {
     ///
     /// # Errors
     ///
-    /// [`Overflow::NeedsWide`] when the aligned sum's magnitude would reach `2^127`: the raised
-    /// operand alone, or the sum itself. The check is on the magnitude, so `a + b` and `-a + -b`
-    /// refuse together. [`Overflow::Exponent`] when the canonical sum's exponent would leave the
-    /// bound, which only a sum at the bound whose trailing zeros carry it past can do.
+    /// [`Overflow::NeedsWide`] when the aligned sum's magnitude would reach `2^127`. An operand
+    /// that needs one bit more than the width at the aligned exponent is added in two halves, so
+    /// a sum that cancels back under the width fits, as `2^127 + (−1)` does; two bits more cannot
+    /// cancel back. The check is on the magnitude, so `a + b` and `-a + -b` refuse together.
+    /// [`Overflow::Exponent`] when the canonical sum's exponent would leave the bound, which only
+    /// a sum at the bound whose trailing zeros carry it past can do.
     #[inline]
     pub(crate) fn checked_add(self, rhs: Self) -> Result<Self, Overflow> {
         if self.m == 0 {
@@ -197,15 +199,47 @@ impl Compact {
         } else {
             (rhs, self)
         };
-        let raised = raise(high.m, i64::from(high.exp) - i64::from(low.exp))?;
-        let m = low.m.checked_add(raised).ok_or(Overflow::NeedsWide)?;
-        if m == i128::MIN {
-            return Err(Overflow::NeedsWide);
-        }
+        let by = i64::from(high.exp) - i64::from(low.exp);
+        let m = match raise(high.m, by) {
+            Ok(raised) => match low.m.checked_add(raised) {
+                Some(m) if m != i128::MIN => m,
+                // Past 2^127 at the aligned exponent. With no raise the operands are two odd
+                // mantissas of one sign, their sum is even, and its trailing zeros bring it back
+                // inside the width; a raised operand makes the sum odd, so it is past the width.
+                _ if by == 0 => return Self::carried_at_one_exponent(low.m, high.m, low.exp),
+                _ => return Err(Overflow::NeedsWide),
+            },
+            // The raised operand alone needs exactly 128 bits, and the other may cancel it back
+            // under the width: raise by one less and add that twice. Each half is inside the
+            // width, and an overflow on either add is a sum past it whichever way it is formed.
+            Err(Overflow::NeedsWide) if bit_length(high.m) + by == 128 => {
+                let half = high.m << (by - 1) as u32;
+                low.m
+                    .checked_add(half)
+                    .and_then(|s| s.checked_add(half))
+                    .ok_or(Overflow::NeedsWide)?
+            }
+            Err(overflow) => return Err(overflow),
+        };
         let (m, exp) = normalise(m, i64::from(low.exp));
         Ok(Self {
             m,
             exp: bounded(exp)?,
+        })
+    }
+
+    /// `a + b` for two odd mantissas of one sign at one exponent whose sum reaches `2^127`: the
+    /// sum is even, so its trailing zeros carry into the exponent and the width holds it.
+    #[cold]
+    #[inline(never)]
+    fn carried_at_one_exponent(a: i128, b: i128, exp: i32) -> Result<Self, Overflow> {
+        debug_assert!(a & 1 == 1 && b & 1 == 1 && (a < 0) == (b < 0));
+        let mag = a.unsigned_abs() + b.unsigned_abs();
+        let tz = mag.trailing_zeros();
+        let mag = (mag >> tz) as i128;
+        Ok(Self {
+            m: if a < 0 { -mag } else { mag },
+            exp: bounded(i64::from(exp) + i64::from(tz))?,
         })
     }
 
@@ -255,11 +289,16 @@ impl Compact {
     }
 }
 
+/// Bits a nonzero `m`'s magnitude occupies.
+#[inline]
+fn bit_length(m: i128) -> i64 {
+    i64::from(128 - m.unsigned_abs().leading_zeros())
+}
+
 /// `m · 2^by` for a nonzero `m`, if its magnitude still fits in 127 bits.
 #[inline]
 fn raise(m: i128, by: i64) -> Result<i128, Overflow> {
-    let bits = i64::from(128 - m.unsigned_abs().leading_zeros());
-    if bits + by > i64::from(MAGNITUDE_BITS) {
+    if bit_length(m) + by > i64::from(MAGNITUDE_BITS) {
         return Err(Overflow::NeedsWide);
     }
     Ok(m << by as u32)

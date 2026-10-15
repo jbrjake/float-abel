@@ -209,8 +209,9 @@ with an even mantissa is not a value: bytes from outside go through the validati
 column the crate wrote casts in place.
 
 There is no heap arm and nothing allocates: a sum or a product is a fresh word. The caps are the
-width (a finite magnitude at `2^127` in the aligned frame), the exponent bound (`EXACT_MAX_EXP`, 2³⁰,
-§ Exactness bounds) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a product
+width (a finite magnitude whose span from its lowest set bit to its highest exceeds 127 bits, so a
+sum is refused on what it is, not on what an operand needed on the way), the exponent bound
+(`EXACT_MAX_EXP`, 2³⁰, § Exactness bounds) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a product
 that would give a special a non-integer amount, § NaN and ±∞). Past any of them the operators panic
 with a named invariant, because `plus_equals` can't return an error to differential-dataflow, and
 the checked methods (`checked_add`, `checked_sub`, `checked_mul`, `checked_mul_i64`,

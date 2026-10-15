@@ -271,3 +271,61 @@ fn exact_cap_debug_names_the_value_and_the_tier() {
     let z = format!("{:?}", Exact::ZERO);
     assert_eq!(z, "Exact(0e0; nan 0, +inf 0, -inf 0; 0x0:0x0 · 2^0)");
 }
+
+/// A sum fits iff its own span fits, whatever the raised operand needed on the way: the compact
+/// add agrees with the `Wide` route on every pair, either way round. `2^127 + (−1)` is 127
+/// one-bits, inside the width, though `2^127` raised to the unit needs 128; `2^127 + 1` is 128
+/// bits and refused by both routes.
+#[test]
+fn exact_cap_a_sum_that_spans_exactly_the_width_fits() {
+    let via_wide = |a: Exact, b: Exact| {
+        let w = Wide::try_from(&a).unwrap() + Wide::try_from(&b).unwrap();
+        Exact::try_from(&w).ok()
+    };
+    let agree = |a: Exact, b: Exact| {
+        let want = via_wide(a, b);
+        assert_eq!(a.checked_add(&b).ok(), want, "{a:?} + {b:?}");
+        assert_eq!(b.checked_add(&a).ok(), want, "{b:?} + {a:?}");
+        assert_eq!(a.checked_sub(&-b).ok(), want, "{a:?} - -{b:?}");
+    };
+    let top = e(pow2(127));
+    let all_ones = top.checked_add(&e(-1.0)).expect("2^127 - 1 is 127 bits");
+    assert_eq!(all_ones.try_to_f64(), None);
+    assert_eq!(all_ones + e(1.0), top);
+    assert_eq!((-top).checked_add(&e(1.0)), Ok(-all_ones));
+    assert_eq!(top.checked_add(&e(1.0)), Err(PastCap::Width));
+    assert_eq!((-top).checked_add(&e(-1.0)), Err(PastCap::Width));
+    // At one exponent two odd mantissas sum to an even one, so a carry into bit 127 fits: the
+    // widest odd value plus one is 2^127, plus itself is its double, and plus 2^k + 1 fits for
+    // every k ≥ 1 while plus 2 (even, so raised) does not.
+    assert_eq!(all_ones + all_ones, all_ones * 2i64);
+    assert_eq!(-all_ones + e(-1.0), -top);
+    let mut checked = 0;
+    for k in 0..=126 {
+        agree(all_ones, e(pow2(k)) + e(1.0));
+        agree(-all_ones, -(e(pow2(k)) + e(1.0)));
+        checked += 2;
+    }
+    assert_eq!(all_ones.checked_add(&e(2.0)), Err(PastCap::Width));
+    // Across the boundary: ±2^k ± 1, and ±(2^k + 2^j) ∓ (2^j + 1), whose raised operand needs
+    // one bit more than the width at the unit while the sum cancels back under it.
+    for k in 120..=130 {
+        let p = e(pow2(k));
+        for (a, b) in [(p, e(1.0)), (p, e(-1.0)), (-p, e(1.0)), (-p, e(-1.0))] {
+            agree(a, b);
+            checked += 1;
+        }
+        for j in [1, 32, 64, 100, 126] {
+            let Ok(a) = p.checked_add(&e(pow2(j))) else {
+                continue;
+            };
+            let b = -(e(pow2(j)) + e(1.0));
+            agree(a, b);
+            agree(-a, -b);
+            checked += 2;
+        }
+    }
+    // The 127 carries both ways, eleven k by four sign pairs, and the three (k, j) with
+    // k − j > 126 skipped of fifty-five.
+    assert_eq!(checked, 2 * 127 + 44 + 2 * 52);
+}

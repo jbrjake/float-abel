@@ -92,13 +92,21 @@ fn compact_add_detects_promotion_at_the_127_bit_span() {
     assert!(c(0.1).checked_add(c(0.2)).is_ok());
     assert_eq!(c(1e300).checked_add(c(1e-300)), Err(Overflow::NeedsWide));
     assert_eq!(c(1e-300).checked_add(c(1e300)), Err(Overflow::NeedsWide));
-    // The edge: a raised operand may occupy 127 bits, not 128.
+    // The edge: a raised operand may occupy 128 bits when the other cancels it back under the
+    // width, so the sum decides, not the raise.
     let one_plus = add(c(1.0), c(pow2(126)));
     assert_eq!(one_plus.parts(), (1, 1 << 62, 0));
     assert_eq!(one_plus.read(), (pow2(126), true));
     assert_eq!(c(1.0).checked_add(c(pow2(127))), Err(Overflow::NeedsWide));
     assert_eq!(c(pow2(127)).checked_add(c(1.0)), Err(Overflow::NeedsWide));
-    assert_eq!(c(-1.0).checked_add(c(pow2(127))), Err(Overflow::NeedsWide));
+    assert_eq!(add(c(-1.0), c(pow2(127))), widest());
+    assert_eq!(add(c(pow2(127)), c(-1.0)), widest());
+    assert_eq!(add(c(1.0), c(-pow2(127))), -widest());
+    assert_eq!(
+        add(c(-3.0), c(pow2(127))).parts(),
+        (u64::MAX - 2, u64::MAX >> 1, 0)
+    );
+    assert_eq!(c(3.0).checked_add(c(pow2(127))), Err(Overflow::NeedsWide));
     assert!(c(5e-324).checked_add(c(pow2(-948))).is_ok());
     assert_eq!(
         c(5e-324).checked_add(c(pow2(-947))),
@@ -110,14 +118,17 @@ fn compact_add_detects_promotion_at_the_127_bit_span() {
         c(1.0).checked_add(c(f64::MAX * pow2(-896))),
         Err(Overflow::NeedsWide)
     );
-    // The sum itself may carry into bit 127, and then it is refused, on either sign.
+    // The sum may carry into bit 127 at the aligned exponent. Two odd mantissas at one exponent
+    // sum to an even one whose trailing zeros bring it back inside the width, so 2^127 lands on
+    // its one-bit form by either route and the widest odd sum doubles to itself one exponent up;
+    // a raised operand makes the sum odd, so a carry there is refused.
     let w = widest();
-    assert_eq!(w.checked_add(c(1.0)), Err(Overflow::NeedsWide));
-    assert_eq!((-w).checked_add(c(-1.0)), Err(Overflow::NeedsWide));
-    assert_eq!(c(1.0).checked_add(w), Err(Overflow::NeedsWide));
-    // The check is on the aligned frame: 2^127 is refused as (2^127 - 1) + 1 at exponent 0 and
-    // computed as (2^127 - 2) + 2 at exponent 1, where it is 2^126 + 2^126. The heap tier's
-    // demotion brings the first route back to the one-bit form the second lands on.
+    assert_eq!(add(w, c(1.0)).parts(), (1, 0, 127));
+    assert_eq!(add(-w, c(-1.0)).parts(), (u64::MAX, u64::MAX, 127));
+    assert_eq!(add(c(1.0), w).parts(), (1, 0, 127));
+    assert_eq!(add(w, w).parts(), (u64::MAX, u64::MAX >> 1, 1));
+    assert_eq!(add(w, c(3.0)).parts(), (1, 1 << 62, 1));
+    assert_eq!(w.checked_add(c(2.0)), Err(Overflow::NeedsWide));
     let two127_minus_2 = add(w, c(-1.0));
     assert_eq!(two127_minus_2.parts(), (u64::MAX, (1 << 62) - 1, 1));
     assert_eq!(add(two127_minus_2, c(2.0)).parts(), (1, 0, 127));
