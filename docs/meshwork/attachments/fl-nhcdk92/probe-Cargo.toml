@@ -1,0 +1,19 @@
+[package]
+name = "layout-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+float-abel = { path = "/Users/jonr/Documents/code/float-abel", features = ["differential"] }
+differential-dataflow = "0.25"
+timely = "0.31"
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+bincode = "1"
+
+[workspace]
+
+[profile.release]
+debug = false

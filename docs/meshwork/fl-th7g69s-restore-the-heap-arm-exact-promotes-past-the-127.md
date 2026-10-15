@@ -39,15 +39,19 @@ consumer can raise, default 16 × 2148 bits ≈ 4.3 KB, reachable only through �
 
 The layout, ruled: today's `repr(C)` 32-byte word unchanged for the compact form, whose canonical
 mantissa is odd or the zero, so an even nonzero `lo` is not a value; the heap form takes that
-niche, `lo` even and nonzero carrying the limb count, `hi` the pointer to one allocation of
-limbs, `exp` and the counts or amounts inline or in the block as fl-nhcdk92's findings settle.
+niche, `lo` even and nonzero carrying the limb count, `hi` the pointer to one allocation holding a header and the limbs (fl-nhcdk92's shape B: a
+header of sign, exponent and length for the finite part and for each of the three amounts, then
+the limb runs; the word's four trailing fields zero, which the decoder and `Eq` demand).
 `Exact` is not `Copy`; `Clone` is a copy on the compact form and an allocation on the heap form,
 `Drop` frees the block. `src/exact/heap.rs` is the one module beside `src/simd/` where
 `#![deny(unsafe_code)]` is lifted, each block with its `// SAFETY:` line stating the invariant
 (the tag bit decides which form; a heap `hi` is a pointer this module allocated with the length
 in `lo`; no other code reads the fields), `cargo +nightly miri test` covers it, and CLAUDE.md
-§ Standing decisions says so in the owner's words. The same-scale `dd_sum` row must land within
-the budget fl-nhcdk92 measures (a few percent of the Copy word).
+§ Standing decisions says so in the owner's words. The one-worker same-scale `dd_sum` rows
+must land within fl-nhcdk92's budget, 1.12× the Copy word typed and 1.20× serialized, measured in
+one sitting against a control build of the Copy word; the probe's compact fast paths (a write
+over a compact self without drop glue, `clone_from` as a copy, a bitwise `is_zero`) are what that
+budget assumes.
 
 Features: `alloc` returns, `std` implies it, and the self dev-dependency turns it on. Without
 `alloc` the compact-only `Exact` stands with the width as its cap and the checked API, per the

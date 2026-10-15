@@ -1,0 +1,53 @@
+host: Apple M5 Max, load at start 2.69, 2026-10-15T16:03:11Z
+-- 1000000 updates, 16 keys, one epoch, one worker, same-scale, best of 10 --
+  isize            typed           11.7 ms    11.7 ns/update
+  Exact, plain     typed           23.9 ms    23.9 ns/update
+  Exact, banded    typed           24.4 ms    24.4 ns/update
+  enum 40 B (H)    typed           32.4 ms    32.4 ns/update
+  niche A inline   typed           27.3 ms    27.3 ns/update
+  niche B header   typed           26.9 ms    26.9 ns/update
+  niche A, no Drop typed           26.4 ms    26.4 ns/update
+  Wide, plain      typed          174.1 ms   174.1 ns/update
+  isize            serialized      20.3 ms    20.3 ns/update
+  Exact, plain     serialized      40.2 ms    40.2 ns/update
+  Exact, banded    serialized      42.8 ms    42.8 ns/update
+  enum 40 B (H)    serialized      52.9 ms    52.9 ns/update
+  niche A inline   serialized      46.9 ms    46.9 ns/update
+  niche B header   serialized      45.2 ms    45.2 ns/update
+  niche A, no Drop serialized      44.2 ms    44.2 ns/update
+  Wide, plain      serialized     233.2 ms   233.2 ns/update
+-- 1000000 updates, 16 keys, one epoch, one worker, spread 2^±60, best of 10 --
+  Exact, banded    typed           48.9 ms    48.9 ns/update
+  enum 40 B (H)    typed          101.4 ms   101.4 ns/update
+  niche A inline   typed           74.0 ms    74.0 ns/update
+  niche B header   typed           71.9 ms    71.9 ns/update
+  Wide, plain      typed          176.7 ms   176.7 ns/update
+  Exact, banded    serialized      67.0 ms    67.0 ns/update
+  enum 40 B (H)    serialized     122.0 ms   122.0 ns/update
+  niche A inline   serialized      92.5 ms    92.5 ns/update
+  niche B header   serialized      91.4 ms    91.4 ns/update
+  Wide, plain      serialized     235.6 ms   235.6 ns/update
+-- 1000000 updates, 16 keys, one epoch, one worker, mixed 2^±300, best of 10 --
+  Exact, banded    typed           41.8 ms    41.8 ns/update
+  enum 40 B (H)    typed          117.7 ms   117.7 ns/update
+  niche A inline   typed           83.7 ms    83.7 ns/update
+  niche B header   typed           86.7 ms    86.7 ns/update
+  Wide, plain      typed          177.9 ms   177.9 ns/update
+  Exact, banded    serialized      61.6 ms    61.6 ns/update
+  enum 40 B (H)    serialized     138.4 ms   138.4 ns/update
+  niche A inline   serialized     102.3 ms   102.3 ns/update
+  niche B header   serialized     107.6 ms   107.6 ns/update
+  Wide, plain      serialized     234.5 ms   234.5 ns/update
+
+| diff | same-scale typed | same-scale serialized | spread 2^±60 typed | spread 2^±60 serialized | mixed 2^±300 typed | mixed 2^±300 serialized |
+|---|--:|--:|--:|--:|--:|--:||
+| isize | 11.7 | 20.3 | | | | |
+| Exact, plain | 23.9 | 40.2 | | | | |
+| Exact, banded | 24.4 | 42.8 | 48.9 | 67.0 | 41.8 | 61.6 |
+| enum 40 B (H) | 32.4 | 52.9 | 101.4 | 122.0 | 117.7 | 138.4 |
+| niche A inline | 27.3 | 46.9 | 74.0 | 92.5 | 83.7 | 102.3 |
+| niche B header | 26.9 | 45.2 | 71.9 | 91.4 | 86.7 | 107.6 |
+| niche A, no Drop | 26.4 | 44.2 | | | | |
+| Wide, plain | 174.1 | 233.2 | 176.7 | 235.6 | 177.9 | 234.5 |
+load at end: 2.94 3.73 3.95
+done
