@@ -2,13 +2,15 @@
 
 `Exact` panics inside a dataflow on ordinary numbers, and no check on a single value can rule the
 panic out. This memo states what fits, why the panic lands where it does, and the ways out, each
-with what it costs and the evidence. Which one differential carries is the owner's call
-(fl-t154dsp).
+with what it costs and the evidence. The owner ruled for option 5, the heap arm, with option 1,
+the banded idiom, kept as its allocation-free fast path (fl-t154dsp), and § Cost measures the
+ruled 32-byte layout against the alternatives.
 
 Every result below was run on a scratch crate outside the tree (its sources are attached to
 fl-zxpq1wz and fl-h41w0tr) against float-abel at 57e1354, differential-dataflow 0.25.1 and timely
-0.31.0, on an aarch64 Mac, with `explode` + `count_total` on 1 and 3 workers. A figure marked
-*derived* was worked out, not run.
+0.31.0, on an aarch64 Mac, with `explode` + `count_total` on 1 and 3 workers, except § Cost, whose
+probe ran against 02adc7c on the same engine crates. A figure marked *derived* was worked out,
+not run.
 
 ## What fits
 
@@ -142,28 +144,50 @@ would have to be 127 − 106 − log₂ n bits wide. A fold of products inside a
 
 ## Cost
 
-Rough, not a BENCH.md row (`cost`, attached to fl-t154dsp): release, one worker, timely's Thread
-allocator, 10⁶ updates over 16 keys in one epoch, best of three runs, ns an update, on a host at
-load 4, so the ratios are what to read. The heap-arm proxy is the design's dropped arm as a
-newtype in the scratch crate: `Exact` inline, promoted to a `Box<Wide>` when the compact add
-refuses, demoted after every heap op so the canonical form is the smallest tier that fits; the
-real arm held a normalised `Vec<u64>` (two allocations a promotion, a shorter limb add), so the
-proxy is the cost shape, not the implementation.
+Rough, not a BENCH.md row (`cost`, attached to fl-nhcdk92 with its sitting logs): release, one
+worker, 10⁶ updates over 16 keys in one epoch, ns an update, best of ten runs on an Apple M5 Max
+with the one-minute load under 3 at the start. Typed exchange is `execute_directly`, timely's
+Thread allocator; serialized is `ProcessBinary(1)`, every exchanged diff crossing as its serde
+bytes. Two shapes of the heap arm run beside the Copy word: the 40-byte enum, `Exact` inline
+and a `Box<Wide>` past the width, and the 32-byte niche form, the compact word unchanged and a
+heap value tagged by an even nonzero `lo` (a canonical compact mantissa is odd or zero) with
+`hi` the pointer to one allocation of normalised limbs, in two block shapes: the sign, exponent
+and counts in the word (A) or in a header at the front of the block (B). Both demote after every
+heap op, so the canonical form is the smallest form that fits, and the niche form's compact
+paths take every cheap path the real arm will (a write over a compact self without drop glue, a
+`clone_from` that copies, a bitwise `is_zero`). Two diagnostics bracket the niche form on the band
+that never promotes: the Copy word with the tag test alone, and the niche word with an empty
+`Drop`.
 
-| diff | same-scale (units of 2⁻²⁰ below 2²⁰) | spread 2^±60 | mixed 2^±300 |
-|---|--:|--:|--:|
-| `isize` | 12.8 | | |
-| `Exact`, plain | 24.5 | panics | panics |
-| `Exact`, banded, with the reduce | 26.5 | 50.1 | 43.0 |
-| heap-arm proxy | 33.5 | 101.1 | 119.4 |
-| `Wide` as the diff | 198.3 | 179.9 | 180.2 |
+| diff | same-scale typed | same-scale serialized | spread 2^±60 typed | spread 2^±60 serialized | mixed 2^±300 typed | mixed 2^±300 serialized |
+|---|--:|--:|--:|--:|--:|--:|
+| `isize` | 11.0 | 19.2 | | | | |
+| `Exact`, plain (the Copy word) | 22.9 | 37.9 | panics | panics | panics | panics |
+| `Exact`, banded, with the reduce | 23.4 | 41.5 | 48.9 | 67.2 | 42.0 | 59.7 |
+| heap arm, 40-byte enum | 30.3 | 51.5 | 99.5 | 120.4 | 117.9 | 138.8 |
+| heap arm, 32-byte niche, A | 25.6 | 44.4 | 72.8 | 93.4 | 82.6 | 104.6 |
+| heap arm, 32-byte niche, B | 25.5 | 45.4 | 69.8 | 91.6 | 85.7 | 106.9 |
+| niche with an empty `Drop` (diagnostic) | 25.2 | 45.1 | | | | |
+| the Copy word plus the tag test (diagnostic) | 23.3 | 40.2 | | | | |
+| `Wide` as the diff | 171.8 | 236.2 | 178.9 | 236.9 | 179.4 | 236.9 |
 
-On same-scale data the heap-arm proxy never promotes, so its 37% over plain `Exact` is the enum
-tag, the 40-byte update against 32, and a non-`Copy` clone through the sort; on the spread and
-mixed bands the promotions add the allocations and the wide adds, and it runs 2.0–2.8× the banded
-idiom. The banded idiom costs 8% over plain `Exact` on same-scale data. BENCH.md § The end-to-end
-SUM has the criterion numbers for the plain `Exact` row (2.01× `isize` serialized, 2.14× typed, at
-one worker on this machine).
+On same-scale data no heap arm promotes, so the column is the shape's own cost. The enum costs
+32% over the Copy word typed and 36% serialized: a tag, a 56-byte update tuple against 48, and a
+non-`Copy` clone through consolidation's sort. The niche form costs 11% typed and 17–20%
+serialized (the Copy word's serialized minimum sits 2 ms under its median; on medians the ratio
+is 1.17×), and the diagnostics split that: the tag test is 2%, the drop glue 1–2%, and the rest
+is being a non-`Copy` type at all, a `Clone` that branches and the moves through the sort and the
+merges on a type with drop glue, which no layout removes. The two block shapes are 0.1 ns apart
+on that column and split the promoting bands by under 5% each way; B is the one to build, because
+the heap form's dyadic amounts are variable-length limb runs that fit no word, so one block with
+one header holds the whole value. On the promoting bands the niche form runs 0.70–0.76× the enum
+(a shorter limb add, a smaller block) and 1.4–2.0× the banded idiom, which never promotes; the
+probe allocates a fresh block for every heap result, so that is an upper bound on an arm that
+adds in place. The banded idiom costs 2% over the Copy word typed and 9% serialized. An update
+tuple with a `u64` key is 48 bytes with the Copy word and with either niche shape, 56 with the
+enum, 312 with `Wide`. BENCH.md § The end-to-end SUM has the criterion numbers for the Copy
+word's row (2.01× `isize` serialized, 2.14× typed, at one worker on this machine); the heap arm's
+budget is that row within 1.12× typed and 1.20× serialized.
 
 ## Options
 
@@ -192,9 +216,10 @@ one worker on this machine).
    slots and a mapping cast, which is why `Wide` and `Fixed` exist for those; an `alloc`
    feature returns and the no-allocator build loses the arm; the wire form becomes variable
    length, and with it the serde and rkyv shapes, the golden hash's `Exact` leg and the decoder
-   fuzz target; and the proxy measures 37% over plain `Exact` with no promotion at all and 2–2.8×
-   the banded idiom where promotions happen (§ Cost). Reopens the heap-tier work the redesign
-   absorbed (fl-atkbp6q's original scope), the `alloc` row and limb cap in the portfolio plan
+   fuzz target; and the 32-byte niche form measures 11% over plain `Exact` typed with no promotion
+   at all and 1.4–2.0× the banded idiom where promotions happen (§ Cost). Reopens the heap-tier
+   work the redesign absorbed (fl-atkbp6q's original scope), the `alloc` row and limb cap in the
+   portfolio plan
    that fl-cfx001b asks to remove, and the standing decision "every type is a `Copy` plain word
    and nothing allocates".
 
