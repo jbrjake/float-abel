@@ -11,7 +11,7 @@ docs:
 status: done
 created: 2026-10-15T15:33Z
 verify: contains docs/meshwork/fl-nhcdk92-measure-the-heap-arm-s-two-layouts-before-buildi.md /^- 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9:]+Z \[[^]]+\] Layout findings:/
-attachments: [attachments/fl-nhcdk92/probe-src-bin-cost.rs, attachments/fl-nhcdk92/probe-Cargo.toml, attachments/fl-nhcdk92/sitting-1.log, attachments/fl-nhcdk92/sitting-2.log, attachments/fl-nhcdk92/probe-src-bin-cost-main.rs, attachments/fl-nhcdk92/probe-src-bin-cost-niche.rs, attachments/fl-nhcdk92/probe-src-bin-cost-big.rs, attachments/fl-nhcdk92/probe-src-bin-cost-proxies.rs]
+attachments: [attachments/fl-nhcdk92/probe-Cargo.toml, attachments/fl-nhcdk92/sitting-1.log, attachments/fl-nhcdk92/sitting-2.log, attachments/fl-nhcdk92/probe-src-bin-cost-main.rs, attachments/fl-nhcdk92/probe-src-bin-cost-niche.rs, attachments/fl-nhcdk92/probe-src-bin-cost-big.rs, attachments/fl-nhcdk92/probe-src-bin-cost-proxies.rs]
 ---
 
 Owner, 2026-10-15, in session: "yes let's do heap and allow product fols inside a dataflow. but i
