@@ -18,7 +18,7 @@ mod support;
 use std::hint::black_box;
 
 use criterion::{criterion_group, Criterion, Throughput};
-use float_abel::{Exact, PastCap, Wide};
+use float_abel::{Exact, Wide};
 
 use support::{adversarial, fixture, N};
 
@@ -43,34 +43,28 @@ fn same_scale_pairs() -> (Vec<f64>, Vec<f64>) {
     (lhs.to_vec(), rhs.to_vec())
 }
 
-/// Folds `xs` into a running word, restarting at every value the width refuses: the final word
-/// and the number of refusals. Any cap but the width is a bug in the fixture, and says so.
+/// Folds `xs` into a running word: the final word and how many deposits left it in the heap
+/// form, which the compact fast path hands over past the width. Any cap is a bug in the fixture,
+/// and says so.
 fn fold(xs: &[f64]) -> (Exact, usize) {
     let mut acc = Exact::ZERO;
-    let mut caps = 0;
+    let mut promoted = 0;
     for &x in xs {
-        match acc.checked_deposit(x) {
-            Ok(()) => {}
-            Err(PastCap::Width) => {
-                caps += 1;
-                acc = Exact::from_f64(x);
-            }
-            Err(cap) => panic!("a finite double reached the {cap:?} cap"),
-        }
+        acc.checked_deposit(x)
+            .unwrap_or_else(|cap| panic!("a finite double reached the {cap:?} cap"));
+        promoted += usize::from(!acc.is_compact());
     }
-    (acc, caps)
+    (acc, promoted)
 }
 
 /// Every running word the fold passes through, so an add or a read is timed on operands of the
-/// width a real accumulator has on that band.
+/// width and form a real accumulator has on that band.
 fn states(xs: &[f64]) -> Vec<Exact> {
     let mut acc = Exact::ZERO;
     xs.iter()
         .map(|&x| {
-            if acc.checked_deposit(x).is_err() {
-                acc = Exact::from_f64(x);
-            }
-            acc
+            acc.deposit(x);
+            acc.clone()
         })
         .collect()
 }
@@ -81,50 +75,50 @@ fn percent(part: usize, whole: usize) -> f64 {
     100.0 * part as f64 / whole as f64
 }
 
-/// The width-cap rates, DESIGN.md § Targets and kill conditions: the kill condition reads the
-/// same-scale fold's rate, and the other bands bound it. Printed as the rows BENCH.md carries.
+/// The promotion rates, DESIGN.md § Targets and kill conditions: how often the compact fast path
+/// hands a sum to the heap form. The kill condition reads the same-scale fold's rate, and the
+/// other bands bound it. Printed as the rows BENCH.md carries.
 fn rates() {
-    println!("width caps on Exact, {N} values a band (counted, not timed)");
-    println!("| band | pairwise adds refused | running fold: deposits refused | first refusal |");
+    println!("promotions on Exact, {N} values a band (counted, not timed)");
+    println!("| band | pairwise adds promoted | running fold: deposits in the heap form | first promotion |");
     println!("|---|--:|--:|--:|");
     for (name, xs) in bands() {
         let pairs = xs.len() / 2;
         let pairwise = xs
             .chunks_exact(2)
-            .filter(|p| {
-                Exact::from_f64(p[0])
-                    .checked_add(&Exact::from_f64(p[1]))
-                    .is_err()
-            })
+            .filter(|p| !(Exact::from_f64(p[0]) + Exact::from_f64(p[1])).is_compact())
             .count();
-        let (_, caps) = fold(&xs);
+        let (_, promoted) = fold(&xs);
         let first = {
             let mut acc = Exact::ZERO;
-            xs.iter().position(|&x| acc.checked_deposit(x).is_err())
+            xs.iter().position(|&x| {
+                acc.deposit(x);
+                !acc.is_compact()
+            })
         };
         println!(
-            "| {name} | {pairwise} of {pairs} ({:.2}%) | {caps} of {} ({:.2}%) | {} |",
+            "| {name} | {pairwise} of {pairs} ({:.2}%) | {promoted} of {} ({:.2}%) | {} |",
             percent(pairwise, pairs),
             xs.len(),
-            percent(caps, xs.len()),
+            percent(promoted, xs.len()),
             first.map_or_else(|| "never".to_owned(), |i| format!("deposit #{}", i + 1)),
         );
     }
     let (lhs, rhs) = same_scale_pairs();
     let mut acc = Exact::ZERO;
-    let mut caps = 0usize;
+    let mut promoted = 0usize;
     let mut first = None;
     for (i, (&x, &y)) in lhs.iter().zip(&rhs).enumerate() {
-        if acc.checked_deposit_product(x, y).is_err() {
-            caps += 1;
+        acc.deposit_product(x, y);
+        if !acc.is_compact() {
+            promoted += 1;
             first.get_or_insert(i + 1);
-            acc = Exact::product(x, y);
         }
     }
     println!(
-        "| same-scale products | | {caps} of {} ({:.2}%) | {} |",
+        "| same-scale products | | {promoted} of {} ({:.2}%) | {} |",
         lhs.len(),
-        percent(caps, lhs.len()),
+        percent(promoted, lhs.len()),
         first.map_or_else(|| "never".to_owned(), |i| format!("deposit #{i}")),
     );
 }
@@ -160,7 +154,7 @@ fn exact(c: &mut Criterion) {
             b.iter(|| {
                 let mut acc = Exact::ZERO;
                 for e in &built {
-                    acc = acc.checked_add(e).unwrap_or(*e);
+                    acc += e;
                 }
                 acc
             });

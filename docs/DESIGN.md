@@ -5,8 +5,9 @@ a ring on top, so an incremental engine can add, retract and re-merge floats and
 under any order, worker count, merge tree, consolidation timing or architecture. It ships three exact
 storage tiers and one batch-only lossy tier:
 
-- `Exact`: a 32-byte plain word that carries the same-scale case and the special counts, and
-  the width cap, by name, for everything past it.
+- `Exact`: a 32-byte word that carries the same-scale case and the special counts inline, and
+  promotes to one allocation for everything past its 127-bit width, demoting as soon as a result
+  fits again.
 - `Wide` and `Fixed`: two `Copy` fixed-width carriers for engines whose aggregate slot can't hold a
   pointer.
 - `Binned`: a batch-only adaptive accumulator on the same limb grid.
@@ -107,7 +108,7 @@ and the crate ships each:
 
 | corner | type | size | domain | `Copy` | ring |
 |---|---|---|---|---|---|
-| exact + full range for a value; a sum or product within a 127-bit span | `Exact` | 32 B, a plain word | every `f64`, specials counted; past the width it is the cap, by name | yes | yes: `×Exact` with integer special amounts, `×i64` |
+| exact + full range | `Exact` | 32 B; one allocation past a 127-bit span, with `alloc` | every `f64`, specials counted; every sum and product up to the limb cap | no: `Clone` is a copy in the compact form | yes: `×Exact` with dyadic special amounts, `×i64` |
 | exact + constant size (wide) | `Wide` | 296 B | every `f64` | yes | `×i64` only |
 | exact + constant size (window) | `Fixed<const LSB: i32, const LIMBS: usize>` | 8·LIMBS B (32 at the default) | finite doubles exactly on the 2^LSB grid inside the window; the rest **refused at the door**, or **quantised** by declaration | yes | `×i64` only |
 | constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 16·K B + index + counters (80 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
@@ -125,20 +126,23 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   34 × 64 = 2176 gives 78 bits of headroom, i.e. ≥ 2⁶³ additions of the largest finite value
   (bitrep's bound, reused as-is).
 - A product of two doubles has a 106-bit mantissa and spans 2⁻²¹⁴⁸ … 2²⁰⁴⁸: 4196 bits (Kulisch's
-  4288 = 4196 + 92 headroom). `Exact` holds any single product, and a product of sums while the
-  mantissas' product fits 127 bits; past that it is the cap, so its memory is 32 bytes whatever the
-  input, which is what makes it safe against adversarial input.
+  4288 = 4196 + 92 headroom). A product of *k* sums grows linearly in *k*, so `Exact`'s memory is
+  bounded by `k · 2148 + 64` bits for the deepest `float × float` join chain in a dataflow, and by
+  2176 bits when weights only ever multiply integers. The limb cap, `EXACT_MAX_LIMBS` at 16 × 2148
+  bits, is what makes the heap form safe against adversarial input: it is decided on the operands'
+  spans before anything is allocated. Without `alloc` the width caps instead, and the memory is 32
+  bytes whatever the input.
 - Every exponent is bounded: a held value is `m · 2^exp` with |exp| ≤ `EXACT_MAX_EXP` = 2³⁰, checked
   after every operation that moves an exponent, in every build. A sum's exponent stays inside its
   inputs' range plus the mantissa width, and a product of two doubles lies within 2^±2148, so only a
   chain of nested products reaches the bound: about a million products of the smallest subnormal.
-  Past it is the cap, as past the width. The limb cap bounds width and this bounds position; they
+  Past it is the cap, as past the limb cap. The limb cap bounds width and this bounds position; they
   are independent, and the number is as large as keeps every intermediate inside `i64` and every
   stored exponent inside `i32`, with room to spare on both sides.
 - A compact 127-bit mantissa holds any exact sum whose bit-span is ≤ 127. A column of 10⁷ terms
-  whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never crosses the
-  width (measured below). A uniform spread over 2^±300 is the adversary, and 77% of its pairwise adds cross the width
-  (measured). Real columns look like the former; the exact tier exists for the latter.
+  whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never promotes
+  (measured below). A uniform spread over 2^±300 is the adversary, and 77% of its pairwise adds
+  promote (measured). Real columns look like the former; the heap form exists for the latter.
 - `Fixed<−96, 4>`: unit 2⁻⁹⁶ ≈ 1.3·10⁻²⁹. 64 bits of headroom leave a magnitude ceiling of
   2⁹⁵ ≈ 4·10²⁸. Every double with |x| ≥ 2⁻⁴⁴ ≈ 5.7·10⁻¹⁴ is on the grid, and a smaller one is on it
   iff its trailing mantissa bits are zero. Money, counts, measurements and probabilities above 10⁻¹³
@@ -177,10 +181,12 @@ coefficients `(f, n, p, q)`:
 ```
 
 A monoid algebra is associative, commutative and bilinear by construction, so
-`(a+b)·c = a·c + b·c`, and a retraction's product cancels its insertion's. `Exact` keeps the amounts
-as `i32` counts, so that it stays a 32-byte word: `f·n′` is defined when `f` is an integer, and a
-product that would give a special a non-integer amount, as `2.5 · NaN` would, is the cap, by name.
-A row's product deposit, `product(a, b)`, counts once per row by the sign rule, as `Wide` does. A finite negative factor
+`(a+b)·c = a·c + b·c`, and a retraction's product cancels its insertion's. The amounts are dyadic:
+the compact form holds them as `i32` counts inline, and a product that gives a special a
+non-integer amount, as `2.5 · NaN` does, or a count past `i32`, promotes to the heap form, whose
+amounts are normalised dyadics as wide as the finite part, and demotes once the amounts are counts
+again. Without `alloc` that product is the cap, by name. A row's product deposit, `product(a, b)`,
+counts once per row by the sign rule, as `Wide` does. A finite negative factor
 flips an infinity's sign through the projection rule above. The one divergence from IEEE follows from
 bilinearity: an exact zero annihilates, so `0 · ∞` and `0 · NaN` project as `0`, not NaN. `Wide`
 scales its integer counters by `i64` only. `Fixed` refuses non-finite input outright, because its
@@ -190,34 +196,58 @@ contract is *exact or refused*.
 
 ### Exact {#sp-exact}
 
-The engine weight: a differential-dataflow diff, a DBSP weight, the carrier for an exact reference
-oracle, and a plain word an engine can keep in a column and cast from a mapping.
+The engine weight: a differential-dataflow diff, a DBSP weight, and the carrier for an exact
+reference oracle, in a 32-byte word with two forms.
 
 ```
-#[repr(C)] struct Exact {               // 32 bytes, Copy, no padding, no pointer
-    lo: u64, hi: u64, exp: i32,         // m = (hi:lo) as signed 128-bit, value = m · 2^exp
-    nan: i32, pos_inf: i32, neg_inf: i32,   // the special vector (n, p, q), signed counts
-}
+#[repr(C)] struct Exact {               // 32 bytes, no padding; Clone, not Copy
+    lo: u64, hi: u64, exp: i32,         // compact: m = (hi:lo) as signed 128-bit, value = m · 2^exp
+    nan: i32, pos_inf: i32, neg_inf: i32,   //   with the special vector (n, p, q) as signed i32 counts
+}                                       // heap: lo = block capacity << 1 (even, nonzero), hi = pointer,
+                                        //   the four trailing fields zero
 ```
 
-The layout is load-bearing and gets a `const` assertion: six fields, 32 bytes, 8-aligned, and the
-bytes are the little-endian wire form on a little-endian machine. Canonical form is mantissa odd or
-the zero form `(0, 0, 0)`, with the counts as they are. Every operation canonicalises, so structural
-`Eq` is numeric equality, and `Hash` and `Ord` are consistent. `Ord` is numeric on the finite part,
-then `(n, p, q)` lexicographic, which makes it a total order. The fields are private because a word
-with an even mantissa is not a value: bytes from outside go through the validating decoder, while a
-column the crate wrote casts in place.
+The compact form is a canonical dyadic of at most 127 bits with `i32` counts inline: mantissa odd or
+the zero form `(0, 0, 0)`, with the counts as they are. Its canonical mantissa is odd or zero, so an
+even nonzero `lo` is no compact value, and the heap form takes that niche: `lo` carries the
+capacity of one allocation, `hi` its pointer, and the block holds a four-entry header (sign,
+exponent, limb count) for the finite part and the three special amounts, then the four runs of
+normalised limbs, no leading zero limb, the lowest set bit at the exponent. The heap form is
+reached by promotion only, when a result's finite part spans more than 127 bits or an amount is not
+an `i32` count (a count past `i32`, or a dyadic amount such as `2.5 · NaN`), and every operation
+demotes a result that fits the compact form again, so canonical form is **the smallest form that
+holds the value**. Structural `Eq` is therefore numeric equality across both forms, `Hash` agrees,
+and `Ord` is numeric on the finite part then `(n, p, q)` lexicographic, a total order. `Clone` is a
+copy in the compact form and one allocation in the heap form, `Drop` frees the block, and
+`is_compact()` reports the form. The layout is load-bearing and gets a `const` assertion: six
+fields, 32 bytes, 8-aligned, and a differential update tuple with a `u64` key stays 48 bytes.
+`src/exact/heap.rs` is the one module beside `src/simd/` that lifts `#![deny(unsafe_code)]`, each
+block stating its invariant: the tag bit decides the form, a heap `hi` is a pointer that module
+allocated with the capacity in `lo`, and no other code reads a heap word's fields. The fields are
+private because a word with an even mantissa is not a compact value: bytes from outside go through
+the validating decoder.
 
-There is no heap arm and nothing allocates: a sum or a product is a fresh word. The caps are the
-width (a finite magnitude whose span from its lowest set bit to its highest exceeds 127 bits, so a
-sum is refused on what it is, not on what an operand needed on the way), the exponent bound
-(`EXACT_MAX_EXP`, 2³⁰, § Exactness bounds) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a product
-that would give a special a non-integer amount, § NaN and ±∞). Past any of them the operators panic
-with a named invariant, because `plus_equals` can't return an error to differential-dataflow, and
-the checked methods (`checked_add`, `checked_sub`, `checked_mul`, `checked_mul_i64`,
-`checked_deposit`, `checked_deposit_product`) return it as `PastCap { Width, Exponent, Count }`
-with the state as it was. `From<f64>` and `product(a, b)` are total. `Exact` builds on every feature
-set, allocator or not.
+The compact fast paths are the whole cost on data that never promotes: `+=` on a compact word runs
+the compact add in place with no drop glue, `clone_from` between compact words is a copy, `is_zero`
+is a test of the bits (the zero is the compact zero word), and `Eq` compares the words first.
+Measured against the `Copy` word on same-scale data in a differential `SUM`, the form costs 1.11×
+typed and 1.17–1.20× serialized (docs/OVERFLOW.md § Cost): the tag test, the drop glue, and the
+moves of a non-`Copy` type through consolidation's sort, none of them removable by the layout.
+
+The caps are the limb cap (`EXACT_MAX_LIMBS`, 16 × 2148 bits ≈ 4.3 KB per run, § Exactness bounds,
+a `const` raised by editing it) and the exponent bound (`EXACT_MAX_EXP`, 2³⁰). Past either the
+operators panic with a named invariant, because `plus_equals` can't return an error to
+differential-dataflow, and the checked methods (`checked_add`, `checked_sub`, `checked_mul`,
+`checked_mul_i64`, `checked_deposit`, `checked_deposit_product`) return it as `PastCap` with the
+state as it was. `From<f64>` and `product(a, b)` are total. Without the `alloc` feature the compact
+form stands alone and the width (a finite magnitude whose span from its lowest set bit to its
+highest exceeds 127 bits, so a sum is refused on what it is, not on what an operand needed on the
+way) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a non-integer amount)
+are its caps, `PastCap::Width` and `PastCap::Count`; `PastCap` carries all four variants on every
+feature set, and the two builds differ in which are ever returned. `to_bytes` encodes the compact
+form and panics by name on the heap form, whose encoding is § Wire format's open item;
+`specials()` returns the `(n, p, q)` counts as `i64` when every amount is an integer `i64` holds,
+and `None` for a dyadic amount or one past `i64`, which only the heap form has.
 
 ### Wide {#sp-wide}
 
@@ -295,9 +325,11 @@ is total there, with only the named cap, and `checked_deposit_product` returns t
 `is_zero()`, `is_finite()` and `specials()` read the state.
 
 Conversions between tiers: `Wide: From<Fixed<..>>` is exact, pinned by a `const` assertion to the
-`(LSB, LIMBS)` pairs `Wide` holds; `Exact: TryFrom<&Wide>` and `Exact: TryFrom<&Fixed<..>>` refuse
-past the width; `Wide::try_from(&Exact)` refuses below the unit or at the ceiling, where
-`deposit_product` would. `Binned<K>::into_wide`
+`(LSB, LIMBS)` pairs `Wide` holds; `Exact: TryFrom<&Wide>` and `Exact: TryFrom<&Fixed<..>>` take
+every state, into the heap form past the width, and refuse only the exponent bound (without
+`alloc`, the width too); `Wide::try_from(&Exact)` refuses below the unit or at the ceiling, where
+`deposit_product` would, with a dyadic amount off its counters' grid and an amount past `i64` above
+their ceiling. `Binned<K>::into_wide`
 (exact) and `Wide::to_binned::<K>` (lossy) are named methods, and nothing lossy has a `From`. Every
 tier has the bulk entry points `extend_from_slice(&[f64])` and `deposit_products(&[f64], &[f64])`;
 they are the SIMD surface.
@@ -327,7 +359,11 @@ dev-dependency differential oracle for `Exact::to_f64` on random multisets. `Fix
 One canonical little-endian encoding per type, a leading version byte then the body, emitted both by
 the `serde` feature and by `to_bytes`/`from_bytes` without it:
 
-- `Exact` as its 32 bytes, two limbs, the exponent and three counts, which is its in-memory layout;
+- `Exact` in its compact form as its 32 bytes, two limbs, the exponent and three counts, which is
+  that form's in-memory layout. The heap form has no `to_bytes` encoding; under `serde` it crosses
+  an engine's exchange as a tagged body (`0x04`, then each run's sign, exponent and limb count,
+  then the limbs), whose decoder refuses a body that is not normalised or whose value fits the
+  compact form, and which `from_bytes` does not take;
 - `Wide` as 272 limb bytes then 24 counter bytes, which is its in-memory layout;
 - `Fixed` as its limbs, which is its in-memory layout.
 
@@ -356,11 +392,12 @@ differential-dataflow the encoding rides whatever timely frames exchanged data w
 ## Crate posture {#sp-posture}
 
 - MIT OR Apache-2.0. Edition 2021.
-- `#![deny(unsafe_code)]` crate-wide, lifted only inside `src/simd/`, where the intrinsics live, with
-  a `// SAFETY:` line on every block. With the `simd` feature off, the crate is `unsafe`-free end to
-  end.
-- `#![no_std]`, and nothing allocates: every type is a `Copy` plain word on every feature set. `std`
-  (the default) adds the test kit and `std::error::Error`.
+- `#![deny(unsafe_code)]` crate-wide, lifted only inside `src/simd/`, where the intrinsics live, and
+  `src/exact/heap.rs`, where `Exact`'s heap form owns its block, with a `// SAFETY:` line on every
+  block. With the `simd` and `alloc` features off, the crate is `unsafe`-free end to end.
+- `#![no_std]`. `Wide`, `Fixed` and `Binned` are `Copy` plain words that never allocate; `Exact`
+  allocates only in its heap form, behind `alloc`, and is the compact form alone without it. `std`
+  (the default) implies `alloc` and adds the test kit and `std::error::Error`.
 - **Zero required dependencies.** Everything else is a feature.
 - MSRV **1.74** for the default feature set, asserted in CI on exactly that set. The `differential`
   feature inherits differential-dataflow 0.25's declared `rust-version = "1.86"`. The `dbsp` feature
@@ -377,12 +414,13 @@ differential-dataflow the encoding rides whatever timely frames exchanged data w
 
 | feature | pulls in | provides |
 |---|---|---|
-| `std` (default) | — | `std::error::Error` impls, the bench harness |
-| `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
+| `alloc` | — | `Exact`'s heap form: promotion past the width, dyadic special amounts, the limb cap as the one cap beside the exponent bound |
+| `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
+| `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode; the heap form's exchange body with `alloc` |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
 | `dbsp` | dbsp 0.364 + rkyv 0.7 (`std`, `size_64`) + feldera-size-of 0.1.7 + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
-| `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the only `unsafe` in the crate |
+| `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the `unsafe` beside the heap form's |
 | `arbitrary` | arbitrary 1 | fuzz inputs |
 
 ## Adapters
@@ -438,7 +476,7 @@ tests/dbsp.rs runs the probe's cases against the shipped adapter.
 |---|---|---|
 | `Clone + Default + Debug + Eq + Ord + Hash + Send + Sync + 'static` | `DBData` | already |
 | `SizeOf` | feldera-size-of 0.1.7 (`package = "feldera-size-of"`) | derive |
-| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | `Archive` and `Serialize` derived on the struct, a `Copy` word of six integers, so the archived form is the word itself (the wire body without its version byte); `Deserialize`, `Eq` and `Ord` on the archived form hand-written through one validating constructor, which refuses a non-canonical word with a panic naming the invariant, because dbsp's deserialiser has no error channel |
+| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | `Archive` and `Serialize` derived on the struct, six integers, so the archived form is the compact word itself (the wire body without its version byte); `Deserialize`, `Eq` and `Ord` on the archived form hand-written through one validating constructor, which refuses a non-canonical word with a panic naming the invariant, because dbsp's deserialiser has no error channel. A heap word archived as its six integers is refused the same way, by its even low limb: a promoted weight lives in dbsp's in-memory batches, and the heap form's archived form is § Wire format's open item |
 | `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written through the same constructor, because `Ord` is hand-written; tested against `Ord` on 10⁵ values over mixed tiers and specials |
 | `IsNone` + `SupportsRoaring` | `utils/{is_none,supports_roaring}.rs` | dbsp's own exported `never_none!` and `never_roaring_filter!`, which expand to what `#[derive(feldera_macros::IsNone)]` emits, so feldera-macros is not a dependency |
 | `HasZero` (exact `is_zero`), `AddByRef`/`AddAssignByRef` | `algebra.rs`; blankets over `&T: Add` and `T: AddAssign<&T>` | std ops |
@@ -524,9 +562,9 @@ they are missed.
 
 ## Hardening {#sp-hardening}
 
-- **No `unsafe` outside `src/simd/`, and no panics on input.** Every constructor is total or returns
-  `Err`, and group ops never fail. `Fixed` states its deposit budget and `Exact` its memory bound. The
-  one panic is the named `Exact` cap.
+- **No `unsafe` outside `src/simd/` and `src/exact/heap.rs`, and no panics on input.** Every
+  constructor is total or returns `Err`, and group ops never fail. `Fixed` states its deposit budget
+  and `Exact` its memory bound. The one panic is the named `Exact` cap.
 - **Decode refuses non-canonical bytes**, and nothing allocates a size taken from untrusted input
   above the cap. `cargo-fuzz` targets cover the decoder (`decode_robustness`), sums against a
   `num-bigint` rational oracle (`sum_vs_oracle`), and subtraction round-trips (`sub_roundtrip`), run
@@ -602,7 +640,7 @@ re-summing its floats.
 
 | claim | measured by | kill / done |
 |---|---|---|
-| the compact tier carries same-scale data inside the width | width-cap rate on the same-scale fixture | > 5% caps → widen the word before the adapters build on the type |
+| the compact form carries same-scale data inside the width | promotion rate on the same-scale fixture | > 5% promotions → widen the word before the adapters build on the type |
 | the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | 1.8–2.2×, accepted (fl-bbevtyv): the layout stands, the 32-byte word is the price of a float diff that needs no pre-chosen scale, and the adoption test is the crossover in `docs/CROSSOVER.md` |
 | SIMD earns its feature | bulk deposit, each kernel vs the scalar reference, same-scale fixture, NEON and AVX2 | < 3× over scalar → 0.1.0 ships scalar-only, and the kernels stay behind the feature as experimental |
 | `Binned` is worth a tier | `Binned<3>` bulk vs exact `Wide` bulk | < 2× faster → `Binned` remains a convenience, not a recommended default |
@@ -634,14 +672,16 @@ owner's act; so is any announcement.
 - **Arbitrary float arithmetic.** Division, `exp`/`log` and non-dyadic constants stay outside the
   group.
 - **GPU kernels.**
-- **A heap tier past `Exact`'s width.** A `Box` arm would make the weight non-`Copy`, which the
-  engines' slots refuse and which allocates on every clone a spine makes. Arms when a consumer needs
-  a float × float join weight past a 127-bit span and tolerates allocation; `Wide` holds every sum
-  without it.
 
 ## Open questions
 
-- None.
+- **The `Exact` limb cap.** The design takes a named panic at `EXACT_MAX_LIMBS`, because
+  `plus_equals` can't return an error. The alternative refuses at `deposit_product` and makes
+  `Multiply` saturate to a sticky NaN amount: that is total, but non-linear.
+- **The heap form on the wire.** `to_bytes` is the compact form's, serde carries the heap form
+  under a provisional tag, and rkyv's archive refuses it by name; one encoding for both forms, the
+  decoder's limb-count ceiling, the golden hash over heap vectors and the archived form are one
+  piece of work.
 
 ## References
 

@@ -1571,6 +1571,7 @@ dependencies = [
  "differential-dataflow",
  "feldera-size-of",
  "float-abel",
+ "num-bigint",
  "postcard",
  "proptest",
  "rkyv",

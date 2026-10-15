@@ -4,7 +4,8 @@
 //! sets and 10⁴ seeded random multisets from the stream frozen in stream.rs. Each multiset goes
 //! through every tier: `Wide` with its group ops, its reads and its view as a `Binned`; a `Binned`
 //! fold with its bins and the `Wide` it converts to, since `Binned` has no wire form; `Fixed256`
-//! and `Exact` with every input accepted or refused by name; the conversions between them; the
+//! with every input accepted or refused by name; `Exact` with every input accepted, in the compact
+//! form by its bytes and in the heap form by its reads alone; the conversions between them; the
 //! 106-bit product on each; the bulk entries, `extend_from_slice` on `Wide`, `Fixed256` and
 //! `Binned` and the dot product of the multiset with its own reverse through `deposit_products`
 //! on each, which run whatever kernel this target dispatches to behind the `simd` feature.
@@ -40,7 +41,7 @@ const MULTISETS: u64 = 10_000;
 /// seed and the record layout, and both are asserted before the hash because a different count of
 /// records is a more legible finding than a different hash.
 const ELEMENTS: u64 = 325_745;
-const BYTES: u64 = 65_557_243;
+const BYTES: u64 = 65_385_705;
 /// The batch tier's width here: three bins, the design's default.
 const K: usize = 3;
 
@@ -56,6 +57,9 @@ mod tag {
     pub(crate) const FIXED: u8 = 0x21;
     pub(crate) const EXACT: u8 = 0x22;
     pub(crate) const BINNED: u8 = 0x23;
+    /// An `Exact` in its heap form: its reads alone, with no bytes, because the heap form's
+    /// encoding is the wire task's.
+    pub(crate) const EXACT_HEAP: u8 = 0x24;
     /// A lone double read, such as a quotient.
     pub(crate) const F64: u8 = 0x30;
 }
@@ -81,6 +85,7 @@ impl Refusal for PastCap {
             Self::Width => 4,
             Self::Exponent => 5,
             Self::Count => 6,
+            Self::Limbs => 7,
         }
     }
 }
@@ -162,8 +167,12 @@ impl Transcript {
     }
 
     fn exact(&mut self, e: &Exact) {
-        self.tag(tag::EXACT);
-        self.put(&e.to_bytes());
+        if e.is_compact() {
+            self.tag(tag::EXACT);
+            self.put(&e.to_bytes());
+        } else {
+            self.tag(tag::EXACT_HEAP);
+        }
         self.reads(e.to_f64(), e.try_to_f64(), e.to_f32());
     }
 
@@ -206,15 +215,15 @@ struct Stats {
     multisets: u64,
     elements: u64,
     /// Inputs `Fixed256` refused one at a time and in bulk, products `Wide`, `Fixed256` and
-    /// `Binned` refused, and inputs `Exact` refused: each path must have been taken, so each is
-    /// asserted positive. A product deposit on `Exact::ZERO` never refuses (two doubles' product
-    /// fits the width) and is not counted.
+    /// `Binned` refused, and deposits that left `Exact` in its heap form: each path must have
+    /// been taken, so each is asserted positive. A product deposit on `Exact::ZERO` never
+    /// promotes (two doubles' product fits the width) and is not counted.
     fixed_refused: u64,
     fixed_bulk_refused: u64,
     wide_products_refused: u64,
     fixed_products_refused: u64,
     binned_products_refused: u64,
-    exact_refused: u64,
+    exact_promoted: u64,
     bytes: u64,
 }
 
@@ -277,9 +286,8 @@ fn conformance(t: &mut Transcript, s: &mut Stats) {
         t.binned(&bins);
         let mut exact_sum = Exact::ZERO;
         for &x in &inputs {
-            if t.result(exact_sum.checked_deposit(x)).is_none() {
-                s.exact_refused += 1;
-            }
+            t.result(exact_sum.checked_deposit(x));
+            s.exact_promoted += u64::from(!exact_sum.is_compact());
         }
         t.exact(&exact_sum);
         assert_ne!(name, "", "a conformance case has a name");
@@ -357,9 +365,8 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
     let mut exact_sum = Exact::ZERO;
     for &x in xs {
         t.exact(&Exact::from(x));
-        if t.result(exact_sum.checked_deposit(x)).is_none() {
-            s.exact_refused += 1;
-        }
+        t.result(exact_sum.checked_deposit(x));
+        s.exact_promoted += u64::from(!exact_sum.is_compact());
     }
     t.exact(&exact_sum);
     if let Some(e) = t.result(exact_sum.checked_mul_i64(scale)) {
@@ -452,8 +459,8 @@ fn golden_hash_matches_the_committed_claim() {
             && s.wide_products_refused > 0
             && s.fixed_products_refused > 0
             && s.binned_products_refused > 0
-            && s.exact_refused > 0,
-        "every refusal path is in the transcript: {s:?}"
+            && s.exact_promoted > 0,
+        "every refusal path and the heap form are in the transcript: {s:?}"
     );
     assert_eq!(s.elements, ELEMENTS, "{s:?}");
     assert_eq!(s.bytes, BYTES, "{s:?}");

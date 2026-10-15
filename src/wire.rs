@@ -37,6 +37,13 @@ pub enum WireError {
     Exponent,
     /// `Exact`: a count equal to `i32::MIN`, which no operation produces and negation cannot take.
     Count,
+    /// `Exact`, heap form: a run's limb count past `EXACT_MAX_LIMBS`, refused before anything is
+    /// allocated, because an untrusted size gets a ceiling.
+    Limbs,
+    /// `Exact`, heap form: a body in a form no operation writes, so a second spelling of a value:
+    /// a run that is not normalised (a leading zero limb, or a sign or an exponent on an empty
+    /// run), or a value that fits the compact form and so belongs in its encoding.
+    Form,
 }
 
 impl fmt::Display for WireError {
@@ -52,6 +59,10 @@ impl fmt::Display for WireError {
             Self::ZeroExponent => f.write_str("a zero mantissa with a nonzero exponent"),
             Self::Exponent => f.write_str("the exponent lies outside ±EXACT_MAX_EXP"),
             Self::Count => f.write_str("a count of i32::MIN, which negation cannot take"),
+            Self::Limbs => f.write_str("a heap run's limb count lies past EXACT_MAX_LIMBS"),
+            Self::Form => f.write_str(
+                "a heap body that is not normalised, or holds a value that fits the compact form",
+            ),
         }
     }
 }

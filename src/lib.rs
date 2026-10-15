@@ -10,8 +10,11 @@
 //! No floating-point instruction executes in any group operation or read: only `to_bits`, shifts
 //! and adds with carry. That is what makes the bits architecture-independent.
 //!
-//! The crate is `no_std` and never allocates: every type is a `Copy` plain word on every feature
-//! set. `std` (on by default) adds `std::error::Error` impls and the bench harness.
+//! The crate is `no_std`. `Wide`, `Fixed` and `Binned` are `Copy` plain words that never
+//! allocate; `Exact` is a 32-byte word that, behind the `alloc` feature, promotes a result past its
+//! 127-bit width to one allocation and demotes it after every operation that fits again. Without
+//! `alloc` it is the compact form alone, with the width as a named cap. `std` (on by default)
+//! implies `alloc` and adds `std::error::Error` impls and the bench harness.
 //!
 //! [`Exact`], [`Wide`] and [`Fixed`] are the groups. [`Binned`] is the batch-only tier beside
 //! them: constant size and the full range, order-independent, and not a group, so it folds a tile
@@ -49,6 +52,8 @@
     clippy::cast_possible_wrap
 )]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -68,7 +73,7 @@ mod wide;
 mod wire;
 
 pub use binned::Binned;
-pub use exact::{Exact, PastCap, EXACT_MAX_EXP};
+pub use exact::{Exact, PastCap, EXACT_MAX_EXP, EXACT_MAX_LIMBS};
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
 pub use wide::Wide;
 pub use wire::WireError;

@@ -47,7 +47,7 @@ fn tuples(batch: &Weighted) -> Vec<(u32, u32, Exact)> {
         while cursor.val_valid() {
             let key = *cursor.key().downcast_checked::<u32>();
             let val = *cursor.val().downcast_checked::<u32>();
-            let weight: Exact = **cursor.weight();
+            let weight: Exact = (**cursor.weight()).clone();
             out.push((key, val, weight));
             cursor.step_val();
         }
@@ -85,7 +85,7 @@ fn changes(output: &OutputHandle<OrdIndexedZSet<u32, Exact>>) -> Vec<(u32, Exact
 /// `expected` in a batch's order: by key, then by value, which for an `Exact` is numeric with
 /// the counts breaking a tie.
 fn sorted(mut expected: Vec<(u32, Exact, ZWeight)>) -> Vec<(u32, Exact, ZWeight)> {
-    expected.sort_by_key(|&(account, total, _)| (account, total));
+    expected.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
     expected
 }
 
@@ -95,10 +95,11 @@ fn push(ledger: &IndexedZSetHandle<u32, u64>, rows: &[(u32, f64, ZWeight)]) {
     }
 }
 
-/// `n` values over the tiers, seeded: a double as drawn, with a NaN or an infinity one time in
-/// sixteen; the exact sum of two such doubles, which spans far more than 53 bits when their
-/// exponents differ; the exact product of two, which spans 106; and an integer multiple. Past a
-/// cap the value is the first double alone.
+/// `n` compact values over the tiers, seeded: a double as drawn, with a NaN or an infinity one
+/// time in sixteen; the exact sum of two such doubles, which spans far more than 53 bits when
+/// their exponents differ; the exact product of two, which spans 106; and an integer multiple. A
+/// result in the heap form, or past a cap, falls back to the first double alone, because the
+/// archived form is the compact word's.
 fn mixed(n: usize) -> Vec<Exact> {
     let mut rng = Rng(0x5EED_DB5B);
     (0..n)
@@ -106,12 +107,13 @@ fn mixed(n: usize) -> Vec<Exact> {
             let a = e(rng.any());
             let b = e(rng.any());
             let k = (rng.next() % 2001) as i64 - 1000;
-            match i % 4 {
-                0 => a,
-                1 => a.checked_add(&b).unwrap_or(a),
-                2 => a.checked_mul(&b).unwrap_or(a),
-                _ => a.checked_mul_i64(k).unwrap_or(a),
-            }
+            let result = match i % 4 {
+                0 => Ok(a.clone()),
+                1 => a.checked_add(&b),
+                2 => a.checked_mul(&b),
+                _ => a.checked_mul_i64(k),
+            };
+            result.ok().filter(Exact::is_compact).unwrap_or(a)
         })
         .collect()
 }
@@ -149,6 +151,24 @@ fn dbsp_weighted_batch_consolidates_exactly_and_cancels_on_merge() {
     assert_eq!(tuples(&half), vec![(1, 10, e(0.1)), (2, 20, e(-0.3))]);
 }
 
+/// A key whose weights span more than the width consolidates to a weight in the heap form, which
+/// an in-memory batch holds as any other, and merging in the retraction of the large weight
+/// demotes the key's weight to the compact small one.
+#[test]
+fn dbsp_weighted_batch_holds_a_promoted_weight_and_demotes_it_on_merge() {
+    let batch = weighted(&[((1, 10), 1e300), ((1, 10), 1e-300), ((2, 20), 0.5)]);
+    let promoted = e(1e300) + e(1e-300);
+    assert!(!promoted.is_compact());
+    assert_eq!(
+        tuples(&batch),
+        vec![(1, 10, promoted.clone()), (2, 20, e(0.5))]
+    );
+    let demoted = batch.merge(&weighted(&[((1, 10), -1e300)]));
+    assert_eq!(tuples(&demoted), vec![(1, 10, e(1e-300)), (2, 20, e(0.5))]);
+    let cancelled = batch.merge(&weighted(&[((1, 10), -1e-300), ((1, 10), -1e300)]));
+    assert_eq!(tuples(&cancelled), vec![(2, 20, e(0.5))]);
+}
+
 /// Each row's contribution is scaled by its `ZWeight`, so three copies of `0.2` land `0.2 × 3`,
 /// and a change is the retraction of the old total and the insertion of the new one. Retracting
 /// every row of an account leaves its accumulator at the exact zero, which deletes the group:
@@ -160,7 +180,10 @@ fn dbsp_aggregate_linear_scales_by_zweight_and_deletes_the_zero_group() {
     push(&ledger, &[(1, 0.1, 1), (1, 0.2, 3), (2, 0.5, 1)]);
     circuit.transaction().expect("step 0");
     let total1 = e(0.1) + e(0.2) * 3i64;
-    assert_eq!(changes(&output), vec![(1, total1, 1), (2, e(0.5), 1)]);
+    assert_eq!(
+        changes(&output),
+        vec![(1, total1.clone(), 1), (2, e(0.5), 1)]
+    );
 
     push(
         &ledger,
@@ -169,7 +192,11 @@ fn dbsp_aggregate_linear_scales_by_zweight_and_deletes_the_zero_group() {
     circuit.transaction().expect("step 1");
     assert_eq!(
         changes(&output),
-        sorted(vec![(1, total1, -1), (2, e(0.5), -1), (2, e(0.25), 1)])
+        sorted(vec![
+            (1, total1.clone(), -1),
+            (2, e(0.5), -1),
+            (2, e(0.25), 1)
+        ])
     );
 
     push(&ledger, &[(2, 0.25, -1)]);
@@ -198,8 +225,8 @@ fn dbsp_specials_ride_the_accumulator_and_retract_exactly() {
     circuit.transaction().expect("step 0");
     let with_nan = e(1.5) + e(f64::NAN) + e(f64::INFINITY) + e(2.5) * 2i64;
     assert!(with_nan.to_f64().is_nan());
-    assert_eq!(with_nan.specials(), (1, 1, 0));
-    assert_eq!(changes(&output), vec![(7, with_nan, 1)]);
+    assert_eq!(with_nan.specials(), Some((1, 1, 0)));
+    assert_eq!(changes(&output), vec![(7, with_nan.clone(), 1)]);
 
     push(&ledger, &[(7, f64::NAN, -1)]);
     circuit.transaction().expect("step 1");
@@ -207,7 +234,7 @@ fn dbsp_specials_ride_the_accumulator_and_retract_exactly() {
     assert_eq!(without.to_f64(), f64::INFINITY);
     assert_eq!(
         changes(&output),
-        sorted(vec![(7, with_nan, -1), (7, without, 1)])
+        sorted(vec![(7, with_nan.clone(), -1), (7, without, 1)])
     );
 
     circuit.kill().expect("the workers join");
@@ -293,19 +320,18 @@ fn dbsp_a_non_canonical_archived_word_is_refused() {
 }
 
 /// `MulByRef<i64>` and `MulByRef<isize>`, what `aggregate_linear` scales a row's contribution by,
-/// are the ring's `Mul` by the integer; `MulByRef<Exact>` is the ring product, with integer
-/// weights here because a special amount must stay an integer; and `HasZero` and `HasOne` are
-/// the group's zero and the ring's one.
+/// are the ring's `Mul` by the integer; `MulByRef<Exact>` is the ring product; and `HasZero` and
+/// `HasOne` are the group's zero and the ring's one.
 #[test]
 fn dbsp_mul_by_ref_and_the_constants_are_the_ring_s() {
     let values = [0.1, -2.5, 1e300, 5e-324, f64::NAN, f64::INFINITY];
     for x in values.map(e) {
         for k in [-3i64, -1, 0, 1, 2, 1_000] {
-            assert_eq!(x.mul_by_ref(&k), x * k, "{x:?} × {k}");
-            assert_eq!(x.mul_by_ref(&(k as isize)), x * k, "{x:?} × {k}");
+            assert_eq!(x.mul_by_ref(&k), &x * k, "{x:?} × {k}");
+            assert_eq!(x.mul_by_ref(&(k as isize)), &x * k, "{x:?} × {k}");
         }
         for y in [2.0, -4.0, 0.0].map(e) {
-            assert_eq!(x.mul_by_ref(&y), x * y, "{x:?} × {y:?}");
+            assert_eq!(x.mul_by_ref(&y), &x * &y, "{x:?} × {y:?}");
         }
         assert_eq!(HasZero::is_zero(&x), x == Exact::ZERO);
     }

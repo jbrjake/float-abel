@@ -5,7 +5,7 @@
 //! `Wide::deposit_product` would. Every round trip is checked bit for bit against the state the
 //! same deposits build in the target tier directly.
 
-use float_abel::{Exact, Fixed256, OutOfWindow, PastCap, Wide};
+use float_abel::{Exact, Fixed256, OutOfWindow, Wide};
 
 use crate::support::{pow2, rounds, Rng};
 
@@ -72,8 +72,8 @@ fn convert_fixed256_states_round_trip_through_wide_and_exact_bit_for_bit() {
         let via_wide = Wide::from(fixed);
         assert_eq!(via_wide, wide, "{set:?}");
         assert_eq!(via_wide.limbs(), wide.limbs());
-        assert_eq!(Exact::try_from(&fixed), Ok(exact), "{set:?}");
-        assert_eq!(Exact::try_from(&wide), Ok(exact), "{set:?}");
+        assert_eq!(Exact::try_from(&fixed), Ok(exact.clone()), "{set:?}");
+        assert_eq!(Exact::try_from(&wide), Ok(exact.clone()), "{set:?}");
         assert_eq!(Wide::try_from(&exact), Ok(wide), "{set:?}");
         assert_eq!(
             Wide::try_from(&Exact::try_from(&fixed).unwrap()),
@@ -87,7 +87,7 @@ fn convert_fixed256_states_round_trip_through_wide_and_exact_bit_for_bit() {
 }
 
 #[test]
-fn convert_exact_takes_a_fixed256_spanning_127_bits_and_refuses_128_as_width() {
+fn convert_exact_takes_a_fixed256_spanning_127_bits_compact_and_128_in_the_heap_form() {
     // 2^-44 + 2^-96 sets the lowest bit of Fixed256's grid; 2^30 above it spans 127 bits exactly.
     let floor = f64::from_bits(((-44 + 1023) as u64) << 52 | 1);
     assert_eq!(floor, pow2(-44) + pow2(-96));
@@ -95,18 +95,22 @@ fn convert_exact_takes_a_fixed256_spanning_127_bits_and_refuses_128_as_width() {
     at.try_deposit(floor).unwrap();
     at.try_deposit(pow2(30)).unwrap();
     let want = Exact::from(floor) + Exact::from(pow2(30));
-    assert_eq!(Exact::try_from(&at), Ok(want));
-    assert_eq!(Exact::try_from(&-at), Ok(-want));
-    assert_eq!(Exact::try_from(&Wide::from(at)), Ok(want));
+    assert!(want.is_compact());
+    assert_eq!(Exact::try_from(&at), Ok(want.clone()));
+    assert_eq!(Exact::try_from(&-at), Ok(-&want));
+    assert_eq!(Exact::try_from(&Wide::from(at)), Ok(want.clone()));
     assert_eq!(Wide::try_from(&want), Ok(Wide::from(at)));
 
+    // One bit more is past the width: the heap form holds it, the same value by either route.
     let mut past = Fixed256::ZERO;
     past.try_deposit(floor).unwrap();
     past.try_deposit(pow2(31)).unwrap();
-    assert_eq!(Exact::try_from(&past), Err(PastCap::Width));
-    assert_eq!(Exact::try_from(&-past), Err(PastCap::Width));
-    assert_eq!(Exact::try_from(&Wide::from(past)), Err(PastCap::Width));
-    // Wide holds it regardless: the width is Exact's cap, not Wide's.
+    let wide_want = Exact::from(floor) + Exact::from(pow2(31));
+    assert!(!wide_want.is_compact());
+    assert_eq!(Exact::try_from(&past), Ok(wide_want.clone()));
+    assert_eq!(Exact::try_from(&-past), Ok(-&wide_want));
+    assert_eq!(Exact::try_from(&Wide::from(past)), Ok(wide_want.clone()));
+    assert_eq!(Wide::try_from(&wide_want), Ok(Wide::from(past)));
     assert_eq!(Wide::from(past), Wide::from(floor) + Wide::from(pow2(31)));
 }
 
@@ -132,8 +136,8 @@ fn convert_wide_states_with_specials_round_trip_through_exact() {
         if n < 0 || p < 0 || q < 0 {
             negative_counts += 1;
         }
-        assert_eq!(Exact::try_from(&wide), Ok(exact), "{set:?}");
-        assert_eq!(exact.specials(), (n as i32, p as i32, q as i32));
+        assert_eq!(Exact::try_from(&wide), Ok(exact.clone()), "{set:?}");
+        assert_eq!(exact.specials(), Some((n, p, q)));
         let back = Wide::try_from(&exact).unwrap();
         assert_eq!(back, wide, "{set:?}");
         assert_eq!(back.limbs(), wide.limbs());
@@ -146,28 +150,29 @@ fn convert_wide_states_with_specials_round_trip_through_exact() {
 }
 
 #[test]
-fn convert_exact_refuses_a_wide_counter_outside_i32_as_count_and_keeps_one_inside() {
+fn convert_exact_takes_a_wide_counter_outside_i32_in_the_heap_form_and_one_inside_compact() {
     let zero = [0u64; 34];
     let past = i64::from(i32::MAX) + 1;
-    assert_eq!(
-        Exact::try_from(&Wide::from_parts(zero, [past, 0, 0])),
-        Err(PastCap::Count)
-    );
-    assert_eq!(
-        Exact::try_from(&Wide::from_parts(zero, [0, -past, 0])),
-        Err(PastCap::Count)
-    );
-    // i32::MIN is kept out so that negation stays total.
-    assert_eq!(
-        Exact::try_from(&Wide::from_parts(zero, [0, 0, i64::from(i32::MIN)])),
-        Err(PastCap::Count)
-    );
+    for counts in [
+        [past, 0, 0],
+        [0, -past, 0],
+        // i32::MIN is kept out of the compact form so that negation stays total.
+        [0, 0, i64::from(i32::MIN)],
+    ] {
+        let w = Wide::from_parts(zero, counts);
+        let e = Exact::try_from(&w).unwrap();
+        assert!(!e.is_compact(), "{counts:?}");
+        assert_eq!(e.specials(), Some((counts[0], counts[1], counts[2])));
+        assert_eq!(Wide::try_from(&e), Ok(w));
+        assert_eq!(Wide::try_from(&-&e), Ok(-w));
+    }
     let edge = [i64::from(i32::MAX), i64::from(i32::MIN) + 1, -7];
     let e = Exact::try_from(&Wide::from_parts(zero, edge)).unwrap();
-    assert_eq!(e.specials(), (i32::MAX, i32::MIN + 1, -7));
+    assert!(e.is_compact());
+    assert_eq!(e.specials(), Some((edge[0], edge[1], edge[2])));
     assert_eq!(Wide::try_from(&e), Ok(Wide::from_parts(zero, edge)));
     assert_eq!(
-        Wide::try_from(&-e),
+        Wide::try_from(&-&e),
         Ok(Wide::from_parts(zero, [-edge[0], -edge[1], 7]))
     );
 }

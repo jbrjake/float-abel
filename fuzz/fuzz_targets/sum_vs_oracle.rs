@@ -135,9 +135,9 @@ fuzz_target!(|ops: Vec<(f64, bool)>| {
             f64::from(oracle.to_f32()),
             "Exact::to_f32",
         );
-        let (n, p, q) = e.specials();
-        assert_eq!([i64::from(n), i64::from(p), i64::from(q)], oracle.counts);
-        assert_eq!(Exact::try_from(&wide), Ok(e), "Wide into Exact");
+        let (n, p, q) = e.specials().expect("a sum's amounts are counts");
+        assert_eq!([n, p, q], oracle.counts);
+        assert_eq!(Exact::try_from(&wide), Ok(e.clone()), "Wide into Exact");
         assert_eq!(Wide::try_from(&e), Ok(wide), "Exact into Wide");
         assert_eq!(e.is_zero(), oracle.is_zero());
     }

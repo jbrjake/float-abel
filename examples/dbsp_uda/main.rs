@@ -34,6 +34,7 @@ pub fn exact_sum_map(value: F64) -> exact_sum_accumulator_type {
 
 /// The aggregate's result: the exact total rounded once, to nearest-even.
 #[must_use]
+#[allow(clippy::needless_pass_by_value)] // Feldera's `_post` takes the accumulator by value
 pub fn exact_sum_post(acc: exact_sum_accumulator_type) -> F64 {
     F64::new(acc.to_f64())
 }

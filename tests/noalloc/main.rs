@@ -1,7 +1,7 @@
-//! `Exact` and `Binned` on a build with no features: plain `Copy` words that work exactly as on
-//! every other build, since nothing in the crate allocates. The operators panic by name past the
-//! cap and the checked methods return it with the state untouched. Every test is named
-//! `noalloc_*`.
+//! `Exact` and `Binned` on a build with no features: plain words that allocate nothing. `Exact` is
+//! its compact form alone here, so the width and the counts are its caps: the operators panic by
+//! name past them and the checked methods return them with the state untouched. Every test is
+//! named `noalloc_*`.
 
 #![allow(clippy::float_cmp)]
 
@@ -60,7 +60,8 @@ fn noalloc_sums_products_and_specials_work_without_std() {
     assert!(n.to_f64().is_nan());
     n -= Exact::from(f64::NAN);
     assert_eq!(n, Exact::from(1.0));
-    assert_eq!(Exact::from(f64::INFINITY).specials(), (0, 1, 0));
+    assert_eq!(Exact::from(f64::INFINITY).specials(), Some((0, 1, 0)));
+    assert!(n.is_compact());
 }
 
 #[test]
@@ -91,7 +92,7 @@ fn noalloc_the_checked_methods_return_the_cap_and_leave_the_state() {
         Err(PastCap::Width)
     );
     assert_eq!(s, Exact::from(4.0));
-    let top = (0..30).fold(Exact::from(2.0), |x, _| x * x);
+    let top = (0..30).fold(Exact::from(2.0), |x, _| &x * &x);
     assert_eq!(top.checked_mul(&Exact::from(2.0)), Err(PastCap::Exponent));
     assert_eq!(top.checked_mul_i64(2), Err(PastCap::Exponent));
     assert_eq!(

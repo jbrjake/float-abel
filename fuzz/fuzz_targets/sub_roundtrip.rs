@@ -43,18 +43,26 @@ fuzz_target!(|input: Input| {
         "commutative, cap included"
     );
     if let Ok(s) = a.checked_add(&b) {
-        assert_eq!(s.checked_sub(&b), Ok(a), "{a:?} + {b:?} - {b:?}");
-        assert_eq!(s.checked_sub(&a), Ok(b), "{a:?} + {b:?} - {a:?}");
-        assert_eq!(s - b, a);
-        assert_eq!(s + Exact::ZERO, s);
-        assert_eq!(Exact::from_bytes(&s.to_bytes()), Ok(s));
+        assert_eq!(s.checked_sub(&b), Ok(a.clone()), "{a:?} + {b:?} - {b:?}");
+        assert_eq!(s.checked_sub(&a), Ok(b.clone()), "{a:?} + {b:?} - {a:?}");
+        assert_eq!(&s - &b, a);
+        assert_eq!(&s + &Exact::ZERO, s);
+        // A sum past the width is the heap form, which crosses as its serde bytes; the compact
+        // encoding is the compact form's.
+        if s.is_compact() {
+            assert_eq!(Exact::from_bytes(&s.to_bytes()), Ok(s.clone()));
+        }
+        assert_eq!(
+            postcard::from_bytes::<Exact>(&postcard::to_allocvec(&s).unwrap()),
+            Ok(s.clone())
+        );
     }
-    assert_eq!(-(-a), a);
+    assert_eq!(-(-&a), a);
     assert_eq!(a.checked_sub(&a), Ok(Exact::ZERO));
-    assert_eq!(a + Exact::ZERO, a);
-    assert_eq!(a.checked_mul_i64(1), Ok(a));
-    assert_eq!(a.checked_mul_i64(-1), Ok(-a));
-    assert_eq!(Exact::from_bytes(&a.to_bytes()), Ok(a));
+    assert_eq!(&a + &Exact::ZERO, a);
+    assert_eq!(a.checked_mul_i64(1), Ok(a.clone()));
+    assert_eq!(a.checked_mul_i64(-1), Ok(-&a));
+    assert_eq!(Exact::from_bytes(&a.to_bytes()), Ok(a.clone()));
     assert_eq!(a.cmp(&b).reverse(), b.cmp(&a));
     assert_eq!(
         a == b,

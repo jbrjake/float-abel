@@ -34,7 +34,7 @@ impl Monoid for Exact {
 impl Abelian for Exact {
     #[inline]
     fn negate(&mut self) {
-        *self = -*self;
+        self.negate_assign();
     }
 }
 
@@ -42,7 +42,7 @@ impl Multiply<Exact> for Exact {
     type Output = Exact;
     #[inline]
     fn multiply(self, rhs: &Exact) -> Exact {
-        self * *rhs
+        self * rhs
     }
 }
 
@@ -66,7 +66,7 @@ impl Multiply<Exact> for i64 {
     type Output = Exact;
     #[inline]
     fn multiply(self, rhs: &Exact) -> Exact {
-        *rhs * self
+        rhs * self
     }
 }
 
@@ -74,6 +74,6 @@ impl Multiply<Exact> for isize {
     type Output = Exact;
     #[inline]
     fn multiply(self, rhs: &Exact) -> Exact {
-        *rhs * self
+        rhs * self
     }
 }

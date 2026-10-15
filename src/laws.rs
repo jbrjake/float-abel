@@ -99,7 +99,8 @@ use report::{fold, hash_of, merge_pruning, Broken, Rng};
 
 /// The group an engine's weight must be, as the kit calls it: the operators by value, structural
 /// `Eq` and `Hash`, and the zero with the test consolidation prunes on. `Clone` rather than `Copy`,
-/// so a heap-backed weight can run too; this crate's tiers are `Copy` words.
+/// so a heap-backed weight can run too: `Exact` is one past its width, and `Wide` and `Fixed` are
+/// `Copy` words.
 pub trait Weight:
     Clone + Eq + Hash + Debug + Add<Output = Self> + Sub<Output = Self> + Neg<Output = Self>
 {

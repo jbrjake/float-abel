@@ -20,6 +20,8 @@ mod convert;
 mod dbsp;
 mod differential;
 mod exact_cap;
+mod exact_heap;
+mod exact_heap_ring;
 mod exact_ring;
 mod fixed;
 // A proptest case of the kit runs minutes under the interpreter, and the operators it exercises

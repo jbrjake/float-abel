@@ -2,13 +2,14 @@
 //! string, the bytes `to_bytes` gives handed to `serialize_bytes`, so a format frames them with its
 //! own length (a `u64` on bincode 1, a varint on postcard, an array of numbers on `serde_json`) and
 //! the serializer runs about once per value rather than once per byte, which is what an engine's
-//! exchange pays per update, three passes over. `Fixed` serialises as a fixed-length tuple of its
-//! bytes, one element each, because its length is `1 + 8 * LIMBS`, which stable Rust cannot spell
-//! as an array type inside the impl, and a byte string needs one slice; a format that writes a
-//! tuple's elements back to back emits its `to_bytes` byte for byte. Every decoder gathers the
-//! bytes, from a byte string or from a sequence of numbers, and runs `from_bytes`, so canonical
-//! form is validated in one place and a refusal is the decoder's message. Nothing here needs `std`
-//! or an allocator.
+//! exchange pays per update, three passes over. An `Exact` in its heap form serialises as its heap
+//! body, the same way, behind `alloc`. `Fixed` serialises as a fixed-length tuple of its bytes,
+//! one element each, because its length is `1 + 8 * LIMBS`, which stable Rust cannot spell as an
+//! array type inside the impl, and a byte string needs one slice; a format that writes a tuple's
+//! elements back to back emits its `to_bytes` byte for byte. Every decoder gathers the bytes, from
+//! a byte string or from a sequence of numbers, and runs the type's decoder, so canonical form is
+//! validated in one place and a refusal is the decoder's message. Nothing here needs `std`, and
+//! only the heap form needs an allocator.
 
 use core::fmt;
 
@@ -35,13 +36,31 @@ fn fill<'de, A: SeqAccess<'de>>(
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Exact {
-    /// [`Exact::to_bytes`] as one byte string of 33 bytes.
+    /// [`Exact::to_bytes`] as one byte string of 33 bytes for the compact form; the heap body for
+    /// the heap form.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[cfg(feature = "alloc")]
+        if !self.is_compact() {
+            return serializer.serialize_bytes(&self.encode());
+        }
         serializer.serialize_bytes(&self.to_bytes())
     }
 }
 
 struct ExactVisitor;
+
+impl ExactVisitor {
+    fn decode<E: de::Error>(bytes: &[u8]) -> Result<Exact, E> {
+        #[cfg(feature = "alloc")]
+        {
+            Exact::decode(bytes).map_err(de::Error::custom)
+        }
+        #[cfg(not(feature = "alloc"))]
+        {
+            Exact::from_bytes(bytes).map_err(de::Error::custom)
+        }
+    }
+}
 
 impl<'de> Visitor<'de> for ExactVisitor {
     type Value = Exact;
@@ -50,23 +69,36 @@ impl<'de> Visitor<'de> for ExactVisitor {
         write!(f, "the {}-byte wire encoding of an Exact", Exact::BYTES)
     }
 
-    /// The byte string, whatever its length: [`Exact::from_bytes`] refuses the wrong one by name.
+    /// The byte string, whatever its length: the decoder refuses the wrong one by name.
     fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Exact, E> {
-        Exact::from_bytes(v).map_err(de::Error::custom)
+        Self::decode(v)
     }
 
-    /// A human-readable format's array of numbers, one byte each.
+    /// A human-readable format's array of numbers, one byte each. A heap body is gathered whole
+    /// behind `alloc`; the compact encoding fills its fixed buffer.
     fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Exact, A::Error> {
+        let first: u8 = seq
+            .next_element()?
+            .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+        #[cfg(feature = "alloc")]
+        if first == crate::exact::HEAP_TAG {
+            let mut buf = alloc::vec![first];
+            while let Some(b) = seq.next_element::<u8>()? {
+                buf.push(b);
+            }
+            return Self::decode(&buf);
+        }
         let mut buf = [0u8; Exact::BYTES];
-        fill(&mut seq, &mut buf, 0, &self)?;
-        Exact::from_bytes(&buf).map_err(de::Error::custom)
+        buf[0] = first;
+        fill(&mut seq, &mut buf[1..], 1, &self)?;
+        Self::decode(&buf)
     }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Exact {
-    /// The byte string through [`Exact::from_bytes`], so a non-canonical word is refused with
-    /// the decoder's reason.
+    /// The byte string through the decoder, so a non-canonical body is refused with the
+    /// decoder's reason.
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         deserializer.deserialize_bytes(ExactVisitor)
     }

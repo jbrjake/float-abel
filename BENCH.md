@@ -139,29 +139,30 @@ the running sums are near the width.
 
 ## Where the width caps
 
-The kill condition reads the same-scale fold: more than 5% caps means widening the word before the
-adapters build on the type. Counted, not timed, over the three bands above and the same-scale
-dot-product shape (2¹⁹ pairs of full-mantissa factors), bit for bit the same on both
-architectures, at commit 2a82388. A pairwise add is `from_f64(a).checked_add(&from_f64(b))` over consecutive pairs; a
-running fold is `checked_deposit` into one word, restarted at each refusal.
+The kill condition reads the same-scale fold: more than 5% of deposits leaving the compact form
+means widening the word before the adapters build on the type. Counted, not timed, over the three
+bands above and the same-scale dot-product shape (2¹⁹ pairs of full-mantissa factors), bit for
+bit the same on both architectures, at commit 2a82388, when the width was a refusal; the rule is
+the same one the heap arm promotes on (a span past 127 bits), so each count below is the
+promotion count, and `benches/ops.rs` now prints the rows under that name. A pairwise add is
+`from_f64(a) + from_f64(b)` over consecutive pairs; a running fold is `deposit` into one word.
 
-| band | pairwise adds refused | running fold: deposits refused | first refusal |
+| band | pairwise adds promoted | running fold: deposits in the heap form | first promotion |
 |---|--:|--:|--:|
 | same-scale | 0 of 524,288 (0.00%) | 0 of 1,048,576 (0.00%) | never |
 | 2^±300 | 400,874 of 524,288 (76.46%) | 815,086 of 1,048,576 (77.73%) | deposit 2 |
 | adversarial | 486,359 of 524,288 (92.77%) | 974,081 of 1,048,576 (92.90%) | deposit 2 |
 | same-scale products | | 219,027 of 524,288 (41.78%) | deposit 4 |
 
-The compact tier carries same-scale data inside the width with no cap at all, which clears the
-kill condition; the prototype's 0 of 10⁶ holds on the crate. The 2^±300 band reproduces the
+The compact form carries same-scale data inside the width with no promotion at all, which clears
+the kill condition; the prototype's 0 of 10⁶ holds on the crate. The 2^±300 band reproduces the
 prototype's 77% of pairwise adds needing more than the width, and the adversarial band, where two
-values 128 binades apart meet at once, caps nine deposits in ten: the width is a same-scale
-property, as the design says, and a fold over mixed magnitudes belongs in `Wide`. The product row
-is the new reading. A same-scale sum spans 53 bits of mantissa plus 40 of magnitude, inside 127; a
-same-scale product spans 106 bits of mantissa with its lowest bit near 2⁻¹⁴⁴, and a fold of them
-reaches 2⁴⁰ above, so two products in five cannot share the word with the running sum. `Exact`
-holds any one product exactly, as DESIGN.md § Exact promises, and a fold of same-scale products is
-a `Wide` job.
+values 128 binades apart meet at once, promotes nine deposits in ten: the width is a same-scale
+property, as the design says, and a fold over mixed magnitudes runs in the heap form, or stays
+compact under the banded idiom (docs/OVERFLOW.md § The banded idiom). The product row is the new
+reading. A same-scale sum spans 53 bits of mantissa plus 40 of magnitude, inside 127; a same-scale
+product spans 106 bits of mantissa with its lowest bit near 2⁻¹⁴⁴, and a fold of them reaches 2⁴⁰
+above, so two products in five promote the running sum, which the heap form holds exactly.
 
 ## SIMD earns its feature
 

@@ -24,8 +24,14 @@ use crate::round;
 pub(crate) enum Overflow {
     /// The magnitude would reach `2^127`: the heap tier's job.
     NeedsWide,
+    /// A count would leave `i32`, or an amount would stop being an integer: the heap tier's job,
+    /// raised by `Exact` beside the tier.
+    Count,
     /// The exponent would leave `-EXACT_MAX_EXP..=EXACT_MAX_EXP`, which no tier holds.
     Exponent,
+    /// The heap tier's own cap: a run would span more than `EXACT_MAX_LIMBS` limbs.
+    #[cfg(feature = "alloc")]
+    Limbs,
     /// The input is NaN or ±∞, which the tier does not hold: the counts live beside it.
     #[cfg(test)]
     Special,

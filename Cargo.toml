@@ -55,7 +55,11 @@ serde = { version = "1", optional = true, default-features = false }
 # bare `cargo test` with no flag. `dbsp` stays out because it needs its own toolchain (rustc 1.97
 # and 1.98 ICE inside dbsp), so a bare `cargo test` stays green on any stable.
 [dev-dependencies]
-float-abel = { path = ".", features = ["serde", "differential", "laws", "simd", "arbitrary"] }
+float-abel = { path = ".", features = ["alloc", "serde", "differential", "laws", "simd", "arbitrary"] }
+# The oracle for the heap arm's folds and products, tests/exact_heap.rs: an integer in units of
+# 2^-1074 or 2^-2148, with no limb of this crate's in it. 0.4 because dbsp's closure already locks
+# num-bigint 0.4, and cargo-deny refuses a second major.
+num-bigint = "0.4"
 # The differential oracle for `Wide`'s limbs: the same multiset must land the same 272 limb bytes.
 # Pinned to the version tests/data/bitrep/vectors.json was taken from.
 bitrep = "=0.5.1"
@@ -138,9 +142,13 @@ required-features = ["dbsp"]
 
 [features]
 default = ["std"]
-# `std::error::Error` impls and the bench harness. Nothing in the crate allocates, so there is no
-# `alloc` feature: every type is a plain word on every feature set.
-std = []
+# `Exact`'s heap arm, DESIGN.md § Exact: a sum or product past the 127-bit width promotes to one
+# allocation and demotes after every operation, and the limb cap replaces the width as the one
+# cap. Without it `Exact` is the compact form alone, with the width as its cap and the checked
+# API; tests/noalloc pins that build.
+alloc = []
+# `std::error::Error` impls and the bench harness.
+std = ["alloc"]
 # `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
 serde = ["dep:serde"]
 # The differential-dataflow adapter: `Exact` as a diff type, DESIGN.md § differential-dataflow.

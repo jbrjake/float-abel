@@ -6,7 +6,7 @@
 //! the `Wide` through the conversion, scaled by a power of two when the vector lies off `Wide`'s
 //! grid. Every test is named `rounding_*` so the task verify can filter on it.
 
-use float_abel::{Exact, Fixed256, PastCap, Wide};
+use float_abel::{Exact, Fixed256, Wide};
 
 use crate::support::{pow2, Rng};
 
@@ -164,12 +164,9 @@ fn fixed_of(v: &Dyadic) -> Option<Fixed256> {
 /// `Exact` holds a vector iff the span from its lowest set bit to its highest fits 127 bits. One
 /// inside `Wide`'s window comes through the conversion; one off the grid or past the ceiling is
 /// built at a shifted exponent and scaled back by an exact power of two through the ring product.
-fn exact_of(v: &Dyadic) -> Option<Exact> {
-    if bit_length(&v.mant) - trailing_zeros(&v.mant) > 127 {
-        return None;
-    }
+fn exact_of(v: &Dyadic) -> Exact {
     if let Some(wide) = wide_of(v) {
-        return Some(Exact::try_from(&wide).unwrap());
+        return Exact::try_from(&wide).unwrap();
     }
     let shift = (-v.exp).clamp(-1023, 1074);
     let moved = Dyadic {
@@ -181,11 +178,11 @@ fn exact_of(v: &Dyadic) -> Option<Exact> {
     };
     let wide =
         wide_of(&moved).unwrap_or_else(|| panic!("{}: shifted by {shift} and still off", v.name));
-    Some(Exact::try_from(&wide).unwrap() * Exact::from(pow2(-shift)))
+    Exact::try_from(&wide).unwrap() * Exact::from(pow2(-shift))
 }
 
 /// A vector held exactly by one tier, with the tier's reads behind one surface.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 #[allow(clippy::large_enum_variant)] // Wide is 296 bytes to Exact's 32; a few hundred of them
 enum Held {
     Wide(Wide),
@@ -194,7 +191,7 @@ enum Held {
 }
 
 impl Held {
-    fn name(self) -> &'static str {
+    fn name(&self) -> &'static str {
         match self {
             Self::Wide(_) => "Wide",
             Self::Fixed(_) => "Fixed256",
@@ -202,7 +199,7 @@ impl Held {
         }
     }
 
-    fn to_f64(self) -> f64 {
+    fn to_f64(&self) -> f64 {
         match self {
             Self::Wide(w) => w.to_f64(),
             Self::Fixed(f) => f.to_f64(),
@@ -210,7 +207,7 @@ impl Held {
         }
     }
 
-    fn to_f32(self) -> f32 {
+    fn to_f32(&self) -> f32 {
         match self {
             Self::Wide(w) => w.to_f32(),
             Self::Fixed(f) => f.to_f32(),
@@ -218,7 +215,7 @@ impl Held {
         }
     }
 
-    fn try_to_f64(self) -> Option<f64> {
+    fn try_to_f64(&self) -> Option<f64> {
         match self {
             Self::Wide(w) => w.try_to_f64(),
             Self::Fixed(f) => f.try_to_f64(),
@@ -226,7 +223,7 @@ impl Held {
         }
     }
 
-    fn div_f64(self, n: u64) -> f64 {
+    fn div_f64(&self, n: u64) -> f64 {
         match self {
             Self::Wide(w) => w.div_f64(n),
             Self::Fixed(f) => f.div_f64(n),
@@ -241,9 +238,8 @@ fn tiers(v: &Dyadic) -> Vec<Held> {
         .map(Held::Wide)
         .into_iter()
         .chain(fixed_of(v).map(Held::Fixed))
-        .chain(exact_of(v).map(Held::Exact))
+        .chain(Some(Held::Exact(exact_of(v))))
         .collect();
-    assert!(!out.is_empty(), "{}: no tier holds it", v.name);
     out
 }
 
@@ -287,13 +283,13 @@ fn rounding_vector_file_covers_every_boundary() {
     assert!(tagged(qs(), "overflow") >= 6);
     assert!(tagged(qs(), "random") >= 32);
     // Each tier holds a known share: Wide everything on its grid, Fixed256 the band above 2^-96,
-    // and Exact everything of 127 bits or fewer, including the vectors Wide cannot hold.
+    // and Exact everything, the vectors Wide cannot hold included, with the eight wider than 127
+    // bits in its heap form.
     let held = |f: &dyn Fn(&Dyadic) -> bool| reads.iter().filter(|r| f(&r.v)).count();
     assert_eq!(held(&|v| wide_of(v).is_some()), 147);
     assert_eq!(held(&|v| fixed_of(v).is_some()), 94);
-    assert_eq!(held(&|v| exact_of(v).is_some()), 165);
-    assert_eq!(held(&|v| wide_of(v).is_none() && exact_of(v).is_some()), 26);
-    assert_eq!(held(&|v| wide_of(v).is_some() && exact_of(v).is_none()), 8);
+    assert_eq!(held(&|v| wide_of(v).is_none()), 26);
+    assert_eq!(held(&|v| !exact_of(v).is_compact()), 8);
 }
 
 #[test]
@@ -372,20 +368,37 @@ fn rounding_div_f64_matches_cpython_on_every_tier() {
     assert!(checks >= 250 && nan == 3, "{checks} {nan}");
 }
 
-/// `Exact` refuses the wide-mantissa vectors by name, and holds the ones off `Wide`'s grid.
+/// `Exact` holds the wide-mantissa vectors in its heap form, reading as `Wide` does, and holds
+/// the ones off `Wide`'s grid.
 #[test]
-fn rounding_vectors_past_exacts_width_are_refused_by_name() {
+fn rounding_vectors_past_exacts_width_are_held_in_the_heap_form() {
     let (reads, _) = vectors();
-    let mut refused = 0;
+    let mut promoted = 0;
     for r in &reads {
+        let wide_span = bit_length(&r.v.mant) - trailing_zeros(&r.v.mant) > 127;
+        let exact = exact_of(&r.v);
+        assert_eq!(exact.is_compact(), !wide_span, "{}", r.v.name);
         if let Some(wide) = wide_of(&r.v) {
-            if exact_of(&r.v).is_none() {
-                assert_eq!(Exact::try_from(&wide), Err(PastCap::Width), "{}", r.v.name);
-                refused += 1;
+            assert_eq!(Exact::try_from(&wide), Ok(exact.clone()), "{}", r.v.name);
+            assert_eq!(
+                exact.to_f64().to_bits(),
+                wide.to_f64().to_bits(),
+                "{}",
+                r.v.name
+            );
+            assert_eq!(
+                exact.to_f32().to_bits(),
+                wide.to_f32().to_bits(),
+                "{}",
+                r.v.name
+            );
+            assert_eq!(exact.try_to_f64(), wide.try_to_f64(), "{}", r.v.name);
+            if wide_span {
+                promoted += 1;
             }
         }
     }
-    assert!(refused >= 2, "{refused}");
+    assert!(promoted >= 2, "{promoted}");
 }
 
 /// Random multisets from a 60-binade band inside `Fixed256`'s window, so all three tiers hold

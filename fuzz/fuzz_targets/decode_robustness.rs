@@ -38,7 +38,7 @@ fn exact_verdict(body: &[u8]) -> Result<(), WireError> {
 }
 
 /// One decoder on the input as it is, then on the input forced to its length and version byte.
-fn check<T: Copy + PartialEq + Debug>(
+fn check<T: Clone + PartialEq + Debug>(
     data: &[u8],
     bytes: usize,
     version: u8,
@@ -82,9 +82,13 @@ fn check<T: Copy + PartialEq + Debug>(
     buf[..n].copy_from_slice(&data[..n]);
     buf[0] = version;
     let direct = decode(&buf);
-    if let Ok(v) = direct {
-        assert_eq!(encode(&v), buf);
-        assert_eq!(decode(&encode(&v)), Ok(v), "a decoded word decodes again");
+    if let Ok(v) = &direct {
+        assert_eq!(encode(v), buf);
+        assert_eq!(
+            decode(&encode(v)),
+            Ok(v.clone()),
+            "a decoded word decodes again"
+        );
     }
     assert_eq!(
         serde(&buf),

@@ -17,7 +17,7 @@ fn e(x: f64) -> Exact {
 
 /// `2^(2^30)`, the value at the exponent bound, by squaring `2` thirty times.
 fn at_bound() -> Exact {
-    (0..30).fold(e(2.0), |x, _| x * x)
+    (0..30).fold(e(2.0), |x, _| &x * &x)
 }
 
 #[test]
@@ -37,7 +37,7 @@ fn exact_cap_size_zero_and_constants() {
 #[should_panic(expected = "exponent")]
 fn exact_cap_an_operator_past_the_exponent_bound_panics_by_name() {
     let top = at_bound();
-    let _ = top * top;
+    let _ = &top * &top;
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn exact_cap_a_scalar_multiply_past_the_exponent_bound_panics_by_name() {
 #[test]
 fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
     let top = at_bound();
-    let bottom = (0..30).fold(e(0.5), |x, _| x * x);
+    let bottom = (0..30).fold(e(0.5), |x, _| &x * &x);
     assert_eq!(top.to_f64(), f64::INFINITY);
     assert_eq!(bottom.to_f64().to_bits(), 0.0f64.to_bits());
     assert_eq!(top.try_to_f64(), None);
@@ -59,7 +59,7 @@ fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
     assert_eq!(top.checked_mul_i64(2), Err(PastCap::Exponent));
     assert_eq!(top.checked_mul_i64(-2), Err(PastCap::Exponent));
     assert_eq!(top.checked_add(&top), Err(PastCap::Exponent));
-    assert_eq!(top.checked_sub(&-top), Err(PastCap::Exponent));
+    assert_eq!(top.checked_sub(&-&top), Err(PastCap::Exponent));
     assert_eq!(bottom.checked_mul(&e(0.5)), Err(PastCap::Exponent));
     // At the bottom a doubling moves the canonical exponent toward zero, so it stays inside.
     assert_eq!(bottom.checked_add(&bottom).map(|v| v.is_finite()), Ok(true));
@@ -71,7 +71,7 @@ fn exact_cap_the_checked_methods_return_the_cap_and_leave_the_state() {
         Ok(f64::INFINITY)
     );
     assert_eq!(top.checked_mul(&bottom), Ok(e(1.0)));
-    assert_eq!(top * bottom, e(1.0));
+    assert_eq!(&top * &bottom, e(1.0));
     assert_eq!(top.checked_sub(&top), Ok(Exact::ZERO));
     // A deposit that fits changes the state; one that does not leaves it.
     let mut s = e(1.5);
@@ -103,21 +103,21 @@ fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
         assert_eq!(&(&a + &b) - &b, a);
         assert_eq!(-(-&a), a);
         assert_eq!(&a - &b, &a + &-&b);
-        assert_eq!(a + b, &a + &b);
-        assert_eq!(a - b, &a - &b);
-        assert_eq!(-a, -&a);
-        let mut aa = a;
+        assert_eq!(a.clone() + b.clone(), &a + &b);
+        assert_eq!(a.clone() - b.clone(), &a - &b);
+        assert_eq!(-a.clone(), -&a);
+        let mut aa = a.clone();
         aa += &b;
         aa -= &b;
         assert_eq!(aa, a);
-        aa += b;
-        aa -= b;
+        aa += b.clone();
+        aa -= b.clone();
         assert_eq!(aa, a);
         // Integer scaling is repeated addition.
         assert_eq!(&a * 3i64, &(&a + &a) + &a);
         assert_eq!(&a * -1i64, -&a);
         assert_eq!(&a * 0i64, Exact::ZERO);
-        assert_eq!(a * 2isize, &a + &a);
+        assert_eq!(a.clone() * 2isize, &a + &a);
         assert_eq!(&a * 2isize, &a + &a);
         assert_eq!(&(&a + &b) * 5i64, &(&a * 5i64) + &(&b * 5i64));
         // The ring laws, with 30-bit integer factors so that three products stay inside the
@@ -127,13 +127,13 @@ fn exact_cap_group_and_ring_laws_hold_through_the_operators() {
             e(((rng.next() >> 34) as i64 - (1 << 29)) as f64),
         );
         assert_eq!(&a * &b, &b * &a);
-        assert_eq!(a * b, &a * &b);
+        assert_eq!(a.clone() * b.clone(), &a * &b);
         assert_eq!(&(&a * &p) * &q, &a * &(&p * &q));
         assert_eq!(&a * &(&p + &q), &(&a * &p) + &(&a * &q));
         assert_eq!(&(&a + &b) * &p, &(&a * &p) + &(&b * &p));
         // Sum by value and by reference are the fold.
-        let xs = [a, b, cc];
-        let by_value: Exact = xs.iter().copied().sum();
+        let xs = [a.clone(), b.clone(), cc.clone()];
+        let by_value: Exact = xs.iter().cloned().sum();
         let by_ref: Exact = xs.iter().sum();
         assert_eq!(by_value, &(&a + &b) + &cc);
         assert_eq!(by_ref, by_value);
@@ -145,7 +145,7 @@ fn exact_cap_a_plus_b_minus_b_is_a_on_random_pairs() {
     let mut rng = Rng(31);
     for _ in 0..rounds(200_000) {
         let (a, b) = (e(rng.on_grid(-20, 20)), e(rng.on_grid(-20, 20)));
-        assert_eq!((a + b) - b, a, "{a:?} + {b:?} - {b:?}");
+        assert_eq!((&a + &b) - &b, a, "{a:?} + {b:?} - {b:?}");
     }
 }
 
@@ -272,60 +272,73 @@ fn exact_cap_debug_names_the_value_and_the_tier() {
     assert_eq!(z, "Exact(0e0; nan 0, +inf 0, -inf 0; 0x0:0x0 · 2^0)");
 }
 
-/// A sum fits iff its own span fits, whatever the raised operand needed on the way: the compact
-/// add agrees with the `Wide` route on every pair, either way round. `2^127 + (−1)` is 127
-/// one-bits, inside the width, though `2^127` raised to the unit needs 128; `2^127 + 1` is 128
-/// bits and refused by both routes.
+/// A sum lands compact iff its own span fits, whatever the raised operand needed on the way: the
+/// add agrees with the `Wide` route on every pair, either way round, and a sum past the width is
+/// the heap form, not a refusal. `2^127 + (−1)` is 127 one-bits, inside the width, though `2^127`
+/// raised to the unit needs 128; `2^127 + 1` is 128 bits and promotes by both routes.
 #[test]
 fn exact_cap_a_sum_that_spans_exactly_the_width_fits() {
-    let via_wide = |a: Exact, b: Exact| {
-        let w = Wide::try_from(&a).unwrap() + Wide::try_from(&b).unwrap();
-        Exact::try_from(&w).ok()
+    let via_wide = |a: &Exact, b: &Exact| {
+        let w = Wide::try_from(a).unwrap() + Wide::try_from(b).unwrap();
+        Exact::try_from(&w).unwrap()
     };
-    let agree = |a: Exact, b: Exact| {
+    // Both routes agree, and the answer is whether the sum landed compact.
+    let agree = |a: &Exact, b: &Exact| {
         let want = via_wide(a, b);
-        assert_eq!(a.checked_add(&b).ok(), want, "{a:?} + {b:?}");
-        assert_eq!(b.checked_add(&a).ok(), want, "{b:?} + {a:?}");
-        assert_eq!(a.checked_sub(&-b).ok(), want, "{a:?} - -{b:?}");
+        assert_eq!(a.checked_add(b), Ok(want.clone()), "{a:?} + {b:?}");
+        assert_eq!(b.checked_add(a), Ok(want.clone()), "{b:?} + {a:?}");
+        assert_eq!(a.checked_sub(&-b), Ok(want.clone()), "{a:?} - -{b:?}");
+        want.is_compact()
     };
     let top = e(pow2(127));
     let all_ones = top.checked_add(&e(-1.0)).expect("2^127 - 1 is 127 bits");
+    assert!(all_ones.is_compact());
     assert_eq!(all_ones.try_to_f64(), None);
-    assert_eq!(all_ones + e(1.0), top);
-    assert_eq!((-top).checked_add(&e(1.0)), Ok(-all_ones));
-    assert_eq!(top.checked_add(&e(1.0)), Err(PastCap::Width));
-    assert_eq!((-top).checked_add(&e(-1.0)), Err(PastCap::Width));
+    assert_eq!(&all_ones + &e(1.0), top);
+    assert_eq!((-&top).checked_add(&e(1.0)), Ok(-&all_ones));
+    assert!(!(&top + &e(1.0)).is_compact());
+    assert!(!(&-&top + &e(-1.0)).is_compact());
     // At one exponent two odd mantissas sum to an even one, so a carry into bit 127 fits: the
     // widest odd value plus one is 2^127, plus itself is its double, and plus 2^k + 1 fits for
-    // every k ≥ 1 while plus 2 (even, so raised) does not.
-    assert_eq!(all_ones + all_ones, all_ones * 2i64);
-    assert_eq!(-all_ones + e(-1.0), -top);
-    let mut checked = 0;
+    // every k ≥ 1 while plus 2 (even, so raised) and plus 2^0 + 1 (128 odd bits) promote.
+    assert_eq!(&all_ones + &all_ones, &all_ones * 2i64);
+    assert_eq!(&-&all_ones + &e(-1.0), -&top);
+    let (mut checked, mut compact, mut promoted) = (0, 0, 0);
     for k in 0..=126 {
-        agree(all_ones, e(pow2(k)) + e(1.0));
-        agree(-all_ones, -(e(pow2(k)) + e(1.0)));
+        compact += usize::from(agree(&all_ones, &(e(pow2(k)) + e(1.0))));
+        compact += usize::from(agree(&-&all_ones, &-(e(pow2(k)) + e(1.0))));
         checked += 2;
     }
-    assert_eq!(all_ones.checked_add(&e(2.0)), Err(PastCap::Width));
+    assert_eq!(compact, 2 * 126);
+    assert!(!(&all_ones + &e(2.0)).is_compact());
     // Across the boundary: ±2^k ± 1, and ±(2^k + 2^j) ∓ (2^j + 1), whose raised operand needs
     // one bit more than the width at the unit while the sum cancels back under it.
     for k in 120..=130 {
         let p = e(pow2(k));
-        for (a, b) in [(p, e(1.0)), (p, e(-1.0)), (-p, e(1.0)), (-p, e(-1.0))] {
-            agree(a, b);
+        for (a, b) in [
+            (p.clone(), e(1.0)),
+            (p.clone(), e(-1.0)),
+            (-&p, e(1.0)),
+            (-&p, e(-1.0)),
+        ] {
+            promoted += usize::from(!agree(&a, &b));
             checked += 1;
         }
         for j in [1, 32, 64, 100, 126] {
-            let Ok(a) = p.checked_add(&e(pow2(j))) else {
+            if k - j > 126 {
                 continue;
-            };
+            }
+            let a = p.checked_add(&e(pow2(j))).unwrap();
+            assert!(a.is_compact());
             let b = -(e(pow2(j)) + e(1.0));
-            agree(a, b);
-            agree(-a, -b);
+            promoted += usize::from(!agree(&a, &b));
+            promoted += usize::from(!agree(&-&a, &-&b));
             checked += 2;
         }
     }
     // The 127 carries both ways, eleven k by four sign pairs, and the three (k, j) with
-    // k − j > 126 skipped of fifty-five.
+    // k − j > 126 skipped of fifty-five; the k past 127 promote.
     assert_eq!(checked, 2 * 127 + 44 + 2 * 52);
+    assert!(promoted > 0, "{promoted}");
+    assert!(promoted < 44 + 2 * 52, "{promoted}");
 }

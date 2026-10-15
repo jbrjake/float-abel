@@ -91,16 +91,21 @@ the crate ships each:
 
 | corner | type | size | domain | ring |
 |---|---|---|---|---|
-| exact + full range for a value; a sum or product within a 127-bit span | `Exact` | 32 B | every `f64`, specials counted; past the width it is the cap, by name | `× Exact` with integer special amounts, `× i64`, `× isize` |
+| exact + full range | `Exact` | 32 B, plus one allocation past a 127-bit span | every `f64`, specials counted; every sum and product up to the limb cap | `× Exact` with dyadic special amounts, `× i64`, `× isize` |
 | exact + constant size (wide) | `Wide` | 296 B | every `f64` | `× i64`, `× isize` |
 | exact + constant size (window) | `Fixed<LSB, LIMBS>` | 8·LIMBS B (`Fixed256` is 32) | finite doubles exactly on the 2^LSB grid inside the window; the rest refused at the door, or quantised by declaration | `× i64`, `× isize` |
 | constant size + full range: **lossy, batch-only** | `Binned<K>` | 16·K + 32 B (80 at K=3) | every `f64` | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
 
-Every type is a `Copy` plain word with no pointer in it, and nothing in the crate allocates: `Exact`
-is `repr(C)` and 32 bytes with the special counts as `i32`, so a sum or a product is a fresh word,
-whatever the input. The caps are named: `Exact` past its 127-bit width, its exponent bound or an
-`i32` count panics with a named invariant, because an engine's `plus_equals` cannot return an error,
-and the `checked_*` methods return the cap as `PastCap` instead with the state as it was.
+`Wide`, `Fixed` and `Binned` are `Copy` plain words with no pointer in them, and never allocate.
+`Exact` is a `repr(C)` 32-byte word in two forms: the compact form holds a finite part of at most
+127 bits with the special counts as `i32`, and a result past that promotes to the heap form, the
+same word over one allocation of limbs, which every operation demotes again as soon as its result
+fits, so one value has one form and `is_compact()` reports it. A same-scale column never promotes;
+a sum of `1e300` and `1e-300`, or a fold of products, does. The caps are named: past the limb cap
+(`EXACT_MAX_LIMBS`, sixteen products' worth of bits) or the exponent bound, `Exact` panics with a
+named invariant, because an engine's `plus_equals` cannot return an error, and the `checked_*`
+methods return the cap as `PastCap` instead with the state as it was. Without the `alloc` feature
+`Exact` is the compact form alone and the width is its cap.
 
 `Exact` is the engine weight. `Wide` has the fastest add of any tier and costs bytes, which suits a
 per-key aggregate slot rather than a per-update diff. `Fixed` is for data whose scale the caller
@@ -184,9 +189,9 @@ law it broke, so a failure is a value, not a panic.
 use float_abel::laws::{self, check_abelian_group, proptest::prelude::*};
 use float_abel::Exact;
 
-// The strategy draws the weight's domain. For `Exact` that is same-scale doubles: a multiset
-// spread over the whole exponent range would run past its 127-bit width, which is the named cap,
-// and the kit reports that as the failure it is.
+// The strategy draws the weight's domain: here same-scale doubles, which stay in the compact
+// form; a multiset spread over the whole exponent range runs through the heap form and passes
+// too, at the cost of an allocation per promoted sum.
 let mut runner = laws::runner(64, 0);
 check_abelian_group(&mut runner, (-1.0e6..1.0e6).prop_map(Exact::from)).unwrap();
 ```
@@ -249,12 +254,13 @@ no wire form and crosses a boundary as the `Wide` it converts to. The format fre
 
 | feature | pulls in | provides |
 |---|---|---|
-| `std` (default) | — | `std::error::Error` impls, the bench harness |
+| `alloc` | — | `Exact`'s heap form: promotion past the width, dyadic special amounts, the limb cap |
+| `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
 | `dbsp` | dbsp 0.364 + rkyv 0.7 + feldera-size-of + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
-| `simd` | `std` | runtime-dispatched NEON and AVX2 bulk kernels, the only `unsafe` in the crate |
+| `simd` | `std` | runtime-dispatched NEON and AVX2 bulk kernels, the `unsafe` beside the heap form's |
 | `arbitrary` | arbitrary 1 | fuzz inputs |
 
 The crate is `no_std` with zero required dependencies. MSRV is 1.74 on the default features, asserted
@@ -275,7 +281,7 @@ notwithstanding. The design and its reasoning are in [`docs/DESIGN.md`](docs/DES
 
 ```bash
 cargo test                                             # the self dev-dependency turns the test features on
-cargo test -p float-abel-noalloc                       # Exact with no features: the compact tier alone
+cargo test -p float-abel-noalloc                       # Exact with no features: the compact form alone, the width its cap
 cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
 cargo run --example dd_sum -- -w 3                     # Exact as a differential-dataflow diff: SUM on three workers
 cargo +nightly miri test --test main                   # the suite under miri (sweeps cut to a hundredth; trybuild and timely ignored)

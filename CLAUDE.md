@@ -36,7 +36,9 @@ outside `~/Documents`.
 
 - Warnings fail the gate only: no `-D warnings` in `.cargo/config.toml`, whatever a task body says
   (owner: "make warnings only fail the gate").
-- `#![deny(unsafe_code)]` crate-wide, lifted only in `src/simd/`, so the crate with `simd` off is
+- `#![deny(unsafe_code)]` crate-wide, lifted only in `src/simd/` and in `src/exact/heap.rs`, where
+  the heap form owns its block (owner: "yes i'm okay with one more unsafe to save that many bits on
+  every value"), each block with its `// SAFETY:` line; with `simd` and `alloc` off the crate is
   `unsafe`-free end to end.
 - MSRV 1.74 on the default features, asserted in CI on exactly that set, because the crate is
   general-purpose, not one engine's.
@@ -47,14 +49,21 @@ outside `~/Documents`.
   in release"). The push gate runs those tests under `--release`.
 - Every op canonicalises and every decoder refuses non-canonical bytes, because structural `Eq` must
   be numeric equality for differential's consolidation.
-- Every type is a `Copy` plain word and nothing allocates (owner: "i cannot stress enough the
-  paramount importance of zero-copy here"; "in general i approve dropping the heap arm"). `Exact` is
-  32 bytes with `i32` special counts, and there is no `alloc` feature.
+- `Wide`, `Fixed` and `Binned` are `Copy` plain words and never allocate (owner: "i cannot stress
+  enough the paramount importance of zero-copy here"). `Exact` is a 32-byte word with a heap form
+  behind `alloc`, reached by promotion past the 127-bit width and left by demotion after every op
+  (owner: "yes let's do heap and allow product fols inside a dataflow"), in the niche layout that
+  keeps the word at 32 bytes rather than a 40-byte enum; the compact form keeps `i32` counts, the
+  heap form carries dyadic amounts, and the no-allocator build is the compact form with the width
+  as its cap (owner: "Cap panic plus checked API").
 - `From<f64>` is total on `Wide` and `Exact`: NaN and ±∞ are counted and projected, never refused.
-  The only panic is the named `Exact` cap: the width, the exponent bound at 2³⁰ (owner: "exponents
-  need bounds if they can roll over"), and the counts. The checked methods return the cap instead
-  (owner: "Cap panic plus checked API"). `Mul<Exact>` stays, with integer special amounts (owner:
-  "we absolutely need exact multiplication").
+  The only panic is the named `Exact` cap: the limb cap, `EXACT_MAX_LIMBS`, and the exponent bound
+  at 2³⁰ (owner: "exponents need bounds if they can roll over"); without `alloc`, the width and the
+  counts. The checked methods return the cap instead. `Mul<Exact>` stays, with dyadic special
+  amounts (owner: "we absolutely need exact multiplication").
+- The heap-armed `Exact`'s one-worker same-scale `dd_sum` rows stay within 1.12× the `Copy` word
+  typed and 1.20× serialized, measured in one sitting against a control build; a row past that is a
+  design question for the owner, not a build to ship.
 - `Binned<K>` never implements an incremental trait, because it is not a group. A `trybuild` test
   pins that.
 - `differential` adapts differential-dataflow 0.25 on a caret, never an exact pin, so a consumer's

@@ -207,6 +207,40 @@ impl Wide {
         Ok(())
     }
 
+    /// Adds `(-1)^negative · mag · 2^exp` for a normalised magnitude in limbs, its lowest set bit
+    /// at `exp`, if it lies in the window: [`Wide::try_deposit_dyadic`] for a magnitude wider
+    /// than `u128`, which an [`Exact`](crate::Exact) in its heap form is. The window is checked
+    /// on the whole magnitude first, so a refusal deposits nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`OutOfWindow::OffGrid`] when a set bit would lie below the unit, and
+    /// [`OutOfWindow::AboveCeiling`] when the magnitude reaches `2^CEILING_EXP`.
+    #[cfg(feature = "alloc")]
+    pub(crate) fn try_deposit_limbs(
+        &mut self,
+        negative: bool,
+        mag: &[u64],
+        exp: i32,
+    ) -> Result<(), OutOfWindow> {
+        let Some(top) = limbs::top_bit(mag) else {
+            return Ok(());
+        };
+        let shift = i64::from(exp) - i64::from(LSB);
+        if shift < 0 {
+            return Err(OutOfWindow::OffGrid);
+        }
+        if top as i64 + 1 + shift > CEILING_BITS as i64 {
+            return Err(OutOfWindow::AboveCeiling);
+        }
+        for (i, &limb) in mag.iter().enumerate() {
+            if limb != 0 {
+                self.deposit_finite(negative, u128::from(limb), (shift + 64 * i as i64) as u32);
+            }
+        }
+        Ok(())
+    }
+
     /// Adds `(-1)^negative · mant · 2^(shift + LSB)`. The caller has checked that it fits.
     fn deposit_finite(&mut self, negative: bool, mant: u128, shift: u32) {
         let mut term = [0u64; LIMBS];

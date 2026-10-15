@@ -10,10 +10,13 @@
 //! `OrdRepr`, so the two must agree. `SizeOf` has no children, and `IsNone` and `SupportsRoaring`
 //! are dbsp's own `never_none!` and `never_roaring_filter!`.
 //!
-//! The archived form is the 32-byte word itself, the wire body without its version byte. rkyv
-//! and dbsp give a deserialiser no error channel (dbsp unwraps it), so a non-canonical archived
-//! word, which no operation writes, is refused the way the operators refuse the cap: a panic
-//! naming the invariant, from the deserialiser and the comparisons alike.
+//! The archived form is the 32-byte compact word itself, the wire body without its version byte.
+//! rkyv and dbsp give a deserialiser no error channel (dbsp unwraps it), so a non-canonical
+//! archived word, which no operation writes, is refused the way the operators refuse the cap: a
+//! panic naming the invariant, from the deserialiser and the comparisons alike. A heap word
+//! reaching the archive is refused the same way, by its even low limb: the archived form of the
+//! heap form is the wire task's, and until it lands a promoted weight lives in DBSP's in-memory
+//! batches only.
 
 use core::cmp::Ordering;
 
@@ -47,7 +50,7 @@ impl MulByRef<i64> for Exact {
     type Output = Exact;
     #[inline]
     fn mul_by_ref(&self, k: &i64) -> Exact {
-        *self * *k
+        self * *k
     }
 }
 
@@ -55,13 +58,17 @@ impl MulByRef<isize> for Exact {
     type Output = Exact;
     #[inline]
     fn mul_by_ref(&self, k: &isize) -> Exact {
-        *self * *k
+        self * *k
     }
 }
 
 impl SizeOf for Exact {
-    /// A plain word owns nothing past itself.
-    fn size_of_children(&self, _: &mut Context) {}
+    /// The compact word owns nothing past itself; a heap word owns its block.
+    fn size_of_children(&self, context: &mut Context) {
+        if !self.is_compact() {
+            context.add_distinct_allocation().add(self.block_bytes());
+        }
+    }
 }
 
 dbsp::never_none!(Exact);
@@ -72,8 +79,9 @@ impl ArchivedExact {
     ///
     /// # Panics
     ///
-    /// With the named invariant on a word `Exact::from_bytes` would refuse: an even mantissa, an
-    /// exponent on a zero mantissa or outside the bound, or a count of `i32::MIN`.
+    /// With the named invariant on a word `Exact::from_bytes` would refuse: an even mantissa,
+    /// which is also what a heap word archived as its bits has, an exponent on a zero mantissa
+    /// or outside the bound, or a count of `i32::MIN`.
     fn value(&self) -> Exact {
         Exact::canonical(
             self.lo,

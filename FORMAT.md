@@ -84,7 +84,13 @@ of numbers. A `Fixed` serialises as a tuple of `BYTES` elements of `u8`, which i
 bincode 1's fixed-int encoding, emits its `to_bytes` byte for byte, and serde_json carries it as an
 array of numbers. `tests/wire.rs` asserts the framing with postcard and the arrays with serde_json.
 Deserialisation takes the byte string, or gathers the array's elements, and runs `from_bytes`, so
-every refusal above applies, as the deserialiser's error.
+every refusal above applies, as the deserialiser's error. An `Exact` in its heap form, which
+`to_bytes` does not encode, serialises under the `alloc` feature as a byte string whose first byte
+is `0x04`, then for the finite part and the three special amounts a sign byte, an `i32` exponent
+and a `u32` limb count, then the limbs; the deserialiser refuses a limb count past
+`EXACT_MAX_LIMBS` before allocating, a run that is not normalised, and a body whose value fits the
+compact form. `from_bytes` refuses that first byte, and this revision of the format does not
+specify the body beyond what the crate emits.
 
 ## Vectors
 

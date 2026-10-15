@@ -26,7 +26,7 @@ type Worker = timely::worker::Worker;
 type Update<D, R> = (D, u64, R);
 type Captured<D, R> = Receiver<Event<u64, Vec<Update<D, R>>>>;
 /// An account and an amount, the amount as the double's bits.
-type Row = (u32, u64);
+pub(crate) type Row = (u32, u64);
 /// The fixture the operator tests share: `(key, value)` rows weighted by `Exact`.
 type Fixture<'scope> = VecCollection<'scope, u64, (u32, u32), Exact>;
 
@@ -38,7 +38,7 @@ fn e(x: f64) -> Exact {
 /// ran on, and returns every update the captured stream emitted on any worker, netted: sorted,
 /// equal `(data, epoch)` summed, zeros dropped. `build` makes the dataflow, feeds this worker's
 /// share of the input and closes it; the harness steps the worker to completion before it reads.
-fn netted<D, R, F>(workers: usize, build: F) -> Vec<Update<D, R>>
+pub(crate) fn netted<D, R, F>(workers: usize, build: F) -> Vec<Update<D, R>>
 where
     D: ExchangeData,
     R: ExchangeData + Semigroup,
@@ -81,7 +81,7 @@ fn share<'a>(worker: &Worker, rows: &'a [Row]) -> impl Iterator<Item = &'a Row> 
 /// `count_total`, which carries each account's total as data with multiplicity one. This worker
 /// feeds its share of `inserts` at epoch 0, retracts its share of `retracts` at epoch 1, and
 /// closes the input.
-fn sum_dataflow(
+pub(crate) fn sum_dataflow(
     worker: &mut Worker,
     inserts: &[Row],
     retracts: &[Row],
@@ -247,9 +247,9 @@ fn differential_a_retraction_epoch_nets_to_nothing_where_f64_leaves_residue() {
     );
 
     let out = netted(3, move |worker| sum_dataflow(worker, &rows, &rows));
-    let (epoch0, epoch1): (Vec<_>, Vec<_>) = out.iter().copied().partition(|(_, t, _)| *t == 0);
+    let (epoch0, epoch1): (Vec<_>, Vec<_>) = out.iter().cloned().partition(|(_, t, _)| *t == 0);
     assert_eq!(epoch0.len(), 16);
-    let retracted: Vec<_> = epoch0.iter().map(|(d, _, r)| (*d, 1, -r)).collect();
+    let retracted: Vec<_> = epoch0.iter().map(|(d, _, r)| (d.clone(), 1, -r)).collect();
     assert_eq!(epoch1, retracted);
     let mut net: Vec<((u32, Exact), (), isize)> =
         out.into_iter().map(|(d, _, r)| (d, (), r)).collect();
@@ -272,13 +272,13 @@ fn differential_specials_ride_the_diff_and_retract_exactly() {
     let with_nan = e(1.5) + e(f64::NAN) + e(f64::INFINITY) + e(2.5) * 2i64;
     let without = e(1.5) + e(f64::INFINITY) + e(2.5) * 2i64;
     assert!(with_nan.to_f64().is_nan());
-    assert_eq!(with_nan.specials(), (1, 1, 0));
+    assert_eq!(with_nan.specials(), Some((1, 1, 0)));
     assert_eq!(without.to_f64(), f64::INFINITY);
-    assert_eq!(without.specials(), (0, 1, 0));
+    assert_eq!(without.specials(), Some((0, 1, 0)));
     assert_eq!(
         out,
         sorted(vec![
-            ((7, with_nan), 0, 1),
+            ((7, with_nan.clone()), 0, 1),
             ((7, with_nan), 1, -1),
             ((7, without), 1, 1),
         ])
@@ -339,7 +339,7 @@ fn differential_linear_operators_and_arrangements_carry_exact_diffs() {
 fn differential_reduce_puts_exact_or_isize_out() {
     let totals = over_fixture(|weighted| {
         weighted.reduce(|_k, values, output: &mut Vec<(u8, Exact)>| {
-            let total = values.iter().fold(Exact::ZERO, |t, (_, w)| t + *w);
+            let total = values.iter().fold(Exact::ZERO, |t, (_, w)| t + w);
             output.push((0, total));
         })
     });
@@ -366,7 +366,7 @@ fn differential_count_distinct_and_threshold_take_exact() {
     let counted = over_fixture(|weighted| weighted.map(|(k, _)| k).count());
     assert_eq!(
         counted,
-        sorted(vec![((1, total), 0, 1), ((2, e(-0.3)), 0, 1)])
+        sorted(vec![((1, total.clone()), 0, 1), ((2, e(-0.3)), 0, 1)])
     );
     let counted_total = over_fixture(|weighted| weighted.map(|(k, _)| k).count_total());
     assert_eq!(counted_total, counted);
@@ -374,12 +374,15 @@ fn differential_count_distinct_and_threshold_take_exact() {
     let counted_exact = over_fixture(|weighted| weighted.map(|(k, _)| k).count_core::<Exact>());
     assert_eq!(
         counted_exact,
-        sorted(vec![((1, total), 0, e(1.0)), ((2, e(-0.3)), 0, e(1.0))])
+        sorted(vec![
+            ((1, total.clone()), 0, e(1.0)),
+            ((2, e(-0.3)), 0, e(1.0))
+        ])
     );
     let distinct = over_fixture(|weighted| weighted.map(|(k, _)| k).distinct_core::<Exact>());
     assert_eq!(distinct, sorted(vec![(1, 0, e(1.0)), (2, 0, e(1.0))]));
 
-    let doubled = over_fixture(|weighted| weighted.map(|(k, _)| k).threshold(|_k, w| *w * 2i64));
+    let doubled = over_fixture(|weighted| weighted.map(|(k, _)| k).threshold(|_k, w| w * 2i64));
     assert_eq!(
         doubled,
         sorted(vec![(1, 0, total * 2i64), (2, 0, e(-0.3) * 2i64)])
@@ -387,7 +390,7 @@ fn differential_count_distinct_and_threshold_take_exact() {
     let doubled_total = over_fixture(|weighted| {
         weighted
             .map(|(k, _)| k)
-            .threshold_total(|_k, w: &Exact| *w * 2i64)
+            .threshold_total(|_k, w: &Exact| w * 2i64)
     });
     assert_eq!(doubled_total, doubled);
 }

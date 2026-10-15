@@ -28,10 +28,10 @@ fn arbitrary_exact_draws_are_canonical_and_reach_the_operators() {
     let (mut wide_mantissas, mut narrow, mut at_bound, mut specials, mut zeros, mut sums) =
         (0, 0, 0, 0, 0, 0);
     for pair in draws.chunks(2) {
-        let (a, b) = (pair[0], pair[1]);
+        let (a, b) = (&pair[0], &pair[1]);
         for v in [a, b] {
             // Canonical: the bytes decode to the same word, which the decoder vouches for.
-            assert_eq!(Exact::from_bytes(&v.to_bytes()), Ok(v), "{v:?}");
+            assert_eq!(Exact::from_bytes(&v.to_bytes()), Ok(v.clone()), "{v:?}");
             let bytes = v.to_bytes();
             let hi = u64::from_le_bytes(bytes[9..17].try_into().unwrap());
             let exp = i32::from_le_bytes(bytes[17..21].try_into().unwrap());
@@ -41,7 +41,7 @@ fn arbitrary_exact_draws_are_canonical_and_reach_the_operators() {
             specials += usize::from(!v.is_finite());
             zeros += usize::from(v.is_zero());
         }
-        sums += usize::from(a.checked_add(&b).is_ok());
+        sums += usize::from(a.checked_add(b).is_ok_and(|s| s.is_compact()));
     }
     assert!(
         wide_mantissas > 1000,

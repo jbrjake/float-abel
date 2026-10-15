@@ -91,7 +91,7 @@ fn wire_exact_is_the_version_byte_then_its_layout_and_round_trips() {
     let bytes = x.to_bytes();
     assert_eq!(bytes.len(), 33);
     assert_eq!(bytes, exact_bytes(3, 0, -1, [0; 3]));
-    assert_eq!(Exact::from_bytes(&bytes), Ok(x));
+    assert_eq!(Exact::from_bytes(&bytes), Ok(x.clone()));
     // -0.1 = -0xCCCCCCCCCCCCD · 2^-55: a negative mantissa is two's complement across both limbs.
     let neg = Exact::from(-0.1);
     assert_eq!(
@@ -105,8 +105,8 @@ fn wire_exact_is_the_version_byte_then_its_layout_and_round_trips() {
     assert_eq!(s.to_bytes(), exact_bytes(0, 0, 0, [2, 1, -1]));
     assert_eq!(Exact::ZERO.to_bytes(), exact_bytes(0, 0, 0, [0; 3]));
     // Both exponent bounds, reached by repeated squaring, are values and round-trip.
-    let top = (0..30).fold(Exact::from(2.0), |x, _| x * x);
-    let bottom = (0..30).fold(Exact::from(0.5), |x, _| x * x);
+    let top = (0..30).fold(Exact::from(2.0), |x, _| &x * &x);
+    let bottom = (0..30).fold(Exact::from(0.5), |x, _| &x * &x);
     assert_eq!(top.to_bytes(), exact_bytes(1, 0, EXACT_MAX_EXP, [0; 3]));
     assert_eq!(bottom.to_bytes(), exact_bytes(1, 0, -EXACT_MAX_EXP, [0; 3]));
     let values = [
@@ -148,8 +148,8 @@ fn wire_exact_round_trips_random_multisets_and_distinct_values_have_distinct_byt
             _ => {}
         }
         let bytes = s.to_bytes();
-        assert_eq!(Exact::from_bytes(&bytes), Ok(s));
-        if let Some(earlier) = seen.insert(bytes, s) {
+        assert_eq!(Exact::from_bytes(&bytes), Ok(s.clone()));
+        if let Some(earlier) = seen.insert(bytes, s.clone()) {
             assert_eq!(earlier, s, "two values share the bytes {}", hex(&bytes));
         }
     }
@@ -274,7 +274,7 @@ fn wire_exact_refuses_each_non_canonical_form_by_name_and_never_panics() {
         let v = Exact::from_bytes(&bytes).unwrap_or_else(|e| panic!("{e} on {}", hex(&bytes)));
         assert_eq!(v.to_bytes(), bytes);
         // A decoded word is a value the operations accept as it is.
-        assert_eq!(v.checked_add(&Exact::ZERO), Ok(v));
+        assert_eq!(v.checked_add(&Exact::ZERO), Ok(v.clone()));
         assert_eq!(v.checked_mul_i64(1), Ok(v));
     }
     assert_eq!(
@@ -497,7 +497,7 @@ fn wire_vectors_in_format_md_are_to_bytes_byte_for_byte() {
         (
             "`Exact::from(2.0)` squared thirty times",
             (0..30)
-                .fold(Exact::from(2.0), |x, _| x * x)
+                .fold(Exact::from(2.0), |x, _| &x * &x)
                 .to_bytes()
                 .to_vec(),
         ),

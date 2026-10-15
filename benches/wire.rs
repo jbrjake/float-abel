@@ -48,7 +48,7 @@ fn next_byte<'de, A: SeqAccess<'de>>(
 
 /// `Exact` as a 33-element tuple of `u8`, one `serialize_element` call per byte, as a `[u8; 33]`
 /// serialises: 33 bytes on bincode with no length, 33 element calls each way.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct AsTuple(Exact);
 
 impl Serialize for AsTuple {
@@ -92,7 +92,7 @@ impl<'de> Deserialize<'de> for AsTuple {
 /// byte, the mantissa's limbs, the exponent and the three counts, each read off `to_bytes`. On
 /// bincode 1's fixed-int encoding that is the 33-tuple's bytes exactly, in seven element calls
 /// instead of 33; on a varint format such as postcard it is not.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 struct AsFields(Exact);
 
 /// The little-endian `u64` at `at` in a wire encoding.
