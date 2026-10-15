@@ -142,20 +142,28 @@ would have to be 127 − 106 − log₂ n bits wide. A fold of products inside a
 
 ## Cost
 
-Rough, not a BENCH.md row (`cost`, attached to fl-h41w0tr): release, one worker, timely's Thread
-allocator, 10⁶ updates over 16 keys in one epoch, best of three runs, on a host at load 8, so the
-ratios are what to read. Same-scale amounts (units of 2⁻²⁰ below 2²⁰):
+Rough, not a BENCH.md row (`cost`, attached to fl-t154dsp): release, one worker, timely's Thread
+allocator, 10⁶ updates over 16 keys in one epoch, best of three runs, ns an update, on a host at
+load 4, so the ratios are what to read. The heap-arm proxy is the design's dropped arm as a
+newtype in the scratch crate: `Exact` inline, promoted to a `Box<Wide>` when the compact add
+refuses, demoted after every heap op so the canonical form is the smallest tier that fits; the
+real arm held a normalised `Vec<u64>` (two allocations a promotion, a shorter limb add), so the
+proxy is the cost shape, not the implementation.
 
-| diff | ns an update | against `isize` | against plain `Exact` |
+| diff | same-scale (units of 2⁻²⁰ below 2²⁰) | spread 2^±60 | mixed 2^±300 |
 |---|--:|--:|--:|
-| `isize` | 14.7 | 1.0× | |
-| `Exact`, plain | 30.4 | 2.1× | 1.0× |
-| `Exact`, banded, with the reduce | 31.1 | 2.1× | 1.02× |
-| `Wide` as the diff | 242.6 | 16.5× | 8.0× |
+| `isize` | 12.8 | | |
+| `Exact`, plain | 24.5 | panics | panics |
+| `Exact`, banded, with the reduce | 26.5 | 50.1 | 43.0 |
+| heap-arm proxy | 33.5 | 101.1 | 119.4 |
+| `Wide` as the diff | 198.3 | 179.9 | 180.2 |
 
-Mixed magnitudes uniform over 2^±300: `Exact` plain panics; `Exact` banded 50.6 ns an update
-(20 bands a key); `Wide` 208.5. BENCH.md § The end-to-end SUM has the criterion numbers for the
-plain `Exact` row (2.01× `isize` serialized, 2.14× typed, at one worker on this machine).
+On same-scale data the heap-arm proxy never promotes, so its 37% over plain `Exact` is the enum
+tag, the 40-byte update against 32, and a non-`Copy` clone through the sort; on the spread and
+mixed bands the promotions add the allocations and the wide adds, and it runs 2.0–2.8× the banded
+idiom. The banded idiom costs 8% over plain `Exact` on same-scale data. BENCH.md § The end-to-end
+SUM has the criterion numbers for the plain `Exact` row (2.01× `isize` serialized, 2.14× typed, at
+one worker on this machine).
 
 ## Options
 
@@ -176,20 +184,33 @@ plain `Exact` row (2.01× `isize` serialized, 2.14× typed, at one worker on thi
 4. **Options 1 and 2 together.** The banded idiom for sums of any doubles at 32 bytes a diff,
    `Wide` for product folds and for a caller who wants no idiom; `Exact`'s checked API for folds
    inside one thread.
+5. **The heap arm, restored.** The original design's `Exact`: the compact word inline, a boxed
+   wide tier past the width, canonical form the smallest tier that fits, the one panic a limb cap
+   reachable only through nested products. Takes every double and every product with nothing to
+   check and no idiom; the only option that holds a fold of products or a `float × float` join
+   chain. Costs: `Exact` stops being `Copy` and a plain word, so it leaves the engines' `Copy`
+   slots and a mapping cast, which is why `Wide` and `Fixed` exist for those; an `alloc`
+   feature returns and the no-allocator build loses the arm; the wire form becomes variable
+   length, and with it the serde and rkyv shapes, the golden hash's `Exact` leg and the decoder
+   fuzz target; and the proxy measures 37% over plain `Exact` with no promotion at all and 2–2.8×
+   the banded idiom where promotions happen (§ Cost). Reopens the heap-tier work the redesign
+   absorbed (fl-atkbp6q's original scope), the `alloc` row and limb cap in the portfolio plan
+   that fl-cfx001b asks to remove, and the standing decision "every type is a `Copy` plain word
+   and nothing allocates".
 
 Not recommended, each for a stated reason:
 
 - **A wider `Exact`** (say 64 bytes and 255 bits) moves the line without removing it: still no
   per-value check, and still order-dependent at the edge.
-- **A heap fallback past 127 bits** never panics, and is the arm CLAUDE.md's standing decisions
-  dropped: "in general i approve dropping the heap arm", with zero-copy paramount.
 - **A sticky "overflowed" state in place of the panic** is not a group, for the reason a sticky
   NaN is not (DESIGN.md § NaN and ±∞): nothing cancels it, so a retraction cannot restore the sum
   and `is_zero` cannot delete the key.
 - **A declared window on `Exact` itself** holds decimals across a factor of only about 2¹¹ in
   size at 127 − 64 bits of headroom (derived); the banded idiom is that window chosen per value.
 
-**Recommendation: option 4**, with the banded idiom as the documented SUM idiom. It keeps every
-standing decision (32-byte `Copy` word, nothing allocates, specials counted, `Mul<Exact>` for a
-row's product) and is the only 32-byte option in which a caller has nothing to check. Under any
-option, the README tells multi-worker consumers to set `panic = "abort"`.
+**Recommendation: option 4**, with the banded idiom as the documented SUM idiom. It is the fastest
+panic-free option measured on every band, keeps every standing decision (32-byte `Copy` word,
+nothing allocates, specials counted, `Mul<Exact>` for a row's product), and is the only 32-byte
+option in which a caller has nothing to check. Option 5 is the one to take if a fold of products
+or a `float × float` join chain inside a dataflow is a requirement, because nothing else holds
+one. Under any option, the README tells multi-worker consumers to set `panic = "abort"`.
