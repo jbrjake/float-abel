@@ -139,3 +139,4 @@ Close by recording the owner's ruling in this task's comments, quoted.
   re-aimed on the heap arm: the banded idiom (fast path), the outward docs, the `Wide`/`Fixed`
   traits; unchanged: the `raise` fix and the closure law. fl-cfx001b (the plan ask for the POD
   `Exact`) is dropped because its premise reversed; a new plan ask follows the heap arm.
+- 2026-10-15T15:36Z [claude (6cbb3399-1134-4aff-94e4-f8c1137cf60f)] Readback point 4 ratified. Owner, 2026-10-15, in session: "yes i'm okay with one more unsafe to save that many bits on every value": the 32-byte niche form, unsafe in src/exact/heap.rs alone. Points 1, 2, 3 and 5 remain derived, for confirmation next session.
