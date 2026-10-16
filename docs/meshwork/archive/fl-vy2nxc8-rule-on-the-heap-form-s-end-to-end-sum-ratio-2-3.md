@@ -1,7 +1,7 @@
 ---
 id: fl-vy2nxc8
 title: "Rule on the heap form's end-to-end SUM ratio — 2.38× isize typed and 2.20× serialized at one worker on NEON at 9714758, against the Copy word's 2.14× and 2.01× and the accepted 1.8–2.2×: accept the moved row, point same-scale consumers at a Copy diff, or revisit the layout"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats]
 discovered-from: fl-xf8hv25
@@ -58,3 +58,7 @@ The owner writes the line this task's verify looks for, dated.
 
 ## log
 - 2026-10-16T14:41Z created
+- 2026-10-16T15:04Z open→done — verify exit 0 @ aecb0fd+1
+
+## comments
+- 2026-10-16T15:04Z [claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)] 2026-10-16 owner ruled, in session, on the table and the per-row cost above: "yes i am good with the moved row". Option (a): the diff row reads 1.9–2.4× isize on the heap form at one and eight workers on NEON (BENCH.md § The end-to-end SUM, 91abe38), the layout stands, and DESIGN.md § Targets and kill conditions states the heap form's band as accepted beside the Copy word's. The AVX2 heap rows are not re-taken; the Copy word's 1.78–2.20× stand there until a sitting on jons-amd-mini. The reading from the owner's line to option (a) is the session's, read back in the closing report; a correction reopens this.
