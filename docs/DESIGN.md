@@ -660,14 +660,16 @@ on NEON, met at 4.9 ns a deposit and 3.8 ns an add with both operands built, wit
 (fl-cbtfmqz) as what the un-inlined calls reach, with a carry chain on `u128` intermediates and a
 two-limb read path the leads should a consumer need less; and a differential-dataflow end-to-end
 `SUM` over 10⁷ updates at 1.8–2.2× the `isize` baseline, accepted by the owner's ruling
-(fl-bbevtyv). `BENCH.md` names the machine and the commit for every number, and `docs/CROSSOVER.md`
-carries the adoption question, the group size past which a change through the engine beats
-re-summing its floats.
+(fl-bbevtyv) on the `Copy` word, which the heap form re-takes at 1.93–2.38× on NEON (BENCH.md
+§ The end-to-end SUM, 9714758), the one-worker typed row past the accepted band by the 3 ns an
+update the form costs as a non-`Copy` type, the owner's question fl-vy2nxc8. `BENCH.md` names the
+machine and the commit for every number, and `docs/CROSSOVER.md` carries the adoption question,
+the group size past which a change through the engine beats re-summing its floats.
 
 | claim | measured by | kill / done |
 |---|---|---|
 | the compact form carries same-scale data inside the width | promotion rate on the same-scale fixture | > 5% promotions → widen the word before the adapters build on the type |
-| the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | 1.8–2.2×, accepted (fl-bbevtyv): the layout stands, the 32-byte word is the price of a float diff that needs no pre-chosen scale, and the adoption test is the crossover in `docs/CROSSOVER.md` |
+| the type is cheap enough to be a diff | differential-dataflow end-to-end `SUM`, 10⁷ updates, 1 and 8 workers, vs `isize` | 1.8–2.2×, accepted (fl-bbevtyv) on the `Copy` word: the layout stands, the 32-byte word is the price of a float diff that needs no pre-chosen scale, and the adoption test is the crossover in `docs/CROSSOVER.md`; the heap form's 1.93–2.38× is re-asked (fl-vy2nxc8) |
 | SIMD earns its feature | bulk deposit, each kernel vs the scalar reference, same-scale fixture, NEON and AVX2 | < 3× over scalar → 0.1.0 ships scalar-only, and the kernels stay behind the feature as experimental |
 | `Binned` is worth a tier | `Binned<3>` bulk vs exact `Wide` bulk | < 2× faster → `Binned` remains a convenience, not a recommended default |
 | bit-identical across architectures | the golden hash | any mismatch blocks a release |

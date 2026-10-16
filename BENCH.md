@@ -27,9 +27,10 @@ tiers, and a few shapes.
 
 - `Exact`: the engine weight, a 32-byte word: a 127-bit integer mantissa, an exponent, and three
   counts of NaN, +∞ and −∞ inputs. It holds any sum whose largest and smallest set bits lie
-  within 127 binades of each other, and refuses one that would not (a *width cap*): on same-scale
-  data it never refuses. It is the type an engine such as differential-dataflow carries as a diff,
-  so it can add, retract and merge.
+  within 127 binades of each other in that word, and past that promotes to one allocation, the
+  heap form, which it leaves as soon as a result fits the word again: on same-scale data it never
+  promotes. It is the type an engine such as differential-dataflow carries as a diff, so it can
+  add, retract and merge.
 - `Wide`: a 296-byte word, 34 limbs of 64 bits, a fixed-point accumulator whose lowest bit is the
   smallest subnormal's and whose top is past the largest double: it holds every sum of doubles
   exactly and never refuses. Its cost is bytes, so it suits a per-key aggregate slot rather than a
@@ -269,6 +270,33 @@ that builds it. Serialized exchange adds another 8 ns on NEON and 23 on AVX2 net
 serialization, which is the byte string sized, written and read back through bincode (§ The wire
 form), validated on decode. The word is now the larger share of the serialized gap, about two
 thirds on NEON and three quarters on AVX2.
+
+Re-taken on the heap form, the 32-byte niche word that is `Clone` and not `Copy`, at commit
+9714758 on NEON in one quiet sitting (the one-minute load 2.9 at the start, the four `isize`
+rows within 0.3–5% of the rows above, so the sittings compare; the fixture is the same multiset).
+On same-scale data the form never promotes, so the column is the word's own cost as a non-`Copy`
+type: the tag test, the drop glue, and the clone through consolidation's sort, none of which
+touches the arithmetic.
+
+| 10⁷ updates, time per run | NEON: heap `Exact` | NEON: `isize` | ratio | the Copy word's row above | heap / Copy |
+|---|--:|--:|--:|--:|--:|
+| serialized, 1 worker | 455.9 ms | 207.6 ms | 2.20× | 432.5 ms | 1.05× |
+| serialized, 8 workers | 78.5 ms | 40.7 ms | 1.93× | 79.7 ms | 0.99× |
+| typed, 1 worker | 296.7 ms | 124.6 ms | 2.38× | 265.1 ms | 1.12× |
+| typed, 8 workers | 55.5 ms | 28.3 ms | 1.96× | 50.0 ms | 1.11× |
+
+Per update at one worker, `isize` costs 12.5 ns typed and 20.8 ns serialized, the heap `Exact`
+29.7 and 45.6, where the Copy word cost 26.5 and 43.2: the form adds 3 ns an update on typed
+exchange, which is the 1.11× docs/OVERFLOW.md § Cost predicted from the probe, and 2 ns on
+serialized exchange at one worker and nothing measurable at eight, under the probe's 1.17–1.20×,
+because the serialized rows carry the wire form's share, which the heap arm's compact bytes
+leave unchanged. Read against the kill line, the eight-worker rows stay inside the 1.8–2.2× the
+owner accepted for the Copy word and the one-worker typed row moves past it, 2.38×; that is the
+owner's question, fl-vy2nxc8, not a build to ship or to hold. The heap-over-Copy column is a
+cross-sitting ratio; the one-sitting A/B against the Copy word's saved control binary within the
+1.12×/1.20× budget is fl-p4dc5w5's and is not read from this table. Peak RSS was not re-taken:
+the fixture never promotes, so the heap form allocates nothing on these rows, and the macOS
+high-water mark below is the allocator's as much as the dataflow's.
 
 Peak resident set of the bench process over one row's iterations, `/usr/bin/time -l` on macOS and
 `/usr/bin/time -v` on Linux, on the serialized rows: NEON 3.43 GB (`Exact`, 1 worker), 5.04 GB
