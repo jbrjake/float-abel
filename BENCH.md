@@ -291,8 +291,9 @@ exchange, which is the 1.11× docs/OVERFLOW.md § Cost predicted from the probe,
 serialized exchange at one worker and nothing measurable at eight, under the probe's 1.17–1.20×,
 because the serialized rows carry the wire form's share, which the heap arm's compact bytes
 leave unchanged. Read against the kill line, the eight-worker rows stay inside the 1.8–2.2× the
-owner accepted for the Copy word and the one-worker typed row moves past it, 2.38×; that is the
-owner's question, fl-vy2nxc8, not a build to ship or to hold. The heap-over-Copy column is a
+owner accepted for the Copy word and the one-worker typed row moves past it, 2.38×; the owner
+accepted the moved row (fl-vy2nxc8), so the layout stands and DESIGN.md § Targets and kill
+conditions carries 1.9–2.4× for the heap form. The heap-over-Copy column is a
 cross-sitting ratio; the one-sitting A/B against the Copy word's saved control binary within the
 1.12×/1.20× budget is fl-p4dc5w5's and is not read from this table. Peak RSS was not re-taken:
 the fixture never promotes, so the heap form allocates nothing on these rows, and the macOS
