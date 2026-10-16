@@ -132,6 +132,31 @@ fn laws_exact_passes_every_check_with_integer_and_exact_multipliers() {
     );
 }
 
+/// The four older laws on the strategy the closure law runs on, so the kit's sweep covers the heap
+/// form and not the compact word alone: a fold of 32 values over `2^±300` is a heap value through
+/// most of its steps, promoted and demoted as the shuffles reorder it, the ring's special amounts
+/// turn dyadic under a full-mantissa multiplier, and every law must hold across both forms.
+#[test]
+fn laws_exact_holds_every_law_on_every_binade() {
+    let mut r = runner();
+    assert_eq!(laws::check_abelian_group(&mut r, exact_full()), Ok(()));
+    assert_eq!(laws::check_ring(&mut r, exact_full(), small_int()), Ok(()));
+    assert_eq!(
+        laws::check_ring(&mut r, exact_full(), exact_integer()),
+        Ok(())
+    );
+    assert_eq!(laws::check_ring(&mut r, exact_full(), exact_full()), Ok(()));
+    assert_eq!(
+        laws::check_ring(&mut r, exact_products(), exact_integer()),
+        Ok(())
+    );
+    assert_eq!(laws::check_canonical(&mut r, exact_full()), Ok(()));
+    assert_eq!(
+        laws::check_consolidation_invariance(&mut r, exact_full()),
+        Ok(())
+    );
+}
+
 /// The heap form holds every sum and product short of its two bounds, so closure holds where the
 /// compact form alone broke it: on every binade with the specials in, by an integer and by
 /// another such `Exact`, and on a multiset of row products.
