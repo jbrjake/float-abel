@@ -1,13 +1,15 @@
 //! The end-to-end kill condition, DESIGN.md § Targets and kill conditions: a differential-dataflow
 //! `SUM` over 10⁷ updates with `Exact` as the diff against the same dataflow with `isize`, at one
-//! worker and at eight, and beside it the banded idiom (docs/OVERFLOW.md § The banded idiom). Two
-//! fixtures. The same-scale one is the integration harness's (tests/differential.rs): sixteen
-//! accounts, each amount a signed count of units of 2⁻²⁰ below 2²⁰, which `Exact` carries as the
-//! double and `isize` as the count, so all three runs fold one multiset and an integer oracle
-//! checks the `Exact` totals bit for bit before anything is timed. The mixed one spreads the
-//! amounts over 2^±300, where the plain idiom's running diffs promote to the heap form and the
-//! banded idiom's never do, checked against a `Wide` oracle per account; `isize` has no row there.
-//! The plain idiom is the design's, `explode` into the diff then `count_total`; the banded one is
+//! worker and at eight, and beside it the banded idiom (docs/OVERFLOW.md § The banded idiom) and
+//! `Wide` as the diff, the `Copy` word (DESIGN.md § Wide). Two fixtures. The same-scale one is the
+//! integration harness's (tests/differential.rs): sixteen accounts, each amount a signed count of
+//! units of 2⁻²⁰ below 2²⁰, which `Exact` and `Wide` carry as the double and `isize` as the count,
+//! so every run folds one multiset and an integer oracle checks the `Exact` and `Wide` totals bit
+//! for bit before anything is timed. The mixed one spreads the amounts over 2^±300, where the
+//! plain idiom's running diffs promote to the heap form and the banded idiom's never do, checked
+//! against a `Wide` oracle per account; `isize` and `Wide` have no row there, the one for want of
+//! magnitudes to mix and the other because its cost does not depend on them. The plain idiom is
+//! the design's, `explode` into the diff then `count_total`; the banded one is
 //! `BandedSum::banded_sum`. Each runs twice over: on serialized exchange (`ProcessBinary`, the
 //! shape the probe ran on, where every exchanged diff crosses the wire as its serde bytes even on
 //! one worker) and on typed exchange (`Process`, the in-process deployment, where it crosses as
@@ -115,6 +117,23 @@ fn banded_sum(worker: &mut Worker, rows: &[Bits]) -> Captured<(u32, Exact), isiz
     let (mut input, captured) = worker.dataflow::<u64, _, _>(|scope| {
         let (input, rows) = scope.new_collection::<Bits, isize>();
         (input, rows.banded_sum().inner.capture())
+    });
+    for row in share(worker, rows) {
+        input.insert(*row);
+    }
+    input.close();
+    captured
+}
+
+/// The same SUM with `Wide` as the diff, the `Copy` word: every exchanged update carries 296
+/// bytes of weight, 312 in the tuple, against `Exact`'s 32 and 48.
+fn wide_sum(worker: &mut Worker, rows: &[Bits]) -> Captured<(u32, Wide), isize> {
+    let (mut input, captured) = worker.dataflow::<u64, _, _>(|scope| {
+        let (input, rows) = scope.new_collection::<Bits, isize>();
+        let totals = rows
+            .explode(|(account, bits)| Some((account, Wide::from(f64::from_bits(bits)))))
+            .count_total();
+        (input, totals.inner.capture())
     });
     for row in share(worker, rows) {
         input.insert(*row);
@@ -276,6 +295,21 @@ fn sum(c: &mut Criterion) {
             let baseline = run(workers, exchange, move |worker| isize_sum(worker, &shared));
             let totals: Vec<(u32, isize)> = baseline.into_iter().map(|(d, _, _)| d).collect();
             assert_eq!(totals, isize_oracle, "isize totals on {workers} workers");
+            let shared = Arc::clone(&same);
+            let wide = run(workers, exchange, move |worker| wide_sum(worker, &shared));
+            let totals: Vec<(u32, Exact)> = wide
+                .into_iter()
+                .map(|((account, total), _, _)| {
+                    let total = Exact::try_from(&total).expect("a sum of doubles converts");
+                    (account, total)
+                })
+                .collect();
+            assert_eq!(
+                totals,
+                same_oracle,
+                "Wide totals on {workers} workers, {} exchange",
+                exchange.name()
+            );
         }
     }
 
@@ -302,6 +336,15 @@ fn sum(c: &mut Criterion) {
                     let rows = Arc::clone(&shared);
                     black_box(run(workers, exchange, move |worker| {
                         isize_sum(worker, &rows)
+                    }))
+                });
+            });
+            let shared = Arc::clone(&same);
+            g.bench_function(format!("wide/{workers}w/{name}"), |b| {
+                b.iter(|| {
+                    let rows = Arc::clone(&shared);
+                    black_box(run(workers, exchange, move |worker| {
+                        wide_sum(worker, &rows)
                     }))
                 });
             });
