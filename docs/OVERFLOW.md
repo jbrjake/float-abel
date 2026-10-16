@@ -1,13 +1,14 @@
 # Overflow inside differential-dataflow
 
 The compact `Exact` panics inside a dataflow on ordinary numbers, and no check on a single value
-can rule the panic out. This memo states what fits, why the panic lands where it does, and the
-ways out, each with what it costs and the evidence. The owner ruled for option 5, the heap arm,
-with option 1, the banded idiom, kept as its allocation-free fast path (fl-t154dsp), and § Cost
-measures the ruled 32-byte layout against the alternatives. With the `alloc` feature the heap arm
-stands: every history and the seeded multiset below complete through the plain idiom, and
-products fold inside both engines (tests/differential_products.rs, tests/dbsp_products.rs); the
-compact form alone, which is `Exact` without `alloc`, is what the measurements describe.
+can rule the panic out. This memo states what fits, why the panic lands where it does, the idiom
+that keeps every diff compact, what each way out costs, and what was decided (§ What was
+decided): the heap arm, with the banded idiom as its allocation-free fast path (fl-t154dsp), and
+§ Cost measures the 32-byte layout the design takes against the alternatives. With the `alloc`
+feature the heap arm stands: every history and the seeded multiset below complete through the
+plain idiom, and products fold inside both engines (tests/differential_products.rs,
+tests/dbsp_products.rs); the compact form alone, which is `Exact` without `alloc`, is what the
+measurements describe.
 
 Every result below was run on a scratch crate outside the tree (its sources are attached to
 fl-zxpq1wz and fl-h41w0tr) against float-abel at 57e1354, differential-dataflow 0.25.1 and timely
@@ -218,42 +219,34 @@ same-scale data banded costs 6–14% over plain, and on the mixed 2^±300 fixtur
 0.54–0.64× the plain idiom's time, 1.86× faster at one worker typed, inside the 1.5–2.0× this
 table predicted.
 
-## Options
+## What was decided
 
-1. **The banded idiom, shipped.** `Exact` stays the 32-byte diff; the crate ships the band
-   function and a differential operator for the idiom, with the adversarial test above in the
-   suite. Costs 2% over the plain idiom on same-scale data, a second small arrangement for the
-   reduce, and a documented idiom in place of a bare `count_total`. Takes every double; nothing to
-   check; sums only.
-2. **`Wide` as differential's diff.** Takes every double and counts NaN and ±∞; nothing to check;
-   products through `deposit_product`, refused at the door past 2¹⁰³⁷. Costs 296 bytes per update,
-   8× the plain `Exact` row above and 16× `isize`. Needs differential's weight traits on `Wide`;
-   the scratch crate's newtype needed five (`IsZero`, `Semigroup`, `Monoid`, `Abelian`,
-   `Multiply<isize>`).
-3. **`Fixed256`, or another `Fixed` window, as differential's diff.** 32 bytes, `Copy`, a
-   per-value check at the door, no panic after it. Costs a declared window: a value outside is
-   refused, or rounded onto the grid by `quantize` if the caller chooses; NaN and ±∞ are refused,
-   not counted; no `Fixed × Fixed` into `Fixed`. Needs the same weight traits on `Fixed`.
-4. **Options 1 and 2 together.** The banded idiom for sums of any doubles at 32 bytes a diff,
-   `Wide` for product folds and for a caller who wants no idiom; `Exact`'s checked API for folds
-   inside one thread.
-5. **The heap arm, restored.** The original design's `Exact`: the compact word inline, a boxed
-   wide tier past the width, canonical form the smallest tier that fits, the one panic a limb cap
-   reachable only through nested products. Takes every double and every product with nothing to
-   check and no idiom; the only option that holds a fold of products or a `float × float` join
-   chain. Costs: `Exact` stops being `Copy` and a plain word, so it leaves the engines' `Copy`
-   slots and a mapping cast, which is why `Wide` and `Fixed` exist for those; an `alloc`
-   feature returns and the no-allocator build loses the arm; the wire form becomes variable
-   length, and with it the serde and rkyv shapes, the golden hash's `Exact` leg and the decoder
-   fuzz target; and the 32-byte niche form measures 11% over plain `Exact` typed with no promotion
-   at all and 1.4–2.0× the banded idiom where promotions happen (§ Cost). Reopens the heap-tier
-   work the redesign absorbed (fl-atkbp6q's original scope), the `alloc` row and limb cap in the
-   portfolio plan
-   that fl-cfx001b asks to remove, and the standing decision "every type is a `Copy` plain word
-   and nothing allocates".
+The design takes the heap arm (owner: "yes let's do heap and allow product fols inside a
+dataflow"), with the banded idiom as its allocation-free fast path for `SUM`. `Exact` stays the
+32-byte word, promotes past the 127-bit width to one allocation of limbs and demotes after every
+operation, holds every sum and every product with nothing to check at the door, and panics only
+at the limb cap and the exponent bound, reachable through nested products alone. It is the one
+shape measured here that holds a fold of products or a `float × float` join chain inside a
+dataflow.
 
-Not recommended, each for a stated reason:
+What it costs. `Exact` is `Clone` and not `Copy`, so it leaves an engine's `Copy` weight slot
+and a cast over a mapping, which is what `Wide` and `Fixed` are for (DESIGN.md § Exact); the
+`alloc` feature exists, and the build without it is the compact form with the width as its cap;
+the wire form is variable length, a tagged heap encoding beside the compact 32 bytes (DESIGN.md
+§ Wire format); and the form costs 1.11× the `Copy` word typed on data that never promotes and
+1.4–2.0× the banded idiom where promotions happen (§ Cost), which is why the banded idiom ships
+beside it rather than instead of it.
 
+Not taken, each for a stated reason:
+
+- **`Wide`, or a `Fixed` window, as differential's diff**, 296 bytes or a declared window per
+  update. Each holds what its door admits and nothing more, and neither multiplies by itself, so
+  neither holds a `float × float` join; `Wide` takes a row's product through `deposit_product`,
+  refused at the door past 2¹⁰³⁷. They remain the `Copy` carriers for an engine whose weight slot
+  must be `Copy` or that wants a declared window, and fl-pwq0h8n gives them the weight traits.
+- **The banded idiom alone**, with `Exact` the compact word. The fastest panic-free shape on
+  every band measured, and the only 32-byte one in which a caller has nothing to check, but it
+  sums and nothing else: a row's product has a 106-bit mantissa and no band narrow enough.
 - **A wider `Exact`** (say 64 bytes and 255 bits) moves the line without removing it: still no
   per-value check, and still order-dependent at the edge.
 - **A sticky "overflowed" state in place of the panic** is not a group, for the reason a sticky
@@ -262,9 +255,10 @@ Not recommended, each for a stated reason:
 - **A declared window on `Exact` itself** holds decimals across a factor of only about 2¹¹ in
   size at 127 − 64 bits of headroom (derived); the banded idiom is that window chosen per value.
 
-**Recommendation: option 4**, with the banded idiom as the documented SUM idiom. It is the fastest
-panic-free option measured on every band, keeps every standing decision (32-byte `Copy` word,
-nothing allocates, specials counted, `Mul<Exact>` for a row's product), and is the only 32-byte
-option in which a caller has nothing to check. Option 5 is the one to take if a fold of products
-or a `float × float` join chain inside a dataflow is a requirement, because nothing else holds
-one. Under any option, the README tells multi-worker consumers to set `panic = "abort"`.
+Where the shipped record lives: DESIGN.md § Exact (the two forms, the caps, the checked API),
+§ Exactness bounds (the compact rule and the limb cap), § differential-dataflow (what the heap
+form buys inside the engine, the banded idiom, the hang) and § Wire format; BENCH.md § The
+end-to-end SUM (the heap form's rows beside the `Copy` word's and `isize`'s, and the banded idiom
+beside the plain one on the same-scale and mixed fixtures); README § The contract and § In an
+engine. Under every shape considered, a multi-worker consumer who can reach a panic builds with
+`panic = "abort"`, and the README says so.
