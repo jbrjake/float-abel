@@ -561,18 +561,26 @@ theirs or ours. It checks with proptest:
 - canonicality: structural `Eq` ⇔ numeric equality, with `Hash` consistent;
 - distributivity of `Multiply`;
 - **consolidation-timing invariance**: the same multiset summed in random partitions, with `is_zero`
-  pruning between partitions, lands the same bits.
+  pruning between partitions, lands the same bits;
+- **closure**: every pairwise sum, difference and product the strategy draws, and the fold in a
+  thousand orders, returns. The first group axiom, and the one a type with a cap breaks: the kit
+  catches the panic at the operation and reports it with the operands as the witness, so a capped
+  type is seen whether or not it declares its cap. The other laws hold on any strategy inside a
+  type's domain, so this one runs on the values the engine will see: `Exact` passes on every
+  binade with the specials in and on row products, and the compact form alone, `Exact` without
+  `alloc`, is not closed, by design, which a compact-only control asserts past its width.
 
-The entry points are `check_abelian_group`, `check_ring`, `check_canonical` and
-`check_consolidation_invariance`, generic over a `Strategy`. A type opts in through `laws::Weight`
+The entry points are `check_abelian_group`, `check_ring`, `check_canonical`,
+`check_consolidation_invariance` and `check_closure`, generic over a `Strategy`. A type opts in through `laws::Weight`
 (the operators by value, structural `Eq` and `Hash`, `zero` and `is_zero`); each check takes a
 proptest `TestRunner`, and `laws::runner(cases, seed)` is the fixed-seed one CI uses. A check returns
 proptest's minimal failing case under a reason that names every law it broke with a witness for
 each, rather than panicking, so the control's failures are asserted as values. The laws are the
 contract, and the kit is how a stranger checks their own type against differential-dataflow's or
 DBSP's expectations without reading either codebase. The kit runs against every tier, and against a
-naive `f64` wrapper as a negative control that must **fail** associativity and inverse; a control
-that passes means the kit is blind.
+naive `f64` wrapper as a negative control that must **fail** associativity and inverse, and a
+compact-only `Exact` that must fail closure past its width; a control that passes means the kit is
+blind.
 
 ## Speed {#sp-simd}
 

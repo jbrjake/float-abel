@@ -245,10 +245,12 @@ beside its SQL. The feature builds on the toolchain its CI job pins, rustc 1.99.
 Behind the `laws` feature, `float_abel::laws` checks with proptest what an incremental engine asks
 of a weight, against any type that implements `laws::Weight`, yours or ours: associativity and
 commutativity bit for bit under a thousand shuffles of a fold; identity; exact inverse; canonicality
-(structural `Eq` is numeric equality, `Hash` consistent); distributivity of the ring; and
+(structural `Eq` is numeric equality, `Hash` consistent); distributivity of the ring;
 consolidation-timing invariance, the same multiset summed in random partitions with `is_zero`
-pruning between them. A check returns proptest's minimal failing case under a reason that names every
-law it broke, so a failure is a value, not a panic.
+pruning between them; and closure, every sum, difference, product and fold the strategy draws
+returns, which is the law a capped type breaks and the one check only as strong as its strategy. A
+check returns proptest's minimal failing case under a reason that names every law it broke, so a
+failure is a value, not a panic.
 
 ```rust
 use float_abel::laws::{self, check_abelian_group, proptest::prelude::*};
@@ -261,8 +263,9 @@ let mut runner = laws::runner(64, 0);
 check_abelian_group(&mut runner, (-1.0e6..1.0e6).prop_map(Exact::from)).unwrap();
 ```
 
-The kit runs against every tier in CI, and against a naive `f64` wrapper as a negative control that
-must **fail** associativity and inverse; a control that passes means the kit is blind.
+The kit runs against every tier in CI, and against two negative controls, a naive `f64` wrapper that
+must **fail** associativity and inverse and a compact-only `Exact` that must fail closure past its
+width; a control that passes means the kit is blind.
 
 ## Bulk sums
 

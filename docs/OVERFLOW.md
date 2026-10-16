@@ -53,10 +53,11 @@ is why one value cannot be checked alone.
 ## Why `Exact` panics in a dataflow
 
 Differential adds diffs with `Semigroup::plus_equals`, which `Exact` maps to `+=`, and `+=` panics
-past the cap because `plus_equals` cannot return an error. The set of `Exact` values is not closed
-under addition, and closure is the first group axiom; the laws kit does not see this because its
-`Exact` strategy draws doubles within 56 binades of each other, inside the width by construction.
-Two kinds of sum get formed, and they fail differently:
+past the cap because `plus_equals` cannot return an error. The set of compact `Exact` values is not
+closed under addition, and closure is the first group axiom; the laws kit's `Exact` strategy draws
+doubles within 56 binades of each other, inside the width by construction, so its `check_closure`
+sees the cap only on a strategy past the width, where tests/laws.rs runs a compact-only control
+that must fail. Two kinds of sum get formed, and they fail differently:
 
 1. **A key's running total at some epoch.** `count.rs:108,120` folds a key's diffs in time order,
    so 2¹⁰⁰⁰ held while 2⁻¹⁰⁰⁰ arrives is a total that is formed whatever the arrival order, and

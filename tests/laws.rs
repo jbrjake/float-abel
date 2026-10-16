@@ -65,6 +65,19 @@ fn exact() -> impl Strategy<Value = Exact> {
     prop_oneof![1 => special(), 15 => double(-28, 28)].prop_map(Exact::from)
 }
 
+/// Every normal binade, `2^±300` with a full fraction and either sign, one in sixteen a special:
+/// the adversary of DESIGN.md § Exactness bounds, three of whose four pairwise sums leave the
+/// compact form. The closure law's strategy, since the law is only as strong as the strategy.
+fn exact_full() -> impl Strategy<Value = Exact> {
+    prop_oneof![1 => special(), 15 => double(-300, 300)].prop_map(Exact::from)
+}
+
+/// A row's product of two such doubles, deposited as `Exact::product`: a 106-bit mantissa over
+/// `2^±600`, so every value drawn is a heap value.
+fn exact_products() -> impl Strategy<Value = Exact> {
+    (double(-300, 300), double(-300, 300)).prop_map(|(a, b)| Exact::product(a, b))
+}
+
 /// An integer multiplier as an `Exact`, for the ring on the weights above: a special amount must
 /// stay an integer, so a special multiplier needs integer weights, and that is [`exact_small`].
 fn exact_integer() -> impl Strategy<Value = Exact> {
@@ -117,6 +130,33 @@ fn laws_exact_passes_every_check_with_integer_and_exact_multipliers() {
         laws::check_consolidation_invariance(&mut r, exact()),
         Ok(())
     );
+}
+
+/// The heap form holds every sum and product short of its two bounds, so closure holds where the
+/// compact form alone broke it: on every binade with the specials in, by an integer and by
+/// another such `Exact`, and on a multiset of row products.
+#[test]
+fn laws_closure_exact_holds_on_every_binade_with_specials_and_on_products() {
+    let mut r = runner();
+    assert_eq!(
+        laws::check_closure(&mut r, exact_full(), small_int()),
+        Ok(())
+    );
+    assert_eq!(
+        laws::check_closure(&mut r, exact_full(), exact_full()),
+        Ok(())
+    );
+    assert_eq!(
+        laws::check_closure(&mut r, exact_products(), exact_integer()),
+        Ok(())
+    );
+}
+
+#[test]
+fn laws_closure_wide_and_fixed256_hold_on_their_domains() {
+    let mut r = runner();
+    assert_eq!(laws::check_closure(&mut r, wide(), small_int()), Ok(()));
+    assert_eq!(laws::check_closure(&mut r, fixed256(), small_int()), Ok(()));
 }
 
 /// `f64` as an engine would use it for a weight: its own sum, with structural `Eq` and `Hash`
@@ -184,7 +224,7 @@ fn naive() -> impl Strategy<Value = Naive> {
 fn failure<I: core::fmt::Debug>(outcome: Result<(), TestError<I>>, check: &str) -> (String, I) {
     match outcome {
         Err(TestError::Fail(why, input)) => (why.message().to_string(), input),
-        other => panic!("the naive control did not fail {check}: {other:?}"),
+        other => panic!("the control did not fail {check}: {other:?}"),
     }
 }
 
@@ -249,6 +289,100 @@ fn laws_naive_f64_fails_consolidation_invariance() {
     // One weight cannot fail: `a + (−a)` is exact, so the witness needs two.
     assert!(case.weights.len() > 1, "{case:?}");
     assert!(why.contains("consolidation"), "{why}");
+}
+
+/// `Exact` as a build without `alloc` has it: the compact form alone, with the width as its cap.
+/// A result that leaves the compact form is refused by panic, as that build's operators refuse
+/// it, so the kit must see the cap on a strategy that reaches it, and cannot on one that does not.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct Compact(Exact);
+
+impl Compact {
+    fn fitting(value: Exact, what: &str) -> Self {
+        assert!(
+            value.is_compact(),
+            "Compact: {what} spans more than the 127-bit width"
+        );
+        Compact(value)
+    }
+}
+
+impl Add for Compact {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self::fitting(self.0 + other.0, "a sum")
+    }
+}
+
+impl Sub for Compact {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self::fitting(self.0 - other.0, "a difference")
+    }
+}
+
+impl Neg for Compact {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Compact(-self.0)
+    }
+}
+
+impl Mul<i64> for Compact {
+    type Output = Self;
+    fn mul(self, k: i64) -> Self {
+        Self::fitting(self.0 * k, "a product")
+    }
+}
+
+impl Weight for Compact {
+    fn zero() -> Self {
+        Compact(Exact::ZERO)
+    }
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+fn compact_full() -> impl Strategy<Value = Compact> {
+    exact_full().prop_map(Compact)
+}
+
+/// The law is only as strong as the strategy: inside 56 binades the capped type passes, as the
+/// compact `Exact` passed the kit before the heap arm.
+#[test]
+fn laws_closure_compact_control_holds_inside_its_width() {
+    assert_eq!(
+        laws::check_closure(&mut runner(), exact().prop_map(Compact), small_int()),
+        Ok(())
+    );
+}
+
+#[test]
+fn laws_closure_compact_control_fails_past_its_width() {
+    let (why, case) = failure(
+        laws::check_closure(&mut unshrunk(), compact_full(), small_int()),
+        "the closure check",
+    );
+    // One weight cannot fail: its sum with itself, its product by a small integer and its fold
+    // all stay inside 64 bits.
+    assert!(case.weights.len() > 1, "{case:?}");
+    assert!(why.contains("closure"), "{why}");
+    assert!(why.contains("127-bit width"), "{why}");
+}
+
+/// With shrinking on, the kit pares the control's failure down to two values whose sum or
+/// difference leaves the compact form.
+#[test]
+fn laws_closure_compact_control_fails_on_a_minimal_input_of_two_values() {
+    let (why, case) = failure(
+        laws::check_closure(&mut runner(), compact_full(), small_int()),
+        "the closure check",
+    );
+    assert_eq!(case.weights.len(), 2, "{case:?}");
+    let (a, b) = (&case.weights[0].0, &case.weights[1].0);
+    assert!(!(a + b).is_compact() || !(a - b).is_compact(), "{case:?}");
+    assert!(why.contains("closure"), "{why}");
 }
 
 /// The seed is honoured: one seed is one run, and another seed is another stream.

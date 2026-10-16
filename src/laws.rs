@@ -16,7 +16,10 @@
 //! - [`check_canonical`]: structural `Eq` is numeric equality, `a == b ⇔ (a − b).is_zero()`, and
 //!   `Hash` agrees with it, so one sum reached by two histories is one structure with one hash;
 //! - [`check_consolidation_invariance`]: the same multiset summed in random partitions, with the
-//!   zero partials pruned between merges, lands the same bits.
+//!   zero partials pruned between merges, lands the same bits;
+//! - [`check_closure`]: every pairwise sum, difference and product the strategy draws, and the
+//!   fold in a thousand orders, returns; the first group axiom, and the one a type with a cap
+//!   breaks, reported as a value with the operands as the witness rather than as a panic.
 //!
 //! "Bit for bit" is structural `Eq`. On a canonical type that is bit equality, and a type whose
 //! `Eq` is looser than its bits is what [`check_canonical`] catches.
@@ -24,8 +27,10 @@
 //! # Checking your own type
 //!
 //! Implement [`Weight`] (the group operators, the zero and its test), pick a [`Strategy`] for the
-//! values your engine will see, and run the four checks. [`runner`] is a fixed-seed runner with
-//! failure persistence off, so a CI run is the same run every time.
+//! values your engine will see, and run the five checks. [`runner`] is a fixed-seed runner with
+//! failure persistence off, so a CI run is the same run every time. The first four hold on any
+//! strategy inside a type's domain; the closure check is only as strong as the strategy, so draw
+//! it from the whole range the engine will feed the weight.
 //!
 //! ```
 //! use core::ops::{Add, Mul, Neg, Sub};
@@ -73,12 +78,15 @@
 //! laws::check_abelian_group(&mut runner, count.clone()).unwrap();
 //! laws::check_ring(&mut runner, count.clone(), any::<i64>()).unwrap();
 //! laws::check_canonical(&mut runner, count.clone()).unwrap();
-//! laws::check_consolidation_invariance(&mut runner, count).unwrap();
+//! laws::check_consolidation_invariance(&mut runner, count.clone()).unwrap();
+//! laws::check_closure(&mut runner, count, any::<i64>()).unwrap();
 //! ```
 //!
 //! A control that passes would mean the kit is blind, so `tests/laws.rs` runs a naive `f64`
-//! newtype through it and asserts the laws it breaks.
+//! newtype through it and asserts the laws it breaks, and a compact-only `Exact` through the
+//! closure check on a strategy past its width.
 
+mod closure;
 mod report;
 
 use core::fmt::Debug;
@@ -95,6 +103,7 @@ use proptest::strategy::Strategy;
 use proptest::test_runner::{Config, RngSeed, TestError, TestRunner};
 
 use crate::{Exact, Fixed, Wide};
+pub use closure::{check_closure, ClosureCase};
 use report::{fold, hash_of, merge_pruning, Broken, Rng};
 
 /// The group an engine's weight must be, as the kit calls it: the operators by value, structural
