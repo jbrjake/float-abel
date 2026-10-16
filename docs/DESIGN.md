@@ -141,8 +141,13 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   stored exponent inside `i32`, with room to spare on both sides.
 - A compact 127-bit mantissa holds any exact sum whose bit-span is ≤ 127. A column of 10⁷ terms
   whose magnitudes spread over 2^±20 spans ≈ 40 + 53 + 24 = 117 bits, so it never promotes
-  (measured below). A uniform spread over 2^±300 is the adversary, and 77% of its pairwise adds
-  promote (measured). Real columns look like the former; the heap form exists for the latter.
+  (measured below). Two full-mantissa decimals stay in the word while they are within about 10²²
+  of each other in size: `1e11 + 1e-11` spans 126 bits and `1e12 + 1e-12` spans 132
+  (docs/OVERFLOW.md § What fits), and a key of *n* rows narrows the allowance by about log₂ *n*
+  bits. A uniform spread over 2^±300 is the adversary, and 77% of its pairwise adds
+  promote (measured). Real columns look like the former; the heap form exists for the latter, and
+  a `SUM` over it is correct on the plain idiom and allocation-free on the banded one
+  (§ differential-dataflow), which keeps every consolidated diff inside one 32-binade band.
 - `Fixed<−96, 4>`: unit 2⁻⁹⁶ ≈ 1.3·10⁻²⁹. 64 bits of headroom leave a magnitude ceiling of
   2⁹⁵ ≈ 4·10²⁸. Every double with |x| ≥ 2⁻⁴⁴ ≈ 5.7·10⁻¹⁴ is on the grid, and a smaller one is on it
   iff its trailing mantissa bits are zero. Money, counts, measurements and probabilities above 10⁻¹³
@@ -227,6 +232,12 @@ allocated with the capacity in `lo`, no other code reads a heap word's fields, a
 heap word's offset reaches the block its `Serialize` wrote beside it. The fields are private
 because a word with an even mantissa is not a compact value: bytes from outside go through the
 validating decoder.
+
+The heap form is why `Exact` is `Clone` and not `Copy`: a word that can hold a pointer has drop
+glue, so it leaves an engine's `Copy` weight slot and a cast over a mapping, and `Wide` and
+`Fixed` are the `Copy` words for those (§ Wide, § Fixed), `Fixed` for a declared window besides.
+What the trade buys is that every sum and every product is held: a dataflow with `Exact` as the
+diff cannot panic on its input short of the two bounds below, and a sum of doubles nears neither.
 
 The compact fast paths are the whole cost on data that never promotes: `+=` on a compact word runs
 the compact add in place with no drop glue, `clone_from` between compact words is a copy, `is_zero`

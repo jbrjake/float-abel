@@ -34,6 +34,21 @@ The honest boundary: the group makes **sums and products** exact. Division, norm
 Nothing here makes arbitrary floating-point arithmetic reproducible. It makes the part an
 incremental engine *accumulates* reproducible, which is the part that breaks.
 
+The other half of the promise is that a sum never fails on its input. `Exact` holds every sum and
+every product of doubles, NaN and ±∞ counted, so a dataflow with it as the diff cannot panic on what
+it is fed short of two named bounds: the limb cap, `EXACT_MAX_LIMBS`, 16 × 2148 bits or about 4.3 KB
+a weight, reached only through sixteen nested `float × float` joins on extreme values and a `const`
+a consumer raises by editing it; and the exponent bound, `EXACT_MAX_EXP`, 2³⁰, reached only through
+about a million nested products of the smallest subnormal. A sum of doubles nears neither. What the
+32-byte word holds without allocating is a sum spanning at most 127 bits from its first set bit to
+its last: two full-mantissa decimals within about 10²² of each other in size, so `1e11 + 1e-11`
+stays in the word at 126 bits and `1e12 + 1e-12` promotes at 132, and a key of *n* such rows narrows
+the allowance by about log₂ *n* bits. Past the word a weight is one allocation, freed by the next
+operation whose result fits again, so a `SUM` over wildly mixed magnitudes is correct on the plain
+idiom and faster on the banded one, which keeps every diff inside the word (§ In an engine). A
+consumer who runs more than one worker and can reach either bound builds with `panic = "abort"`,
+because one worker's panic otherwise leaves the others spinning instead of ending the process.
+
 ```rust
 use float_abel::Exact;
 
@@ -105,7 +120,9 @@ a sum of `1e300` and `1e-300`, or a fold of products, does. The caps are named: 
 (`EXACT_MAX_LIMBS`, sixteen products' worth of bits) or the exponent bound, `Exact` panics with a
 named invariant, because an engine's `plus_equals` cannot return an error, and the `checked_*`
 methods return the cap as `PastCap` instead with the state as it was. Without the `alloc` feature
-`Exact` is the compact form alone and the width is its cap.
+`Exact` is the compact form alone and the width is its cap. A word that can hold a pointer is
+`Clone` and not `Copy`, so `Exact` leaves an engine's `Copy` weight slot and a cast over a mapping;
+`Wide` and `Fixed` are the `Copy` words for that slot, and `Fixed` for a declared window besides.
 
 `Exact` is the engine weight. `Wide` has the fastest add of any tier and costs bytes, which suits a
 per-key aggregate slot rather than a per-update diff. `Fixed` is for data whose scale the caller
@@ -168,9 +185,9 @@ nothing. The multi-worker integration test covers `join`, `antijoin` with `isize
 `Exact`-weighted collections multiplies the weights, so a `float × float` join folded by
 `count_total`, a depth-3 join chain, and an `iterate` whose weight is multiplied every round all
 hold on the heap form; each is checked against an integer oracle on one worker and three, with
-retractions. The one panic left inside a dataflow is the limb cap, reachable through nested
-products alone; a consumer who can reach it builds with `panic = "abort"`, because one worker's
-panic otherwise leaves the others spinning.
+retractions. The panics left inside a dataflow are the limb cap and the exponent bound, both
+reachable through nested products alone (§ The contract); a consumer who can reach either builds
+with `panic = "abort"`, because one worker's panic otherwise leaves the others spinning.
 
 That idiom is correct on every input, and on same-scale amounts its diffs never leave the 32-byte
 word. A key whose amounts span magnitudes, `1e12` beside `1e-12`, forms a running diff wider than
