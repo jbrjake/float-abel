@@ -113,6 +113,12 @@ and the crate ships each:
 | exact + constant size (window) | `Fixed<const LSB: i32, const LIMBS: usize>` | 8·LIMBS B (32 at the default) | finite doubles exactly on the 2^LSB grid inside the window; the rest **refused at the door**, or **quantised** by declaration | yes | `×i64` only |
 | constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 16·K B + index + counters (80 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
 
+The three groups carry differential-dataflow's weight traits behind the `differential` feature
+(§ differential-dataflow): `Exact` with the ring, `Wide` and `Fixed` with `Multiply` by `i64` and
+`isize` alone, since neither multiplies by itself. `Wide` is the diff for an engine whose weight
+slot must be `Copy` or that casts over a mapping, and `Fixed` the same with a declared window, its
+door check per value at the `explode`.
+
 The last corner is the adaptive accumulator, and the previous section is why it is not a group. It
 ships anyway, for **batch work only**. An engine that also runs one-shot folds over tiles wants
 ReproBLAS's shape there: fewest bytes, fewest ops, order-independent. `Binned` lives on `Wide`'s limb
@@ -271,9 +277,14 @@ the safe inverse of `limbs` and `specials`. Its limb layout is bitrep's, so bitr
 conformance vectors apply to `Wide`'s limbs directly. It is a group with `Mul<i64>`, and it never allocates; `From<f64>` is total, and the one
 refusal is `deposit_product` on a product outside its window, by name: a set bit below 2⁻¹⁰⁷⁴ is
 `OutOfWindow::OffGrid`, a magnitude at or past 2¹⁰³⁷ is `OutOfWindow::AboveCeiling`, and the state is
-untouched. `Wide` has the *fastest* add of any tier; its cost is bytes, not time. That suits a
-per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates would carry 2.9 GB
-of weights.
+untouched. Behind `differential` it is a differential-dataflow diff, the `Copy` one: `IsZero`,
+`Semigroup`, `Monoid`, `Abelian`, `Multiply<i64>` and `Multiply<isize>` on either side, and
+`From<i8>` for `count_core`'s and `distinct_core`'s outputs (§ differential-dataflow). There is no
+`Multiply<Wide> for Wide`, because the product of two words has no carrier, so a `join` of two
+`Wide`-weighted collections does not compile and a row's product enters the diff through
+`deposit_product` at the door. `Wide` has the *fastest* add of any tier; its cost is bytes, not
+time. That suits a per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates
+would carry 2.9 GB of weights.
 
 ### Fixed {#sp-fixed}
 
@@ -286,6 +297,12 @@ onto the grid, for callers who *declare* a floor. It is deterministic per input,
 identically on every engine before the deposit. Group ops are infallible inside the documented budget
 of 2⁶⁴ deposits at the ceiling, and exhausting the headroom is a named panic in every build, release
 included, because a wrapped sum is silently wrong. `Fixed256 = Fixed<−96, 4>` is the named default.
+Behind `differential` it carries the weight traits `Wide` does (§ Wide), as the declared window:
+the door check is per value, `Fixed::try_from(x)` inside the `explode` refusing by name before the
+engine sees the row, so nothing downstream depends on what else is in the key; `From<i8>`, which
+`count_core` and `distinct_core` put out, is pinned by a `const` assertion to the windows that hold
+every `i8`, a grid at or below one with a ceiling above 2⁷, and `Fixed::<1, 4>::from(1i8)` does not
+build.
 
 ### Binned {#sp-binned}
 
@@ -470,6 +487,21 @@ What `Exact` implements under `differential`:
 
 Not needed on the default path: `Columnation`, `columnar::Columnar`, `Copy`. The experimental
 `dd::columnar` layout is out of scope; note that it assumes `Multiply<Output = Self>`.
+
+`Wide` and `Fixed<LSB, LIMBS>` carry the same table less the ring row, in src/wide/differential.rs
+and src/fixed/differential.rs: `IsZero`, `Semigroup`, `Monoid`, `Abelian`, `Multiply<i64>` and
+`Multiply<isize>` with the orphan `Multiply<Wide> for i64`/`isize` and `Fixed`'s twins, and
+`From<i8>`; `ExchangeData` is the serde impls behind `serde`, which `differential` implies. Neither
+word has `Multiply<Self>`, so a `join` of two collections weighted by one word does not compile,
+and a row's product enters the diff through `deposit_product` at the door. They are the diff for
+the two cases `Exact` leaves: a weight slot that must be `Copy` or a cast over a mapping, which is
+`Wide`, and a declared window, which is `Fixed`, its `try_from` inside the `explode` the per-value
+door check. tests/differential_words.rs runs the five histories of docs/OVERFLOW.md on one worker
+and three with `Wide` on every pair and `Fixed256` on the 1e12 pair, `Fixed256` refusing 2¹⁰⁰⁰ and
+1e-300 at the door before any dataflow starts, a fold of row products through the door against a
+`num-bigint` oracle with a retraction epoch, a retraction epoch netting to nothing, `join`,
+`semijoin` and `antijoin` with `isize` in either order, and `count_core` and `distinct_core`
+putting `From<i8>` out.
 
 The idiom the crate's example documents: `explode` the float column into the diff and `count_total`,
 i.e. `collection.explode(|row| Some((key, Exact::from(row.x))))` then `.count_total()`. Retractions

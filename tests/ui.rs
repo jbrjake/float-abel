@@ -61,8 +61,9 @@ fn wording_is_blessed() -> bool {
     false
 }
 
-/// `Wide: From<Fixed<LSB, LIMBS>>` is pinned to the pairs it is exact for, and
-/// `Fixed::to_bytes` to the one array length its encoding has.
+/// `Wide: From<Fixed<LSB, LIMBS>>` is pinned to the pairs it is exact for, `Fixed::to_bytes` to
+/// the one array length its encoding has, and `Fixed<LSB, LIMBS>: From<i8>` to the windows that
+/// hold every `i8`.
 #[test]
 #[cfg_attr(miri, ignore = "trybuild spawns cargo, which miri cannot")]
 fn ui_const_assertions_refuse_the_pairs_and_lengths_they_name() {
@@ -74,6 +75,7 @@ fn ui_const_assertions_refuse_the_pairs_and_lengths_they_name() {
     t.compile_fail("tests/ui/fixed_below_wides_unit.rs");
     t.compile_fail("tests/ui/fixed_wider_than_wide.rs");
     t.compile_fail("tests/ui/fixed_to_bytes_wrong_length.rs");
+    t.compile_fail("tests/ui/fixed_from_i8_above_one.rs");
 }
 
 /// `Binned<K>` implements none of differential-dataflow's weight traits, so a collection refuses

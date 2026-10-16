@@ -1,0 +1,26 @@
+error[E0080]: evaluation panicked: Fixed: From<i8> is exact only on a grid at or below 1 whose ceiling is above 2^7
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `float_abel::fixed::ops::HoldsIntegers::<1, 4>::OK` failed here
+  |
+ ::: src/fixed/ops.rs
+  |
+  |       const OK: () = assert!(
+  |  ____________________-
+  | |         LSB <= 0 && 8 - (LSB as i64) <= 64 * (LIMBS as i64) - 65,
+  | |         "Fixed: From<i8> is exact only on a grid at or below 1 whose ceiling is above 2^7"
+  | |     );
+  | |_____- in this macro invocation
+
+note: erroneous constant encountered
+ --> src/fixed/ops.rs
+  |
+  |         let () = HoldsIntegers::<LSB, LIMBS>::OK;
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: the above error was encountered while instantiating `fn float_abel::fixed::ops::<impl From<i8> for float_abel::Fixed<1, 4>>::from`
+ --> tests/ui/fixed_from_i8_above_one.rs:7:16
+  |
+7 |     let _one = Fixed::<1, 4>::from(1i8);
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,6 +1,8 @@
 //! [`Wide`]: a `Copy` 34-limb two's-complement integer in units of `2^-1074` plus three signed
 //! special counters. Every `f64` sum, exactly, with NaN and ±∞ counted rather than refused.
 
+#[cfg(feature = "differential")]
+mod differential;
 mod ops;
 
 use core::cmp::Ordering;
@@ -44,6 +46,11 @@ pub(crate) const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 /// two doubles, or an [`Exact`](crate::Exact), may lie below the unit or past `2^1037`, and then it
 /// is refused by name rather than rounded. `From<Fixed>` is exact, pinned at compile time to the
 /// `(LSB, LIMBS)` pairs `Wide` holds, and `TryFrom<&Wide>` into `Exact` refuses past its width.
+///
+/// Behind the `differential` feature it is a differential-dataflow diff, the `Copy` one, with
+/// `Multiply` by `i64` and `isize` on either side and `From<i8>`; there is no `Multiply<Wide>`,
+/// because the product of two words has no carrier, so a row's product enters through
+/// [`Wide::deposit_product`] at the door.
 ///
 /// A plain word: `repr(C)`, the limbs then the counters, with no padding and no invalid bit
 /// pattern, so on a little-endian machine the in-memory bytes are the wire body and an engine may

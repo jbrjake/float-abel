@@ -1,5 +1,7 @@
 //! [`Fixed`]: a `Copy` two's-complement fixed-point integer in units of `2^LSB`, exact or refused.
 
+#[cfg(feature = "differential")]
+mod differential;
 mod ops;
 
 use core::cmp::Ordering;
@@ -61,6 +63,11 @@ impl std::error::Error for OutOfWindow {}
 /// [`Fixed256`] is the named default. `Wide: From<Fixed>` is exact and total for every
 /// `(LSB, LIMBS)` whose grid and width `Wide` holds, pinned by a `const` assertion, and
 /// `Exact: TryFrom<&Fixed>` refuses a state whose set bits span more than `Exact`'s width.
+///
+/// Behind the `differential` feature it is a differential-dataflow diff with a declared window:
+/// `Multiply` by `i64` and `isize` on either side, and `From<i8>` pinned by a `const` assertion
+/// to the windows that hold every `i8`. The door check is per value, `TryFrom<f64>` inside the
+/// `explode`, so a value the window cannot hold is refused by name before the engine sees it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct Fixed<const LSB: i32, const LIMBS: usize> {

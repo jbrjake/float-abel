@@ -34,7 +34,10 @@
 //! diff and `count_total` reads each key's exact total back out, with a retraction arriving as
 //! `-1 × Exact`. `examples/dd_sum.rs` is that idiom on three workers. `BandedSum` is the same
 //! `SUM` with the amount's magnitude band beside the key, so that on amounts of mixed magnitudes
-//! no diff the engine consolidates leaves the compact form.
+//! no diff the engine consolidates leaves the compact form. [`Wide`] and [`Fixed`] carry the same
+//! traits less `Multiply` by themselves: `Wide` is the diff for a weight slot that must be `Copy`
+//! or a cast over a mapping, and `Fixed` the declared window, its `try_from` inside the `explode`
+//! the per-value door check.
 //!
 //! Behind the `dbsp` feature, [`Exact`] is a DBSP `DBWeight`: a weighted batch takes it, and
 //! `aggregate_linear` takes it as the accumulator, which is the shape of Feldera's

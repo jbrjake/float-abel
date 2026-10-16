@@ -6,7 +6,7 @@
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
-use super::{Wide, LIMBS};
+use super::{Wide, LIMBS, LSB};
 use crate::limbs;
 
 impl From<f64> for Wide {
@@ -14,6 +14,19 @@ impl From<f64> for Wide {
     fn from(x: f64) -> Self {
         let mut w = Self::ZERO;
         w.deposit(x);
+        w
+    }
+}
+
+impl From<i8> for Wide {
+    /// The integer, exactly, by integer arithmetic: what differential-dataflow's `count_core` and
+    /// `distinct_core` put out as one. Every integer is a double on the grid, so it is total.
+    fn from(k: i8) -> Self {
+        let mut w = Self::ZERO;
+        if k != 0 {
+            // An integer's lowest set bit is at or above 2^0, which is `-LSB` bits above the unit.
+            w.deposit_finite(k < 0, u128::from(k.unsigned_abs()), (-LSB) as u32);
+        }
         w
     }
 }

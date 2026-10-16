@@ -122,7 +122,8 @@ named invariant, because an engine's `plus_equals` cannot return an error, and t
 methods return the cap as `PastCap` instead with the state as it was. Without the `alloc` feature
 `Exact` is the compact form alone and the width is its cap. A word that can hold a pointer is
 `Clone` and not `Copy`, so `Exact` leaves an engine's `Copy` weight slot and a cast over a mapping;
-`Wide` and `Fixed` are the `Copy` words for that slot, and `Fixed` for a declared window besides.
+`Wide` and `Fixed` are the `Copy` words for that slot, and `Fixed` for a declared window besides,
+each carrying the weight traits behind the same feature (§ In an engine).
 
 `Exact` is the engine weight. `Wide` has the fastest add of any tier and costs bytes, which suits a
 per-key aggregate slot rather than a per-update diff. `Fixed` is for data whose scale the caller
@@ -230,6 +231,16 @@ spread over 2^±300 it runs 1.6–1.9× faster, allocating nothing where the pla
 every consolidation step. It sums, and nothing else: a row's product has a 106-bit mantissa and
 no band narrow enough, so a `join` of two weighted collections stays on the plain idiom, which
 the heap form holds.
+
+`Wide` and `Fixed` carry the same differential traits, less `Multiply` by themselves, for the two
+cases `Exact` leaves. An engine whose weight slot must be `Copy`, or that casts a mapping to its
+weight, takes `Wide` as the diff and admits every double with nothing to check. One that wants a
+declared window takes `Fixed<LSB, LIMBS>`, with `Fixed::try_from` inside the `explode` as the
+per-value door check: a value the window cannot hold is refused by name before the engine sees
+it, and nothing downstream depends on what else is in the key, where the compact `Exact` had no
+such check. Neither word multiplies by itself, so a `join` of two collections weighted by one word
+does not compile; a row's product enters through `deposit_product` at the door. The cost is
+bytes: a `Wide` update tuple is 312 bytes against `Exact`'s 48.
 
 Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
 `aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two

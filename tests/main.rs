@@ -23,6 +23,7 @@ mod dbsp_products;
 mod differential;
 mod differential_banded;
 mod differential_products;
+mod differential_words;
 mod exact_cap;
 mod exact_heap;
 mod exact_heap_ring;

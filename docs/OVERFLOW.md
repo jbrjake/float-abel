@@ -243,7 +243,8 @@ Not taken, each for a stated reason:
   update. Each holds what its door admits and nothing more, and neither multiplies by itself, so
   neither holds a `float × float` join; `Wide` takes a row's product through `deposit_product`,
   refused at the door past 2¹⁰³⁷. They remain the `Copy` carriers for an engine whose weight slot
-  must be `Copy` or that wants a declared window, and fl-pwq0h8n gives them the weight traits.
+  must be `Copy` or that wants a declared window, and carry differential's weight traits for it
+  (DESIGN.md § Wide, § Fixed; tests/differential_words.rs runs the five histories on both).
 - **The banded idiom alone**, with `Exact` the compact word. The fastest panic-free shape on
   every band measured, and the only 32-byte one in which a caller has nothing to check, but it
   sums and nothing else: a row's product has a 106-bit mantissa and no band narrow enough.

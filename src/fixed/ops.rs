@@ -20,6 +20,36 @@ impl<const LSB: i32, const LIMBS: usize> TryFrom<f64> for Fixed<LSB, LIMBS> {
     }
 }
 
+/// The windows that hold every `i8` exactly: a grid at or below one, so an integer is a whole
+/// number of units, and a ceiling above `2^7` once the grid is shifted onto it. Any other window
+/// fails the `const` assertion when the impl is instantiated, rather than refusing at runtime,
+/// because `From` has no error to return.
+struct HoldsIntegers<const LSB: i32, const LIMBS: usize>;
+
+impl<const LSB: i32, const LIMBS: usize> HoldsIntegers<LSB, LIMBS> {
+    const OK: () = assert!(
+        LSB <= 0 && 8 - (LSB as i64) <= 64 * (LIMBS as i64) - 65,
+        "Fixed: From<i8> is exact only on a grid at or below 1 whose ceiling is above 2^7"
+    );
+}
+
+impl<const LSB: i32, const LIMBS: usize> From<i8> for Fixed<LSB, LIMBS> {
+    /// The integer, exactly, by integer arithmetic: what differential-dataflow's `count_core` and
+    /// `distinct_core` put out as one. Pinned at compile time to the windows every `i8` is inside,
+    /// by a `const` assertion rather than a runtime refusal: `Fixed::<1, 4>::from(1i8)` does not
+    /// build, because a grid of two holds no one.
+    fn from(k: i8) -> Self {
+        #[allow(clippy::let_unit_value)] // evaluates the const assertion on the window
+        let () = HoldsIntegers::<LSB, LIMBS>::OK;
+        let mut f = Self::ZERO;
+        if k != 0 {
+            // An integer's lowest set bit is at or above 2^0, which is `-LSB` bits above the unit.
+            f.add_placed(k < 0, u128::from(k.unsigned_abs()), (-LSB) as u32);
+        }
+        f
+    }
+}
+
 impl<const LSB: i32, const LIMBS: usize> AddAssign for Fixed<LSB, LIMBS> {
     fn add_assign(&mut self, rhs: Self) {
         let overflow = limbs::add_assign(&mut self.limbs, &rhs.limbs);
