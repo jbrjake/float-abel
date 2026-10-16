@@ -1,7 +1,7 @@
 ---
 id: fl-v112c79
 title: "Run the four older laws on the full-range Exact strategy — group, ring, canonical and consolidation checks on every binade 2^±300 with specials and on row products, timed first, so the kit's sweep covers the heap form and not the compact word alone"
-status: open
+status: done
 category: crate/laws
 labels: [reproducible-floats]
 discovered-from: fl-x8fwfe3
@@ -34,3 +34,8 @@ with the whole laws topic at 16db257, so the budget is minutes, not seconds.
 
 ## log
 - 2026-10-16T17:02Z created
+- 2026-10-16T17:03Z open→doing — claimed by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
+- 2026-10-16T17:06Z doing→done — verify exit 0 @ 2793f7f+1
+
+## comments
+- 2026-10-16T17:06Z [claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)] 2793f7f. laws_exact_holds_every_law_on_every_binade in tests/laws.rs runs check_abelian_group, check_canonical and check_consolidation_invariance on exact_full() (every binade 2^±300, full fractions, either sign, one in sixteen a special) and check_ring on it by small_int(), exact_integer() and exact_full() itself, whose full-mantissa multipliers give the special amounts dyadic heap values, and on exact_products() by exact_integer(). All seven green on the first run, 4.32 s for the one test at 256 cases with the kit's 1,000 shuffles, so no reduction of cases or shuffles was needed and the whole laws topic stays under ten seconds. The kit's ability to fail is the Naive and Compact controls' job, unchanged; what this test adds is the strategy: the heap form, promoted and demoted through 32-value folds in a thousand orders, across structural Eq and Hash and random pruning partitions, under the same sweep a stranger would run.
