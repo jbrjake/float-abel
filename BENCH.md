@@ -19,6 +19,23 @@ rows no change touched, the `f64` floor, `Wide`'s add and the `isize` dataflow, 
 host's within a few percent; both machines are shared, and a sitting that failed that check was
 re-taken.
 
+`bench-baseline.json` is the last full sitting on each machine in a form a script can diff: every
+criterion id's median per run with its element count, and the peak resident set of the bench
+process on the five end-to-end rows below, keyed by the CPU's brand string and naming the commit.
+`scripts/bench-baseline.sh write` records a sitting from criterion's estimates and measures the
+resident sets, and `compare` prints every row whose median per element is past 1.5× of the
+recorded one (`--rss` re-measures the resident sets too, `--all` prints every row). It is
+advisory and runs from no hook: a row past the line is a design question for the owner. The
+tables in this file stay the record of what each number meant; the file is the record of where
+the last sitting stood. The entries at 85b93c2 were taken with the canaries clean on both
+machines: on NEON the `f64` floor at 1.00× of the sitting before it, `Wide`'s add at 1.01× and the
+four same-scale `isize` rows at 1.01–1.03×; on AVX2 the floor at 0.75 ns, `Wide`'s add at 29.4 ns
+and the `isize` rows within 0–6% of the rows in § The end-to-end SUM. Their resident sets are
+the harness's as it stands, three 160 MB fixtures and a check phase that runs every
+configuration once before any row is timed: 11.4–12.4 GB on every row on macOS and 7.08 GB on
+every row on Linux, against the 1.3–5 GB the eight-row harness read in that section, so a
+comparison reads them against the entry and never against that table.
+
 ## Terms
 
 The crate replaces an `f64` running total with an integer word that holds the sum exactly, so the

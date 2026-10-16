@@ -1,0 +1,944 @@
+{
+  "AMD Ryzen 7 5700U": {
+    "commit": "85b93c2",
+    "os": "Linux 6.17.0-29-generic",
+    "rows": {
+      "binned3/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1753956.7826
+      },
+      "binned3/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 19376756.8333
+      },
+      "crossover/batched/exact/serialized/10000": {
+        "elements": 1000,
+        "median_ns": 97841.6592
+      },
+      "crossover/batched/exact/serialized/100000": {
+        "elements": 1000,
+        "median_ns": 97241.2177
+      },
+      "crossover/batched/exact/serialized/1000000": {
+        "elements": 1000,
+        "median_ns": 95613.5476
+      },
+      "crossover/batched/exact/typed/10000": {
+        "elements": 1000,
+        "median_ns": 61905.4578
+      },
+      "crossover/batched/exact/typed/100000": {
+        "elements": 1000,
+        "median_ns": 61245.8148
+      },
+      "crossover/batched/exact/typed/1000000": {
+        "elements": 1000,
+        "median_ns": 60451.3058
+      },
+      "crossover/batched/fixed-point/serialized/10000": {
+        "elements": 1000,
+        "median_ns": 47543.0302
+      },
+      "crossover/batched/fixed-point/serialized/100000": {
+        "elements": 1000,
+        "median_ns": 47341.7136
+      },
+      "crossover/batched/fixed-point/serialized/1000000": {
+        "elements": 1000,
+        "median_ns": 43866.7281
+      },
+      "crossover/batched/fixed-point/typed/10000": {
+        "elements": 1000,
+        "median_ns": 31044.1363
+      },
+      "crossover/batched/fixed-point/typed/100000": {
+        "elements": 1000,
+        "median_ns": 30768.133
+      },
+      "crossover/batched/fixed-point/typed/1000000": {
+        "elements": 1000,
+        "median_ns": 27010.8103
+      },
+      "crossover/exact/serialized/100": {
+        "elements": 1,
+        "median_ns": 16196.3966
+      },
+      "crossover/exact/serialized/1000": {
+        "elements": 1,
+        "median_ns": 16109.4002
+      },
+      "crossover/exact/serialized/10000": {
+        "elements": 1,
+        "median_ns": 16100.5557
+      },
+      "crossover/exact/serialized/100000": {
+        "elements": 1,
+        "median_ns": 16033.1382
+      },
+      "crossover/exact/serialized/1000000": {
+        "elements": 1,
+        "median_ns": 11989.3651
+      },
+      "crossover/exact/typed/100": {
+        "elements": 1,
+        "median_ns": 15764.4723
+      },
+      "crossover/exact/typed/1000": {
+        "elements": 1,
+        "median_ns": 15719.8214
+      },
+      "crossover/exact/typed/10000": {
+        "elements": 1,
+        "median_ns": 16475.1596
+      },
+      "crossover/exact/typed/100000": {
+        "elements": 1,
+        "median_ns": 16472.2503
+      },
+      "crossover/exact/typed/1000000": {
+        "elements": 1,
+        "median_ns": 12845.2853
+      },
+      "crossover/fixed-point/serialized/100": {
+        "elements": 1,
+        "median_ns": 15915.424
+      },
+      "crossover/fixed-point/serialized/1000": {
+        "elements": 1,
+        "median_ns": 15905.5124
+      },
+      "crossover/fixed-point/serialized/10000": {
+        "elements": 1,
+        "median_ns": 16570.4604
+      },
+      "crossover/fixed-point/serialized/100000": {
+        "elements": 1,
+        "median_ns": 16530.0833
+      },
+      "crossover/fixed-point/serialized/1000000": {
+        "elements": 1,
+        "median_ns": 13115.8942
+      },
+      "crossover/fixed-point/typed/100": {
+        "elements": 1,
+        "median_ns": 15787.7807
+      },
+      "crossover/fixed-point/typed/1000": {
+        "elements": 1,
+        "median_ns": 15824.8236
+      },
+      "crossover/fixed-point/typed/10000": {
+        "elements": 1,
+        "median_ns": 15720.4644
+      },
+      "crossover/fixed-point/typed/100000": {
+        "elements": 1,
+        "median_ns": 15809.0578
+      },
+      "crossover/fixed-point/typed/1000000": {
+        "elements": 1,
+        "median_ns": 13034.4343
+      },
+      "crossover/no-engine/Exact deposit, one change": {
+        "elements": 1048576,
+        "median_ns": 15852830.8003
+      },
+      "crossover/recompute/f64 re-sum, chain/100": {
+        "elements": null,
+        "median_ns": 47.7601
+      },
+      "crossover/recompute/f64 re-sum, chain/1000": {
+        "elements": null,
+        "median_ns": 672.2169
+      },
+      "crossover/recompute/f64 re-sum, chain/10000": {
+        "elements": null,
+        "median_ns": 6916.7609
+      },
+      "crossover/recompute/f64 re-sum, chain/100000": {
+        "elements": null,
+        "median_ns": 69427.491
+      },
+      "crossover/recompute/f64 re-sum, chain/1000000": {
+        "elements": null,
+        "median_ns": 737646.0685
+      },
+      "crossover/recompute/f64 re-sum, vectorised/100": {
+        "elements": null,
+        "median_ns": 9.7888
+      },
+      "crossover/recompute/f64 re-sum, vectorised/1000": {
+        "elements": null,
+        "median_ns": 86.6853
+      },
+      "crossover/recompute/f64 re-sum, vectorised/10000": {
+        "elements": null,
+        "median_ns": 909.2708
+      },
+      "crossover/recompute/f64 re-sum, vectorised/100000": {
+        "elements": null,
+        "median_ns": 9503.8884
+      },
+      "crossover/recompute/f64 re-sum, vectorised/1000000": {
+        "elements": null,
+        "median_ns": 361318.3219
+      },
+      "dd_sum/banded/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 1727257422.5
+      },
+      "dd_sum/banded/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 1277729027.0
+      },
+      "dd_sum/banded/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 391093169.25
+      },
+      "dd_sum/banded/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 307320257.2
+      },
+      "dd_sum/banded/mixed/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 2158601949.25
+      },
+      "dd_sum/banded/mixed/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 1633632120.25
+      },
+      "dd_sum/banded/mixed/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 403344920.1875
+      },
+      "dd_sum/banded/mixed/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 324498020.6
+      },
+      "dd_sum/exact/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 1637633611.5
+      },
+      "dd_sum/exact/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 1233657286.5
+      },
+      "dd_sum/exact/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 375696413.9444
+      },
+      "dd_sum/exact/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 313905671.9
+      },
+      "dd_sum/exact/mixed/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 3244063393.0
+      },
+      "dd_sum/exact/mixed/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 2701875501.5
+      },
+      "dd_sum/exact/mixed/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 592004004.5
+      },
+      "dd_sum/exact/mixed/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 498624655.8571
+      },
+      "dd_sum/isize/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 720947447.3
+      },
+      "dd_sum/isize/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 602855408.8
+      },
+      "dd_sum/isize/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 171105015.9722
+      },
+      "dd_sum/isize/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 166509327.1111
+      },
+      "dd_sum/wide/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 8425407991.0
+      },
+      "dd_sum/wide/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 7386293267.5
+      },
+      "dd_sum/wide/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 2460372264.25
+      },
+      "dd_sum/wide/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 2161569335.25
+      },
+      "exact/2^±300/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 176416983.0
+      },
+      "exact/2^±300/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 175439134.5
+      },
+      "exact/2^±300/to_f64": {
+        "elements": 1048576,
+        "median_ns": 21342603.1667
+      },
+      "exact/adversarial/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 226084633.5
+      },
+      "exact/adversarial/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 227784106.5
+      },
+      "exact/adversarial/to_f64": {
+        "elements": 1048576,
+        "median_ns": 22644681.3333
+      },
+      "exact/same-scale products/deposit_product": {
+        "elements": 524288,
+        "median_ns": 75237798.0
+      },
+      "exact/same-scale/+=, both operands built": {
+        "elements": 1048576,
+        "median_ns": 20316475.6667
+      },
+      "exact/same-scale/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 20306091.6667
+      },
+      "exact/same-scale/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 22306802.8333
+      },
+      "exact/same-scale/to_f64": {
+        "elements": 1048576,
+        "median_ns": 20230477.3333
+      },
+      "f64/2^±300/+=": {
+        "elements": 1048576,
+        "median_ns": 780364.9713
+      },
+      "f64/adversarial/+=": {
+        "elements": 1048576,
+        "median_ns": 788364.4363
+      },
+      "f64/same-scale/+=": {
+        "elements": 1048576,
+        "median_ns": 786279.2115
+      },
+      "f64/same-scale/vectorised naive sum": {
+        "elements": 1048576,
+        "median_ns": 384850.3484
+      },
+      "fixed256/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2120821.0625
+      },
+      "fixed256/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 17156712.8333
+      },
+      "products/binned3/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 26011313.0
+      },
+      "products/binned3/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 32945520.75
+      },
+      "products/binned3/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1753465.1406
+      },
+      "products/fixed256/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 21136451.6667
+      },
+      "products/fixed256/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 27317368.75
+      },
+      "products/fixed256/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2121485.375
+      },
+      "products/wide/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 52498298.5
+      },
+      "products/wide/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 58869843.5
+      },
+      "products/wide/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2575191.875
+      },
+      "wide/2^±300/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 120447.0577
+      },
+      "wide/2^±300/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 40115956.5
+      },
+      "wide/2^±300/loop": {
+        "elements": 1048576,
+        "median_ns": 37910576.25
+      },
+      "wide/adversarial/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 120366.1237
+      },
+      "wide/same-scale/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 120455.338
+      },
+      "wide/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2643142.2105
+      },
+      "wide/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 38907649.5
+      },
+      "wire/exact/read": {
+        "elements": 170,
+        "median_ns": 3281.8297
+      },
+      "wire/exact/size": {
+        "elements": 170,
+        "median_ns": 362.6248
+      },
+      "wire/exact/write": {
+        "elements": 170,
+        "median_ns": 2559.9698
+      },
+      "wire/fields/read": {
+        "elements": 170,
+        "median_ns": 3988.792
+      },
+      "wire/fields/size": {
+        "elements": 170,
+        "median_ns": 239.3754
+      },
+      "wire/fields/write": {
+        "elements": 170,
+        "median_ns": 5032.2513
+      },
+      "wire/isize/read": {
+        "elements": 341,
+        "median_ns": 2902.6728
+      },
+      "wire/isize/size": {
+        "elements": 341,
+        "median_ns": 2.5215
+      },
+      "wire/isize/write": {
+        "elements": 341,
+        "median_ns": 2625.7964
+      },
+      "wire/tuple/read": {
+        "elements": 170,
+        "median_ns": 3996.6626
+      },
+      "wire/tuple/size": {
+        "elements": 170,
+        "median_ns": 782.7819
+      },
+      "wire/tuple/write": {
+        "elements": 170,
+        "median_ns": 20932.2642
+      }
+    },
+    "rss_bytes": {
+      "dd_sum/exact/1w/serialized": 7079403520,
+      "dd_sum/exact/8w/serialized": 7079153664,
+      "dd_sum/isize/1w/serialized": 7079550976,
+      "dd_sum/isize/8w/serialized": 7079391232,
+      "dd_sum/wide/1w/serialized": 7079583744
+    },
+    "rustc": "rustc 1.96.1 (31fca3adb 2026-06-26)",
+    "taken": "2026-10-16"
+  },
+  "Apple M5 Max": {
+    "commit": "85b93c2",
+    "os": "Darwin 25.5.0",
+    "rows": {
+      "binned3/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2102656.25
+      },
+      "binned3/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 10586804.1
+      },
+      "crossover/batched/exact/serialized/10000": {
+        "elements": 1000,
+        "median_ns": 40794.1036
+      },
+      "crossover/batched/exact/serialized/100000": {
+        "elements": 1000,
+        "median_ns": 40401.825
+      },
+      "crossover/batched/exact/serialized/1000000": {
+        "elements": 1000,
+        "median_ns": 40877.6072
+      },
+      "crossover/batched/exact/typed/10000": {
+        "elements": 1000,
+        "median_ns": 23866.1064
+      },
+      "crossover/batched/exact/typed/100000": {
+        "elements": 1000,
+        "median_ns": 24002.1372
+      },
+      "crossover/batched/exact/typed/1000000": {
+        "elements": 1000,
+        "median_ns": 24035.1593
+      },
+      "crossover/batched/fixed-point/serialized/10000": {
+        "elements": 1000,
+        "median_ns": 18783.3171
+      },
+      "crossover/batched/fixed-point/serialized/100000": {
+        "elements": 1000,
+        "median_ns": 18775.6875
+      },
+      "crossover/batched/fixed-point/serialized/1000000": {
+        "elements": 1000,
+        "median_ns": 18780.9552
+      },
+      "crossover/batched/fixed-point/typed/10000": {
+        "elements": 1000,
+        "median_ns": 9948.1801
+      },
+      "crossover/batched/fixed-point/typed/100000": {
+        "elements": 1000,
+        "median_ns": 10000.2618
+      },
+      "crossover/batched/fixed-point/typed/1000000": {
+        "elements": 1000,
+        "median_ns": 9996.878
+      },
+      "crossover/exact/serialized/100": {
+        "elements": 1,
+        "median_ns": 4459.4964
+      },
+      "crossover/exact/serialized/1000": {
+        "elements": 1,
+        "median_ns": 4513.8136
+      },
+      "crossover/exact/serialized/10000": {
+        "elements": 1,
+        "median_ns": 4523.5532
+      },
+      "crossover/exact/serialized/100000": {
+        "elements": 1,
+        "median_ns": 4577.674
+      },
+      "crossover/exact/serialized/1000000": {
+        "elements": 1,
+        "median_ns": 4573.5616
+      },
+      "crossover/exact/typed/100": {
+        "elements": 1,
+        "median_ns": 3962.5093
+      },
+      "crossover/exact/typed/1000": {
+        "elements": 1,
+        "median_ns": 4022.5359
+      },
+      "crossover/exact/typed/10000": {
+        "elements": 1,
+        "median_ns": 4008.635
+      },
+      "crossover/exact/typed/100000": {
+        "elements": 1,
+        "median_ns": 4024.6948
+      },
+      "crossover/exact/typed/1000000": {
+        "elements": 1,
+        "median_ns": 3905.6471
+      },
+      "crossover/fixed-point/serialized/100": {
+        "elements": 1,
+        "median_ns": 4396.0247
+      },
+      "crossover/fixed-point/serialized/1000": {
+        "elements": 1,
+        "median_ns": 4487.1579
+      },
+      "crossover/fixed-point/serialized/10000": {
+        "elements": 1,
+        "median_ns": 4489.0438
+      },
+      "crossover/fixed-point/serialized/100000": {
+        "elements": 1,
+        "median_ns": 4471.5642
+      },
+      "crossover/fixed-point/serialized/1000000": {
+        "elements": 1,
+        "median_ns": 4339.7344
+      },
+      "crossover/fixed-point/typed/100": {
+        "elements": 1,
+        "median_ns": 3909.702
+      },
+      "crossover/fixed-point/typed/1000": {
+        "elements": 1,
+        "median_ns": 4061.4917
+      },
+      "crossover/fixed-point/typed/10000": {
+        "elements": 1,
+        "median_ns": 4005.7856
+      },
+      "crossover/fixed-point/typed/100000": {
+        "elements": 1,
+        "median_ns": 3980.802
+      },
+      "crossover/fixed-point/typed/1000000": {
+        "elements": 1,
+        "median_ns": 3898.7945
+      },
+      "crossover/no-engine/Exact deposit, one change": {
+        "elements": 1048576,
+        "median_ns": 5588719.8676
+      },
+      "crossover/recompute/f64 re-sum, chain/100": {
+        "elements": null,
+        "median_ns": 14.5303
+      },
+      "crossover/recompute/f64 re-sum, chain/1000": {
+        "elements": null,
+        "median_ns": 408.0513
+      },
+      "crossover/recompute/f64 re-sum, chain/10000": {
+        "elements": null,
+        "median_ns": 4855.9455
+      },
+      "crossover/recompute/f64 re-sum, chain/100000": {
+        "elements": null,
+        "median_ns": 49622.9502
+      },
+      "crossover/recompute/f64 re-sum, chain/1000000": {
+        "elements": null,
+        "median_ns": 497256.9961
+      },
+      "crossover/recompute/f64 re-sum, vectorised/100": {
+        "elements": null,
+        "median_ns": 5.2907
+      },
+      "crossover/recompute/f64 re-sum, vectorised/1000": {
+        "elements": null,
+        "median_ns": 61.7512
+      },
+      "crossover/recompute/f64 re-sum, vectorised/10000": {
+        "elements": null,
+        "median_ns": 749.884
+      },
+      "crossover/recompute/f64 re-sum, vectorised/100000": {
+        "elements": null,
+        "median_ns": 7558.8153
+      },
+      "crossover/recompute/f64 re-sum, vectorised/1000000": {
+        "elements": null,
+        "median_ns": 76060.2821
+      },
+      "dd_sum/banded/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 564979954.8333
+      },
+      "dd_sum/banded/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 368238583.3333
+      },
+      "dd_sum/banded/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 102232235.4
+      },
+      "dd_sum/banded/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 65881434.7826
+      },
+      "dd_sum/banded/mixed/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 710926229.1
+      },
+      "dd_sum/banded/mixed/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 515755798.6667
+      },
+      "dd_sum/banded/mixed/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 120031010.4231
+      },
+      "dd_sum/banded/mixed/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 93609881.3333
+      },
+      "dd_sum/exact/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 522990784.75
+      },
+      "dd_sum/exact/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 351112895.8333
+      },
+      "dd_sum/exact/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 95545867.8571
+      },
+      "dd_sum/exact/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 62338547.8039
+      },
+      "dd_sum/exact/mixed/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 1124781743.0
+      },
+      "dd_sum/exact/mixed/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 948027500.0
+      },
+      "dd_sum/exact/mixed/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 189819398.4375
+      },
+      "dd_sum/exact/mixed/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 163749298.2368
+      },
+      "dd_sum/isize/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 211084518.0333
+      },
+      "dd_sum/isize/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 132340286.2391
+      },
+      "dd_sum/isize/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 41002960.0764
+      },
+      "dd_sum/isize/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 28125856.8657
+      },
+      "dd_sum/wide/1w/serialized": {
+        "elements": 10000000,
+        "median_ns": 2414162979.5
+      },
+      "dd_sum/wide/1w/typed": {
+        "elements": 10000000,
+        "median_ns": 1816281906.25
+      },
+      "dd_sum/wide/8w/serialized": {
+        "elements": 10000000,
+        "median_ns": 373095291.6667
+      },
+      "dd_sum/wide/8w/typed": {
+        "elements": 10000000,
+        "median_ns": 279154102.2727
+      },
+      "exact/2^±300/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 66132188.0
+      },
+      "exact/2^±300/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 68366916.5
+      },
+      "exact/2^±300/to_f64": {
+        "elements": 1048576,
+        "median_ns": 8726076.3333
+      },
+      "exact/adversarial/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 100081104.5
+      },
+      "exact/adversarial/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 102077666.0
+      },
+      "exact/adversarial/to_f64": {
+        "elements": 1048576,
+        "median_ns": 25948093.75
+      },
+      "exact/same-scale products/deposit_product": {
+        "elements": 524288,
+        "median_ns": 26970593.75
+      },
+      "exact/same-scale/+=, both operands built": {
+        "elements": 1048576,
+        "median_ns": 9115020.8333
+      },
+      "exact/same-scale/add, both operands built": {
+        "elements": 1048576,
+        "median_ns": 8877295.1667
+      },
+      "exact/same-scale/deposit (from_f64 + add)": {
+        "elements": 1048576,
+        "median_ns": 8604114.5833
+      },
+      "exact/same-scale/to_f64": {
+        "elements": 1048576,
+        "median_ns": 10605737.5
+      },
+      "f64/2^±300/+=": {
+        "elements": 1048576,
+        "median_ns": 609694.0789
+      },
+      "f64/adversarial/+=": {
+        "elements": 1048576,
+        "median_ns": 610034.4725
+      },
+      "f64/same-scale/+=": {
+        "elements": 1048576,
+        "median_ns": 609988.0
+      },
+      "f64/same-scale/vectorised naive sum": {
+        "elements": 1048576,
+        "median_ns": 83879.3403
+      },
+      "fixed256/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1751338.8362
+      },
+      "fixed256/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 8262970.2143
+      },
+      "products/binned3/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 14032364.625
+      },
+      "products/binned3/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 15910786.375
+      },
+      "products/binned3/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 2095218.75
+      },
+      "products/fixed256/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 9609895.8333
+      },
+      "products/fixed256/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 11175174.9
+      },
+      "products/fixed256/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1760775.0
+      },
+      "products/wide/deposit_product loop": {
+        "elements": 1048576,
+        "median_ns": 25726291.5
+      },
+      "products/wide/deposit_products": {
+        "elements": 1048576,
+        "median_ns": 27647875.0
+      },
+      "products/wide/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1999729.9808
+      },
+      "wide/2^±300/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 68823.3506
+      },
+      "wide/2^±300/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 19171944.5
+      },
+      "wide/2^±300/loop": {
+        "elements": 1048576,
+        "median_ns": 19343583.3333
+      },
+      "wide/adversarial/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 68661.748
+      },
+      "wide/same-scale/add, both operands built": {
+        "elements": 4096,
+        "median_ns": 64407.906
+      },
+      "wide/same-scale/extend_from_slice": {
+        "elements": 1048576,
+        "median_ns": 1941956.3297
+      },
+      "wide/same-scale/loop": {
+        "elements": 1048576,
+        "median_ns": 19588423.6667
+      },
+      "wire/exact/read": {
+        "elements": 170,
+        "median_ns": 1077.3011
+      },
+      "wire/exact/size": {
+        "elements": 170,
+        "median_ns": 123.3659
+      },
+      "wire/exact/write": {
+        "elements": 170,
+        "median_ns": 1429.5325
+      },
+      "wire/fields/read": {
+        "elements": 170,
+        "median_ns": 1555.3285
+      },
+      "wire/fields/size": {
+        "elements": 170,
+        "median_ns": 121.7297
+      },
+      "wire/fields/write": {
+        "elements": 170,
+        "median_ns": 3013.0901
+      },
+      "wire/isize/read": {
+        "elements": 341,
+        "median_ns": 797.3424
+      },
+      "wire/isize/size": {
+        "elements": 341,
+        "median_ns": 0.5896
+      },
+      "wire/isize/write": {
+        "elements": 341,
+        "median_ns": 1927.2404
+      },
+      "wire/tuple/read": {
+        "elements": 170,
+        "median_ns": 1176.7479
+      },
+      "wire/tuple/size": {
+        "elements": 170,
+        "median_ns": 202.1425
+      },
+      "wire/tuple/write": {
+        "elements": 170,
+        "median_ns": 12846.8813
+      }
+    },
+    "rss_bytes": {
+      "dd_sum/exact/1w/serialized": 11407474688,
+      "dd_sum/exact/8w/serialized": 11728371712,
+      "dd_sum/isize/1w/serialized": 12192792576,
+      "dd_sum/isize/8w/serialized": 11549376512,
+      "dd_sum/wide/1w/serialized": 12377243648
+    },
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "taken": "2026-10-16"
+  }
+}
