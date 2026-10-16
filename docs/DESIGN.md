@@ -285,8 +285,11 @@ untouched. Behind `differential` it is a differential-dataflow diff, the `Copy` 
 `deposit_product` at the door. Behind `dbsp` it is a `DBWeight` the same way (§ DBSP), its
 archived form the word itself, for the weighted batch and `aggregate_linear`'s accumulator; not a
 `RingValue`, so a stream's `neg`, `minus` and `differentiate` are `Exact`'s alone. `Wide` has the
-*fastest* add of any tier; its cost is bytes, not time. That suits a per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates
-would carry 2.9 GB of weights.
+*fastest* add of any tier; its cost is bytes, not time. That suits a per-key aggregate slot, and
+not a per-update diff, where a batch of 10⁷ updates would carry 2.9 GB of weights: as the diff of
+a differential `SUM` over 10⁷ same-scale updates it runs 4.4–5.1× the `Exact` diff and 9.5–13.7×
+`isize`, 179 ns an update typed at one worker against `Exact`'s 35 (BENCH.md § The end-to-end
+SUM), so it is the diff where the slot must be `Copy` and not otherwise.
 
 ### Fixed {#sp-fixed}
 

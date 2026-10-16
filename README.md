@@ -240,7 +240,8 @@ per-value door check: a value the window cannot hold is refused by name before t
 it, and nothing downstream depends on what else is in the key, where the compact `Exact` had no
 such check. Neither word multiplies by itself, so a `join` of two collections weighted by one word
 does not compile; a row's product enters through `deposit_product` at the door. The cost is
-bytes: a `Wide` update tuple is 312 bytes against `Exact`'s 48.
+bytes: a `Wide` update tuple is 312 bytes against `Exact`'s 48, and on 10⁷ same-scale updates the
+`Wide` diff runs 4.4–5.1× the `Exact` one and 9.5–13.7× `isize` (BENCH.md § The end-to-end SUM).
 
 Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
 `aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two

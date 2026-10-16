@@ -359,6 +359,38 @@ the figure is a high-water mark across every iteration, so it carries the alloca
 policy as much as the dataflow: macOS's puts `isize` above `Exact` at one worker, and the Linux
 figures are the ones to read, where the diff's width costs 4 MB at one worker and 55 MB at eight.
 
+`Wide` as the diff, the `Copy` word (DESIGN.md § Wide), at commit 440ac8c on NEON in one sitting
+(the one-minute load 2.75 at the start with nothing else running on the host, the four `isize`
+rows within 1–5% of the 16db257 rows above): the same-scale fixture through the plain idiom with
+`Wide` in the diff, every exchanged update carrying a 296-byte weight in a 312-byte tuple against
+`Exact`'s 32 and 48. The plain `Exact` and `isize` rows were re-taken in the same sitting, so the
+ratios are in-sitting. `Wide` has no mixed row, because its cost does not depend on the
+magnitudes.
+
+| 10⁷ updates, time per run | `wide` | `exact` | `isize` | wide / exact | wide / isize |
+|---|--:|--:|--:|--:|--:|
+| serialized, 1 worker | 2,443.6 ms | 513.9 ms | 209.3 ms | 4.75× | 11.7× |
+| serialized, 8 workers | 377.3 ms | 86.3 ms | 39.7 ms | 4.37× | 9.5× |
+| typed, 1 worker | 1,790.9 ms | 348.6 ms | 130.5 ms | 5.14× | 13.7× |
+| typed, 8 workers | 264.6 ms | 60.1 ms | 27.8 ms | 4.41× | 9.5× |
+
+Per update at one worker, `Wide` costs 179 ns typed and 244 serialized, where `Exact` costs 35 and
+51 and `isize` 13 and 21: the rough figure docs/OVERFLOW.md § Cost took from the probe, 172 and
+236, within 4%. The gap is bytes, not arithmetic: `Wide`'s add is the fastest of any tier
+(DESIGN.md § Wide), and the 144 ns an update over `Exact` on typed exchange is the 312-byte tuple,
+6.5× the bytes, moving through consolidation's sort, the batcher's merges and the arrangement;
+serialized exchange adds 65 ns over typed where it adds 17 to `Exact`, which is the 297-byte
+string written and read back through bincode. At eight workers the ratio closes to 4.4×. Peak
+resident set of the bench process over the `wide/1w/serialized` row alone, `/usr/bin/time -l`,
+13.64 GB against the 3.43 GB the `Exact` row read on this machine above: the explode's output
+alone is 3.1 GB of tuples at 10⁷ updates, and the figure carries the check phase, which runs
+every configuration once, and macOS's high-water mark. The row is what the `Copy` diff costs
+where an engine's weight slot must be `Copy` or casts over a mapping; where it need not, `Exact`
+is 4.4–5.1× cheaper on the same multiset. A cross-sitting note: the plain `Exact` rows here read
+4–8% above the 16db257 rows while the `isize` rows read within 1–5%, with the lib's plain path
+unchanged between the two commits; the bench binary carries one more dataflow, and the note above
+on harness shape applies.
+
 ## The wire form
 
 Where the serialized gap is. timely's `ProcessBinary` exchange encodes every batch of updates
