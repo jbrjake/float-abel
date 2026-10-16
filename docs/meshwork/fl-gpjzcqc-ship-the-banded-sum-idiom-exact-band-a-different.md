@@ -24,10 +24,11 @@ handoff: |
   fold, and the bench rows at
   91abe38 price the non-`Copy` word at 3 ns an update over the Copy word
   on same-scale data
-  (BENCH.md § The end-to-end SUM; the one-worker typed ratio past the
-  accepted band is the open ask
-  fl-vy2nxc8, which banding does not answer: inside a band the diff is the
-  same non-`Copy` word).
+  (BENCH.md § The end-to-end SUM; the owner accepted the heap form's
+  1.9–2.4× on 2026-10-16, "yes
+  i am good with the moved row", so that ratio is settled and banding is
+  not asked to move it:
+  inside a band the diff is the same non-`Copy` word).
   What banding buys is the promoting bands: OVERFLOW.md § Cost has the
   niche form at 70–86 ns typed
   against banded 42–49 on the spread and mixed fixtures, and this task's
@@ -127,3 +128,4 @@ shows both idioms and says when to reach for the banded one.
 ## log
 - 2026-10-15T15:15Z created
 - 2026-10-16T14:43Z handoff by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
+- 2026-10-16T15:04Z handoff by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
