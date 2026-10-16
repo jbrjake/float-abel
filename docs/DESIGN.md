@@ -136,8 +136,13 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   bounded by `k · 2148 + 64` bits for the deepest `float × float` join chain in a dataflow, and by
   2176 bits when weights only ever multiply integers. The limb cap, `EXACT_MAX_LIMBS` at 16 × 2148
   bits, is what makes the heap form safe against adversarial input: it is decided on the operands'
-  spans before anything is allocated. Without `alloc` the width caps instead, and the memory is 32
-  bytes whatever the input.
+  spans before anything is allocated, except at the cap's edge, where a carry or a borrow settles
+  whether the result fits and the result is computed into one limb past the cap and refused after
+  normalisation. So a sum or product is refused exactly when its result would span more than the
+  cap, and the group is closed under retraction up to it: every value the operations or the
+  decoder produce retracts and scales by one (tests/exact_cap.rs, `exact_cap_closed_*`, against
+  a `num-bigint` oracle). Without `alloc` the width caps instead, and the memory is 32 bytes
+  whatever the input.
 - Every exponent is bounded: a held value is `m · 2^exp` with |exp| ≤ `EXACT_MAX_EXP` = 2³⁰, checked
   after every operation that moves an exponent, in every build. A sum's exponent stays inside its
   inputs' range plus the mantissa width, and a product of two doubles lies within 2^±2148, so only a

@@ -52,7 +52,10 @@ pub const EXACT_MAX_EXP: i32 = 1 << 30;
 /// 64-bit limbs, 16 × 2148 bits, about 4.3 KB. A product of two doubles spans 2148 bits and a
 /// product of sums grows by that per factor, so the cap is reachable only through sixteen nested
 /// `float × float` joins on extreme values; a sum of doubles never nears it. Past it is the cap,
-/// [`PastCap::Limbs`], decided on the operands' spans before anything is allocated.
+/// [`PastCap::Limbs`], refused exactly when the result would span more than it: decided on the
+/// operands' spans before anything is allocated, except at the cap's edge, where the result is
+/// computed into one limb more and refused after normalisation. So every value the operations
+/// hold retracts and scales by one, the cap included.
 pub const EXACT_MAX_LIMBS: usize = 16 * 2148 / 64;
 
 /// The one cap on [`Exact`]: which bound a result would cross. The operators panic with it, and

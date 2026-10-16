@@ -1,13 +1,17 @@
 //! `Exact` through its public surface: the operators by value and by reference, their checked
 //! twins, the named cap, canonical equality, order, and the reads against IEEE, `Wide` and
-//! `Fixed256`, on finite inputs. Every test is named `exact_cap_*` so the task verify can filter
-//! on it; `tests/exact_ring.rs` holds the specials and the ring, and `tests/noalloc` the
-//! no-feature build.
+//! `Fixed256`, on finite inputs, and the closure of the group at the limb cap's exact edge against
+//! a `num-bigint` oracle (`exact_cap_closed_*`). Every test is named `exact_cap_*` so the task
+//! verify can filter on it; `tests/exact_ring.rs` holds the specials and the ring, and
+//! `tests/noalloc` the no-feature build.
 
 use core::cmp::Ordering;
-use float_abel::{Exact, Fixed256, PastCap, Wide, EXACT_MAX_EXP};
+use float_abel::{Exact, Fixed256, PastCap, Wide, EXACT_MAX_EXP, EXACT_MAX_LIMBS};
+use num_bigint::{BigInt, Sign};
 
+use crate::exact_heap::two_to;
 use crate::support::{hash, pow2, rounds, Rng};
+use crate::wire_heap::{at_cap_body, header, limbs};
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 
@@ -341,4 +345,251 @@ fn exact_cap_a_sum_that_spans_exactly_the_width_fits() {
     assert_eq!(checked, 2 * 127 + 44 + 2 * 52);
     assert!(promoted > 0, "{promoted}");
     assert!(promoted < 44 + 2 * 52, "{promoted}");
+}
+
+/// Bits a run may span under the limb cap, as `src/exact/big.rs` counts them.
+const CAP_BITS: i32 = 64 * EXACT_MAX_LIMBS as i32;
+
+/// The finite part as the oracle's integer, read off the encoding of either form. Every value
+/// these tests build has a nonnegative exponent.
+fn finite_of(v: &Exact) -> BigInt {
+    let (neg, exp, mag): (bool, i32, Vec<u64>) = if v.is_compact() {
+        let bytes = v.to_bytes();
+        let lo = u64::from_le_bytes(bytes[1..9].try_into().unwrap());
+        let hi = u64::from_le_bytes(bytes[9..17].try_into().unwrap());
+        let exp = i32::from_le_bytes(bytes[17..21].try_into().unwrap());
+        let m = (u128::from(hi) << 64 | u128::from(lo)) as i128;
+        let mag = m.unsigned_abs();
+        (m < 0, exp, vec![mag as u64, (mag >> 64) as u64])
+    } else {
+        let bytes = v.encode();
+        let (neg, exp, len) = header(&bytes)[0];
+        (neg, exp, limbs(&bytes)[..len].to_vec())
+    };
+    assert!(exp >= 0, "{v:?}");
+    let le: Vec<u8> = mag.iter().flat_map(|l| l.to_le_bytes()).collect();
+    let sign = if neg { Sign::Minus } else { Sign::Plus };
+    BigInt::from_bytes_le(sign, &le) << exp
+}
+
+/// Whether the oracle's integer is a value under the cap: its set bits span at most `CAP_BITS`.
+fn fits(x: &BigInt) -> bool {
+    let mag = x.magnitude();
+    match mag.trailing_zeros() {
+        None => true,
+        Some(tz) => mag.bits() - tz <= CAP_BITS as u64,
+    }
+}
+
+/// The finite part's limb count on the wire: the cap is reached when it is `EXACT_MAX_LIMBS`.
+fn finite_limbs(v: &Exact) -> usize {
+    assert!(!v.is_compact(), "{v:?}");
+    header(&v.encode())[0].2
+}
+
+/// Integers at the cap's edge, each built through the operations beside its oracle: values of
+/// exactly the cap's width, one bit under it, powers of two above and at it, and small ones.
+fn edge_shapes() -> Vec<(&'static str, Exact, BigInt)> {
+    let c = CAP_BITS;
+    let one = BigInt::from(1);
+    let build = |name: &'static str, v: Result<Exact, PastCap>, oracle: BigInt| {
+        let v = v.unwrap_or_else(|err| panic!("{name}: {err}"));
+        assert_eq!(finite_of(&v), oracle, "{name}");
+        (name, v, oracle)
+    };
+    vec![
+        build(
+            "2^(C-1) + 3",
+            two_to(c - 1).checked_add(&e(3.0)),
+            (&one << (c - 1)) + 3,
+        ),
+        build("2^C - 1", two_to(c).checked_sub(&e(1.0)), (&one << c) - 1),
+        build(
+            "2^(C-1) - 1",
+            two_to(c - 1).checked_sub(&e(1.0)),
+            (&one << (c - 1)) - 1,
+        ),
+        build(
+            "2^(C-2) + 1",
+            two_to(c - 2).checked_add(&e(1.0)),
+            (&one << (c - 2)) + 1,
+        ),
+        build(
+            "2^(C-2) + 2",
+            two_to(c - 2).checked_add(&e(2.0)),
+            (&one << (c - 2)) + 2,
+        ),
+        build("2^C", Ok(two_to(c)), &one << c),
+        build("2^(C-1)", Ok(two_to(c - 1)), &one << (c - 1)),
+        build("2^(C+64)", Ok(two_to(c + 64)), &one << (c + 64)),
+        build("1", Ok(e(1.0)), one.clone()),
+        build("3", Ok(e(3.0)), BigInt::from(3)),
+        build(
+            "2^64 + 1",
+            e(pow2(64)).checked_add(&e(1.0)),
+            (&one << 64) + 1,
+        ),
+    ]
+}
+
+/// The decoded body at the cap's exact edge, every run `EXACT_MAX_LIMBS` limbs of ones, is a
+/// value the operations take: it retracts, scales by one, and refuses one bit past by name.
+#[test]
+fn exact_cap_closed_a_decoded_value_at_the_cap_retracts_and_scales_by_one() {
+    let v = Exact::from_bytes(&at_cap_body()).unwrap();
+    for run in header(&v.encode()) {
+        assert_eq!(run, (false, 0, EXACT_MAX_LIMBS));
+    }
+    assert_eq!(v.checked_mul_i64(1), Ok(v.clone()));
+    assert_eq!(v.checked_mul_i64(-1), Ok(-&v));
+    assert_eq!(v.checked_mul(&e(1.0)), Ok(v.clone()));
+    assert_eq!(v.checked_mul(&e(-1.0)), Ok(-&v));
+    assert_eq!(v.checked_add(&Exact::ZERO), Ok(v.clone()));
+    assert_eq!(v.checked_sub(&v), Ok(Exact::ZERO));
+    assert_eq!(v.checked_add(&-&v), Ok(Exact::ZERO));
+    assert!((&v - &v).is_zero());
+    assert!((&-&v + &v).is_zero());
+    assert_eq!(&v * 1i64, v);
+    // Doubling moves the exponent, so the double of a value at the cap is at the cap too, and
+    // taking the value back from its double crosses the edge both ways.
+    let twice = v.checked_add(&v).unwrap();
+    assert_eq!(twice, &v * 2i64);
+    assert_eq!(finite_limbs(&twice), EXACT_MAX_LIMBS);
+    assert_eq!(header(&twice.encode())[0].1, 1);
+    assert_eq!(twice.checked_sub(&v), Ok(v.clone()));
+    assert_eq!(&twice - &v, v);
+    // The finite part is 2^C − 1: plus one it is 2^C, one limb, and back it is itself; plus two
+    // it would be 2^C + 1, one bit past the cap, refused by name with the state as it was.
+    let up = v.checked_add(&e(1.0)).unwrap();
+    assert_eq!(finite_of(&up), BigInt::from(1) << CAP_BITS);
+    assert_eq!(finite_limbs(&up), 1);
+    assert_eq!(up.checked_sub(&e(1.0)), Ok(v.clone()));
+    assert_eq!(v.checked_add(&e(2.0)), Err(PastCap::Limbs));
+    assert_eq!(v.checked_sub(&e(-2.0)), Err(PastCap::Limbs));
+    assert_eq!(v.checked_mul_i64(3), Err(PastCap::Limbs));
+    assert_eq!(v.checked_mul(&e(3.0)), Err(PastCap::Limbs));
+    assert_eq!(v.checked_mul(&v), Err(PastCap::Limbs));
+    assert_eq!(v.encode(), at_cap_body());
+    assert!(PastCap::Limbs.to_string().contains("EXACT_MAX_LIMBS"));
+}
+
+/// A sum the operations land with exactly the cap's bits is retractable: `v − v`, `v + (−v)`,
+/// `v × 1`, `v × (−1)` and `(v + w) − w` hold, and one bit past is refused by name.
+#[test]
+fn exact_cap_closed_a_sum_that_lands_at_the_cap_retracts() {
+    let cap = CAP_BITS;
+    // 2^(C−2) + 1 and 2^(C−2) + 2 span C − 1 bits each; their sum carries into bit C − 1 and is
+    // odd, so it spans exactly the cap.
+    let a = two_to(cap - 2) + e(1.0);
+    let b = two_to(cap - 2) + e(2.0);
+    let v = &a + &b;
+    assert_eq!(finite_of(&v), (BigInt::from(1) << (cap - 1)) + 3);
+    assert_eq!(finite_limbs(&v), EXACT_MAX_LIMBS);
+    assert_eq!(header(&v.encode())[0].1, 0);
+    assert!((&v - &v).is_zero());
+    assert_eq!(v.checked_sub(&v), Ok(Exact::ZERO));
+    assert_eq!(v.checked_add(&-&v), Ok(Exact::ZERO));
+    assert_eq!(v.checked_mul_i64(1), Ok(v.clone()));
+    assert_eq!(v.checked_mul_i64(-1), Ok(-&v));
+    assert_eq!(&v * &e(1.0), v);
+    assert_eq!(&(&v + &a) - &a, v);
+    assert_eq!(&(&v + &b) - &b, v);
+    assert_eq!(&(&v - &a) + &a, v);
+    assert_eq!(&(&v + &v) - &v, v);
+    let mut acc = v.clone();
+    acc += &v;
+    acc -= &v;
+    assert_eq!(acc, v);
+    // 2^(C−1) is one limb; v + 2^(C−1) = 2^C + 3 spans C + 1 bits.
+    let one_limb = two_to(cap - 1);
+    assert_eq!(v.checked_add(&one_limb), Err(PastCap::Limbs));
+    assert_eq!(one_limb.checked_add(&v), Err(PastCap::Limbs));
+    assert_eq!(v.checked_sub(&-&one_limb), Err(PastCap::Limbs));
+    assert_eq!(v, &a + &b);
+}
+
+#[test]
+#[should_panic(expected = "EXACT_MAX_LIMBS")]
+fn exact_cap_closed_an_operator_one_bit_past_the_cap_panics_by_name() {
+    let c = CAP_BITS;
+    let v = &(two_to(c - 2) + e(1.0)) + &(two_to(c - 2) + e(2.0));
+    let _ = &v + &two_to(c - 1);
+}
+
+/// A product spans the sum of its factors' bits or one less: at the edge the one that fits is
+/// held and the one that does not is refused, by the result and not by the factors.
+#[test]
+fn exact_cap_closed_a_product_at_the_cap_is_refused_only_past_it() {
+    let c = CAP_BITS;
+    // (2^(C−2) + 1) × 3 = 3·2^(C−2) + 3 spans C bits; (2^(C−1) − 1) × 3 = 3·2^(C−1) − 3 spans
+    // C + 1. Both pairs sum their factors' bits to C + 1.
+    let fits_at_cap = two_to(c - 2) + e(1.0);
+    let product = fits_at_cap.checked_mul(&e(3.0)).unwrap();
+    assert_eq!(finite_of(&product), (BigInt::from(3) << (c - 2)) + 3);
+    assert_eq!(finite_limbs(&product), EXACT_MAX_LIMBS);
+    assert_eq!(fits_at_cap.checked_mul_i64(3), Ok(product.clone()));
+    assert_eq!(e(3.0).checked_mul(&fits_at_cap), Ok(product));
+    let all_ones = two_to(c - 1) - e(1.0);
+    assert_eq!(all_ones.checked_mul(&e(3.0)), Err(PastCap::Limbs));
+    assert_eq!(all_ones.checked_mul_i64(3), Err(PastCap::Limbs));
+    assert_eq!(all_ones.checked_mul_i64(-3), Err(PastCap::Limbs));
+    // An even factor moves the exponent and never the width.
+    assert_eq!(all_ones.checked_mul_i64(2), Ok(&all_ones + &all_ones));
+    assert_eq!(all_ones.checked_mul_i64(4), Ok(&all_ones * 4i64));
+    assert_eq!(all_ones, two_to(c - 1) - e(1.0));
+}
+
+/// Every pairwise sum, difference and product of the edge shapes is held exactly when its result
+/// spans at most the cap and refused exactly when it spans more: the operations decide by the
+/// result, not by the operands' spans, and every value they land retracts.
+#[test]
+fn exact_cap_closed_sums_and_products_at_the_edge_agree_with_the_oracle() {
+    let shapes = edge_shapes();
+    assert_eq!(shapes.len(), 11);
+    let (mut held, mut refused) = (0, 0);
+    for (name, v, _) in &shapes {
+        assert!((v - v).is_zero(), "{name}");
+        assert_eq!(v.checked_add(&-v), Ok(Exact::ZERO), "{name}");
+        assert_eq!(v.checked_mul_i64(1), Ok(v.clone()), "{name}");
+        assert_eq!(v.checked_mul_i64(-1), Ok(-v), "{name}");
+        assert_eq!(&(v + v) - v, *v, "{name}");
+    }
+    for (an, a, oa) in &shapes {
+        for (bn, b, ob) in &shapes {
+            for (sign, bb, obb) in [(1, b.clone(), ob.clone()), (-1, -b, -ob)] {
+                let oracle = oa + &obb;
+                let got = a.checked_add(&bb);
+                assert_eq!(got.is_ok(), fits(&oracle), "{an} + {sign}·({bn}): {got:?}");
+                assert_eq!(a.checked_sub(&-&bb), got, "{an} - -{sign}·({bn})");
+                match got {
+                    Ok(sum) => {
+                        held += 1;
+                        assert_eq!(finite_of(&sum), oracle, "{an} + {sign}·({bn})");
+                        assert_eq!(a + &bb, sum, "{an} + {sign}·({bn})");
+                        assert_eq!(&sum - &bb, *a, "{an} + {sign}·({bn}) - the same");
+                    }
+                    Err(err) => {
+                        refused += 1;
+                        assert_eq!(err, PastCap::Limbs, "{an} + {sign}·({bn})");
+                    }
+                }
+            }
+            let oracle = oa * ob;
+            let got = a.checked_mul(b);
+            assert_eq!(got.is_ok(), fits(&oracle), "{an} × {bn}: {got:?}");
+            match got {
+                Ok(product) => {
+                    held += 1;
+                    assert_eq!(finite_of(&product), oracle, "{an} × {bn}");
+                    assert_eq!(a * b, product, "{an} × {bn}");
+                }
+                Err(err) => {
+                    refused += 1;
+                    assert_eq!(err, PastCap::Limbs, "{an} × {bn}");
+                }
+            }
+        }
+    }
+    assert_eq!(held + refused, 11 * 11 * 3);
+    assert!(held > 0 && refused > 0, "{held} held, {refused} refused");
 }

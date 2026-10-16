@@ -58,8 +58,20 @@ fn finite_only(neg: bool, exp: i32, finite: &[u64]) -> Vec<u8> {
     ])
 }
 
+/// The body whose four runs each hold the cap's worth of limbs, all ones: the widest value the
+/// decoder takes, at the cap's exact edge, which `tests/exact_cap.rs` retracts.
+pub(crate) fn at_cap_body() -> Vec<u8> {
+    let full: Vec<u64> = std::iter::repeat(u64::MAX).take(EXACT_MAX_LIMBS).collect();
+    heap_bytes(&[
+        (false, 0, &full),
+        (false, 0, &full),
+        (false, 0, &full),
+        (false, 0, &full),
+    ])
+}
+
 /// The header of a heap encoding, unpacked: `(sign, exponent, limb count)` per run.
-fn header(bytes: &[u8]) -> [(bool, i32, usize); HEADER] {
+pub(crate) fn header(bytes: &[u8]) -> [(bool, i32, usize); HEADER] {
     assert_eq!(bytes[0], Exact::HEAP_TAG);
     std::array::from_fn(|i| {
         let at = 1 + 8 * i;
@@ -73,7 +85,7 @@ fn header(bytes: &[u8]) -> [(bool, i32, usize); HEADER] {
 }
 
 /// The limbs behind the header of a heap encoding, every run's together.
-fn limbs(bytes: &[u8]) -> Vec<u64> {
+pub(crate) fn limbs(bytes: &[u8]) -> Vec<u64> {
     bytes[LEAST..]
         .chunks_exact(8)
         .map(|c| u64::from_le_bytes(c.try_into().unwrap()))
@@ -443,21 +455,16 @@ fn wire_heap_refuses_each_non_canonical_body_by_name_without_allocating() {
         assert_eq!(value.checked_mul_i64(1), Ok(value.clone()));
         assert!((&value - &value).is_zero());
     }
-    // The cap's worth of limbs in every run is a value the decoder takes and gives back; what the
-    // operations do with a value at the cap's exact edge is their own boundary (the store's task
-    // on the cap's closure), not the wire's.
-    let full: Vec<u64> = std::iter::repeat(u64::MAX).take(EXACT_MAX_LIMBS).collect();
-    let at_cap = heap_bytes(&[
-        (false, 0, &full),
-        (false, 0, &full),
-        (false, 0, &full),
-        (false, 0, &full),
-    ]);
+    // The cap's worth of limbs in every run is a value the decoder takes and gives back, and the
+    // operations take it as they take any value: the group is closed at the cap's exact edge.
+    let at_cap = at_cap_body();
     let (got, allocated) = allocations(|| Exact::from_bytes(&at_cap));
     let value = got.unwrap();
     assert_eq!(allocated, 1);
     assert_eq!(value.encode(), at_cap);
     assert_eq!(value.checked_add(&Exact::ZERO), Ok(value.clone()));
+    assert_eq!(value.checked_mul_i64(1), Ok(value.clone()));
+    assert!((&value - &value).is_zero());
     // `from_bytes` dispatches on the first byte, so a heap body of 33 bytes is never read as a
     // compact word, and a compact word is never read as a heap body.
     let compact = e(1.5).to_bytes();

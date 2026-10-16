@@ -3,7 +3,12 @@
 //! operation makes one. Nothing here is `unsafe` and nothing executes a floating-point
 //! instruction. The one allocation is a result's limbs, taken with room in front for the block
 //! header so the heap form can take the buffer as its block without a copy, and never before the
-//! limb cap has been checked on the operands' spans, so a result past the cap costs nothing.
+//! limb cap has been checked on the operands' spans. The spans decide every result but the ones
+//! at the cap's edge, where a carry or a borrow settles whether the result fits: those are
+//! computed into at most one limb past the cap and refused after normalisation. So a result past
+//! the cap costs at most that one limb, and a sum or product is refused exactly when its result
+//! would span more than the cap, which is what keeps the group closed under retraction at the
+//! edge: every value the operations or the decoder produce retracts and scales by one.
 
 use alloc::vec::Vec;
 use core::cmp::Ordering;
@@ -308,9 +313,10 @@ fn shr(a: &mut [u64], bits: u32) {
 ///
 /// # Errors
 ///
-/// [`Overflow::Limbs`] when the aligned span, with a bit for the carry, exceeds the cap, decided
-/// before anything is allocated; [`Overflow::Exponent`] when the canonical exponent leaves the
-/// bound.
+/// [`Overflow::Limbs`] when the result would span more than the cap: decided on the operands'
+/// spans before anything is allocated when the result needs more than one limb past the cap,
+/// which is every result past it but those at the edge, and on the normalised result otherwise;
+/// [`Overflow::Exponent`] when the canonical exponent leaves the bound.
 pub(crate) fn add(a: View<'_>, b: View<'_>) -> Result<Owned, Overflow> {
     if a.is_zero() {
         return Ok(Owned::from_view(b));
@@ -319,11 +325,17 @@ pub(crate) fn add(a: View<'_>, b: View<'_>) -> Result<Owned, Overflow> {
         return Ok(Owned::from_view(a));
     }
     let low = a.exp.min(b.exp);
-    let span = a.top().max(b.top()) - low + 2;
-    if span > CAP_BITS {
+    // The result needs the aligned span, plus a bit for the carry when the signs agree; unlike
+    // signs never need more than the span. A span past the cap by one bit is the one case a
+    // borrow can bring back under it (`(v + v) − v` for a `v` at the cap), and the span at the
+    // cap the one case a carry can take past it, so each is computed into one limb more than the
+    // cap and refused by `check` if it needs that limb. Any wider result keeps its top bit, since
+    // the operand holding the low bit spans at most the cap, and is refused here.
+    let room = a.top().max(b.top()) - low + 1 + i64::from(a.neg == b.neg);
+    if room > CAP_BITS + 1 {
         return Err(Overflow::Limbs);
     }
-    let n = ((span + 63) / 64) as usize;
+    let n = ((room + 63) / 64) as usize;
     let mut r = Owned::with_room(n);
     r.mag.resize(n, 0);
     r.exp = low;
@@ -367,13 +379,17 @@ pub(crate) fn add(a: View<'_>, b: View<'_>) -> Result<Owned, Overflow> {
 ///
 /// # Errors
 ///
-/// [`Overflow::Limbs`] when the factors' spans together exceed the cap, decided before anything
-/// is allocated; [`Overflow::Exponent`] when the exponent leaves the bound.
+/// [`Overflow::Limbs`] when the product would span more than the cap: decided on the factors'
+/// spans before anything is allocated when even the narrower product they can have is past it,
+/// and on the normalised product when only the wider is; [`Overflow::Exponent`] when the
+/// exponent leaves the bound.
 pub(crate) fn mul(lhs: View<'_>, rhs: View<'_>) -> Result<Owned, Overflow> {
     if lhs.is_zero() || rhs.is_zero() {
         return Ok(Owned::ZERO);
     }
-    if lhs.bits() + rhs.bits() > CAP_BITS {
+    // A product of `p` and `q` bits spans `p + q − 1` or `p + q`. When the sum is one past the
+    // cap the factors' limbs together are at most one limb past it, so the edge costs that limb.
+    if lhs.bits() + rhs.bits() - 1 > CAP_BITS {
         return Err(Overflow::Limbs);
     }
     let limbs = lhs.mag.len() + rhs.mag.len();
