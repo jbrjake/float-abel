@@ -32,7 +32,9 @@
 //! (`Semigroup`, `Monoid`, `Abelian`, and `Multiply` by `Exact`, `i64` or `isize` on either side),
 //! so a collection takes it as a diff the way it takes `isize`: `explode` a float column into the
 //! diff and `count_total` reads each key's exact total back out, with a retraction arriving as
-//! `-1 × Exact`. `examples/dd_sum.rs` is that idiom on three workers.
+//! `-1 × Exact`. `examples/dd_sum.rs` is that idiom on three workers. `BandedSum` is the same
+//! `SUM` with the amount's magnitude band beside the key, so that on amounts of mixed magnitudes
+//! no diff the engine consolidates leaves the compact form.
 //!
 //! Behind the `dbsp` feature, [`Exact`] is a DBSP `DBWeight`: a weighted batch takes it, and
 //! `aggregate_linear` takes it as the accumulator, which is the shape of Feldera's
@@ -74,6 +76,9 @@ mod wide;
 mod wire;
 
 pub use binned::Binned;
+#[cfg(feature = "differential")]
+#[cfg_attr(docsrs, doc(cfg(feature = "differential")))]
+pub use exact::BandedSum;
 pub use exact::{Exact, PastCap, EXACT_MAX_EXP, EXACT_MAX_LIMBS};
 pub use fixed::{Fixed, Fixed256, OutOfWindow};
 pub use wide::Wide;

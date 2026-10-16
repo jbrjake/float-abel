@@ -29,6 +29,10 @@ arbitrary = { version = "1", optional = true }
 # consumer's dataflow has to see as one crate. Its closure reaches timely 0.31, whose serialized
 # exchange is bincode 1, and columnation, which is on paste; both are ignored by id in deny.toml.
 differential-dataflow = { version = "0.25", optional = true }
+# The runtime differential-dataflow runs on, named for the timestamp bounds the banded idiom's
+# extension trait states (`Timestamp`, `TotalOrder`), which differential-dataflow does not
+# re-export. The version differential-dataflow 0.25 depends on, so the two resolve to one timely.
+timely = { version = "0.31", optional = true }
 # The engine the `dbsp` feature adapts `Exact` to, DESIGN.md § DBSP. A caret on the minor, the
 # differential shape, so a consumer's own 0.364.x unifies with it; the probe the adapter is
 # written against runs at the floor of the range, and moving the floor means re-running it there
@@ -151,9 +155,9 @@ alloc = []
 std = ["alloc"]
 # `Serialize`/`Deserialize` in the canonical encoding, validated on decode.
 serde = ["dep:serde"]
-# The differential-dataflow adapter: `Exact` as a diff type, DESIGN.md § differential-dataflow.
-# `serde` because exchange between workers serialises the diff.
-differential = ["dep:differential-dataflow", "serde"]
+# The differential-dataflow adapter: `Exact` as a diff type and the banded `SUM` idiom on it,
+# DESIGN.md § differential-dataflow. `serde` because exchange between workers serialises the diff.
+differential = ["dep:differential-dataflow", "dep:timely", "serde"]
 # The DBSP adapter: `Exact` as a `DBWeight`, DESIGN.md § DBSP, with rkyv's archived form and
 # `OrdRepr` on it. dbsp is a `std` engine. Out of the self dev-dependency's list because it needs
 # its own toolchain: `cargo +1.99.0 test --features dbsp --test main dbsp_`.

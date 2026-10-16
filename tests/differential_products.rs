@@ -11,12 +11,13 @@
 //! its own value.
 
 use differential_dataflow::consolidation::consolidate_updates;
-use differential_dataflow::input::Input;
+use differential_dataflow::input::{Input, InputSession};
 use differential_dataflow::operators::{CountTotal, Iterate};
 use differential_dataflow::VecCollection;
 use float_abel::{Exact, Wide};
 use num_bigint::BigInt;
 use timely::dataflow::operators::Capture;
+use timely::dataflow::ProbeHandle;
 
 use crate::differential::{netted, share, sorted, Captured, Row, Update, Worker};
 use crate::exact_heap::{units, wide_units};
@@ -26,13 +27,13 @@ use crate::support::{pow2, Rng};
 /// Epochs of `(row, multiplicity)` updates, worker 0 feeding each epoch in the order written and
 /// stepping the dataflow to completion before the next, so each epoch's running totals are formed
 /// before the next epoch's updates arrive, as the spike's probes fed them.
-type Epochs = Vec<Vec<(Row, isize)>>;
+pub(crate) type Epochs = Vec<Vec<(Row, isize)>>;
 /// Each key's `Exact` total after each epoch: `totals[epoch][key]`.
-type Totals = Vec<Vec<Exact>>;
+pub(crate) type Totals = Vec<Vec<Exact>>;
 
 /// The pairs of `docs/OVERFLOW.md`'s histories, and the one `tests/exact_heap.rs` adds; each sum
 /// of the two promotes.
-fn pairs() -> [(f64, f64); 3] {
+pub(crate) fn pairs() -> [(f64, f64); 3] {
     [(1e12, 1e-12), (pow2(1000), pow2(-1000)), (1e300, 1e-300)]
 }
 
@@ -44,16 +45,14 @@ fn amount(row: Row) -> Exact {
     e(f64::from_bits(row.1))
 }
 
-/// The plain idiom over `epochs`.
-fn epochs_dataflow(worker: &mut Worker, epochs: &Epochs) -> Captured<(u32, Exact), isize> {
-    let (mut input, probe, captured) = worker.dataflow::<u64, _, _>(|scope| {
-        let (input, rows) = scope.new_collection::<Row, isize>();
-        let (probe, totals) = rows
-            .explode(|(key, bits)| Some((key, e(f64::from_bits(bits)))))
-            .count_total()
-            .probe();
-        (input, probe, totals.inner.capture())
-    });
+/// Feeds `epochs` as the type's doc says and closes the input, so the plain idiom and the banded
+/// one (`tests/differential_banded.rs`) run one input the same way.
+pub(crate) fn feed_epochs(
+    worker: &mut Worker,
+    mut input: InputSession<u64, Row, isize>,
+    probe: &ProbeHandle<u64>,
+    epochs: &Epochs,
+) {
     for (epoch, updates) in epochs.iter().enumerate() {
         if worker.index() == 0 {
             for &(row, multiplicity) in updates {
@@ -65,13 +64,29 @@ fn epochs_dataflow(worker: &mut Worker, epochs: &Epochs) -> Captured<(u32, Exact
         worker.step_while(|| probe.less_than(input.time()));
     }
     input.close();
+}
+
+/// The plain idiom over `epochs`.
+pub(crate) fn epochs_dataflow(
+    worker: &mut Worker,
+    epochs: &Epochs,
+) -> Captured<(u32, Exact), isize> {
+    let (input, probe, captured) = worker.dataflow::<u64, _, _>(|scope| {
+        let (input, rows) = scope.new_collection::<Row, isize>();
+        let (probe, totals) = rows
+            .explode(|(key, bits)| Some((key, e(f64::from_bits(bits)))))
+            .count_total()
+            .probe();
+        (input, probe, totals.inner.capture())
+    });
+    feed_epochs(worker, input, &probe, epochs);
     captured
 }
 
 /// The five histories of docs/OVERFLOW.md on one pair, each ending at the multiset `{small}`,
 /// with `|` between epochs: A `+big | −big +small`, B `+big | +small | −big`, C `+big +small
 /// −big`, D `+big | −big | +small`, E `+big −big +small`.
-fn histories(big: f64, small: f64) -> [(&'static str, Epochs); 5] {
+pub(crate) fn histories(big: f64, small: f64) -> [(&'static str, Epochs); 5] {
     let (b, s) = ((0u32, big.to_bits()), (0u32, small.to_bits()));
     [
         ("A", vec![vec![(b, 1)], vec![(b, -1), (s, 1)]]),
@@ -82,10 +97,23 @@ fn histories(big: f64, small: f64) -> [(&'static str, Epochs); 5] {
     ]
 }
 
+/// The one key's running total after each epoch of history `name`: B holds the promoted
+/// `big + small` across an epoch, and D passes through the zero.
+pub(crate) fn history_totals(name: &str, big: f64, small: f64) -> Totals {
+    let (b, s) = (e(big), e(small));
+    match name {
+        "A" => vec![vec![b], vec![s]],
+        "B" => vec![vec![b.clone()], vec![b + &s], vec![s]],
+        "C" | "E" => vec![vec![s]],
+        "D" => vec![vec![b], vec![Exact::ZERO], vec![s]],
+        _ => unreachable!("history {name}"),
+    }
+}
+
 /// What `count_total` emits for one key over `totals`: at an epoch where the total changes, the
 /// old total retracted and the new one inserted, the zero never a row because `is_zero` deletes
 /// it before the operator sees the key.
-fn count_total_updates(totals: &Totals) -> Vec<Update<(u32, Exact), isize>> {
+pub(crate) fn count_total_updates(totals: &Totals) -> Vec<Update<(u32, Exact), isize>> {
     let mut updates = Vec::new();
     for key in 0..totals[0].len() {
         let mut previous = Exact::ZERO;
@@ -113,16 +141,14 @@ fn count_total_updates(totals: &Totals) -> Vec<Update<(u32, Exact), isize>> {
 #[cfg_attr(miri, ignore = "three timely workers exchanging serialized batches")]
 fn differential_products_the_five_histories_complete_on_one_and_three_workers() {
     for (big, small) in pairs() {
-        let (b, s, held) = (e(big), e(small), e(big) + e(small));
+        let held = e(big) + e(small);
         assert!(!held.is_compact(), "{big:e} + {small:e} did not promote");
         for (name, epochs) in histories(big, small) {
-            let totals: Totals = match name {
-                "A" => vec![vec![b.clone()], vec![s.clone()]],
-                "B" => vec![vec![b.clone()], vec![held.clone()], vec![s.clone()]],
-                "C" | "E" => vec![vec![s.clone()]],
-                "D" => vec![vec![b.clone()], vec![Exact::ZERO], vec![s.clone()]],
-                _ => unreachable!(),
-            };
+            let totals = history_totals(name, big, small);
+            assert_eq!(
+                totals.iter().flatten().filter(|t| **t == held).count(),
+                usize::from(name == "B")
+            );
             let want = count_total_updates(&totals);
             for workers in [1, 3] {
                 let epochs = epochs.clone();
@@ -163,7 +189,7 @@ fn differential_products_consolidate_updates_lands_the_small_value_in_the_c_orde
 /// inserting 400 rows spread over 2^±300 with full mantissas and either sign, then retracting a
 /// third of what is live, with a NaN or an infinity one row in about 300 on key 4 alone. Returns
 /// the epochs and each key's total after each epoch through `Wide`, which is the oracle.
-fn multiset() -> (Epochs, Totals) {
+pub(crate) fn multiset() -> (Epochs, Totals) {
     const KEYS: u32 = 5;
     let mut rng = Rng(63);
     let mut live: Vec<Row> = Vec::new();

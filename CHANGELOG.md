@@ -12,7 +12,9 @@ Nothing is published yet. The first release, 0.1.0, carries:
   as the batch-only tier that is not a group;
 - the canonical wire format, `FORMAT.md`, on `to_bytes`/`from_bytes`, `Exact::encode` for either
   of its forms, and behind `serde`;
-- the `differential` and `dbsp` adapters, `Exact` as a diff type for either engine;
+- the `differential` and `dbsp` adapters, `Exact` as a diff type for either engine, and behind
+  `differential` the banded `SUM` idiom, `Exact::band` and `BandedSum::banded_sum`, a sum of
+  doubles of any magnitudes whose diffs never leave the compact word under consolidation;
 - the `laws` kit, proptest checks of what an incremental engine asks of a weight;
 - the `simd` feature's NEON and AVX2 bulk kernels, bit-identical to the scalar reference;
 - MSRV 1.74 on the default features.

@@ -1,11 +1,47 @@
-//! The read surface of [`Exact`] over both forms: the special projection, then the finite part
-//! rounded once in integer arithmetic, through the same `round` kernel on the compact word's two
-//! limbs or the heap block's run, so a value reads the same bits whichever form holds it.
+//! The read surface of [`Exact`] over both forms: the predicates on the state, the special
+//! projection, then the finite part rounded once in integer arithmetic, through the same `round`
+//! kernel on the compact word's two limbs or the heap block's run, so a value reads the same bits
+//! whichever form holds it.
 
 use super::Exact;
 use crate::ieee::{self, Special};
 
 impl Exact {
+    /// Whether the value is held in the compact form: a finite part of at most 127 bits and
+    /// `i32` counts, in the word itself. Every value is, without `alloc`; with it, a value past
+    /// that is in the heap form, and comes back as soon as an operation's result fits again.
+    #[must_use]
+    #[inline]
+    pub fn is_compact(&self) -> bool {
+        !self.is_heap()
+    }
+
+    /// Whether the state is the zero: no finite part and no amounts. The zero is the compact
+    /// zero word, so this is a test of the bits.
+    #[must_use]
+    #[inline]
+    pub fn is_zero(&self) -> bool {
+        self.lo == 0
+            && self.hi == 0
+            && self.exp == 0
+            && self.nan == 0
+            && self.pos_inf == 0
+            && self.neg_inf == 0
+    }
+
+    /// Whether every amount is zero, so a read rounds the finite part. The finite part may still
+    /// round to `±∞` when it lies past `f64::MAX`.
+    #[must_use]
+    #[inline]
+    pub fn is_finite(&self) -> bool {
+        #[cfg(feature = "alloc")]
+        if self.is_heap() {
+            let p = self.parts();
+            return (0..3).all(|i| p.amount(i).is_zero());
+        }
+        self.nan == 0 && self.pos_inf == 0 && self.neg_inf == 0
+    }
+
     /// The counts `(n, p, q)`: how many NaN, +∞ and −∞ inputs are in the multiset, each negative
     /// when more were retracted than inserted, if every amount is an integer an `i64` holds. With
     /// `alloc` a product can give a special a dyadic amount, as `2.5 · NaN` does, or an integer

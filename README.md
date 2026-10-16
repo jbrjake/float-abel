@@ -172,6 +172,46 @@ retractions. The one panic left inside a dataflow is the limb cap, reachable thr
 products alone; a consumer who can reach it builds with `panic = "abort"`, because one worker's
 panic otherwise leaves the others spinning.
 
+That idiom is correct on every input, and on same-scale amounts its diffs never leave the 32-byte
+word. A key whose amounts span magnitudes, `1e12` beside `1e-12`, forms a running diff wider than
+the word's 127 bits; it promotes to the heap form, demotes once the sum fits again, and every
+consolidation step in between adds limbs on the heap. For such keys the banded idiom is the fast
+path for `SUM`. `banded_sum` puts the amount's magnitude band beside the key, so every diff the
+engine consolidates is a sum inside one band of 32 binades and stays compact, and a `reduce` folds
+each key's few band totals into the one total `count_total` would have emitted: the same output,
+the same retractions, and the one value that can promote is emitted as data, never consolidated.
+
+```rust
+use differential_dataflow::input::Input;
+use float_abel::BandedSum;
+
+timely::execute_directly(|worker| {
+    let (mut rows, probe) = worker.dataflow::<u64, _, _>(|scope| {
+        let (input, rows) = scope.new_collection::<(u32, u64), isize>();
+        let (probe, _totals) = rows
+            .banded_sum()
+            .inspect(|((account, total), epoch, change)| {
+                println!("epoch {epoch}: account {account} total {} ({change:+})", total.to_f64());
+            })
+            .probe();
+        (input, probe)
+    });
+    // The pair cancels inside its own band, and account 1 reads 1e-12 exactly.
+    for amount in [1e12, 1e-12, -1e12] {
+        rows.insert((1, f64::to_bits(amount)));
+    }
+    rows.advance_to(1);
+    rows.flush();
+    worker.step_while(|| probe.less_than(rows.time()));
+});
+```
+
+Reach for `banded_sum` when a key's amounts span about 2⁷⁰ or more, or when nothing bounds them;
+on same-scale amounts the two idioms run at the same speed, and on mixed magnitudes the banded one
+never allocates where the plain one promotes (`BENCH.md` § The end-to-end SUM). It sums, and
+nothing else: a row's product has a 106-bit mantissa and no band narrow enough, so a `join` of two
+weighted collections stays on the plain idiom, which the heap form holds.
+
 Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
 `aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two
 columns. That is the shape of Feldera's `CREATE LINEAR AGGREGATE`, the sanctioned route to an

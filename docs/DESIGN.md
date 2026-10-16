@@ -479,6 +479,20 @@ alone, and the exponent bound; a consumer who can reach either keeps `panic = "a
 one worker's panic otherwise leaves the others spinning (docs/OVERFLOW.md § Why one worker's panic
 hangs the rest).
 
+The banded idiom, docs/OVERFLOW.md § The banded idiom, is the `SUM` fast path on the heap form.
+`Exact::band(x)` is ⌊(exponent of the leading bit + 1074) / 32⌋, `0..=65` for a finite value and
+255 for the specials, and `BandedSum::banded_sum` on a `VecCollection<(K, u64), isize>` of
+`(key, amount as bits)` rows runs `explode` into the diff and `count_total` per `(key, band)`,
+then a `reduce` of each key's band totals, at most 66, into one `Exact` emitted with multiplicity
+one: the plain idiom's output exactly, a zero total emitting nothing. Inside a band every diff
+spans at most `84 + log₂ n` bits, inside the compact word for `n < 2⁴³` live rows per
+`(key, band)`, so nothing promotes under consolidation; the cross-band sum the reduce forms may
+promote and is emitted as data, never consolidated. tests/differential_banded.rs lands the
+fifteen histories and the seeded multiset through both idioms on one worker and three, every band
+total compact where most key totals are heap values, and a cancellation across two bands emitting
+nothing. The idiom sums: a row's product has a 106-bit mantissa and no band narrow enough, so a
+`join` of two weighted collections stays on the plain idiom.
+
 ### DBSP {#sp-dbsp}
 
 A probe weight with `Exact`'s layout was compiled and run against published dbsp 0.364.0 on rustc

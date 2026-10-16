@@ -35,6 +35,8 @@ mod wire;
 use core::fmt;
 
 use compact::{Compact, Overflow};
+#[cfg(feature = "differential")]
+pub use differential::BandedSum;
 
 use crate::ieee::{self, Special};
 
@@ -233,6 +235,33 @@ impl Exact {
         match ieee::decompose(x) {
             Some(d) => Self::assemble(Compact::from_finite(d), [0; 3]),
             None => Self::one(ieee::special(x)),
+        }
+    }
+
+    /// The magnitude band of a double, for the banded `SUM` idiom (docs/OVERFLOW.md § The banded
+    /// idiom, and `BandedSum` behind the `differential` feature): the exponent of its leading
+    /// bit, offset by 1074 so the smallest subnormal is at zero, divided by 32 and floored. A
+    /// finite value lands in `0..=65` and NaN and ±∞ in 255, where the counts hold them; the zero
+    /// is in band 0, as it is in any band; negation moves nothing.
+    ///
+    /// The bound the idiom rests on: a value in band `b` has its leading bit in the 32 binades
+    /// from `2^(32b − 1074)` and its lowest set bit at most 52 below that floor, so a sum of `n`
+    /// values of one band, in any order, retractions and multiplicities counted in `n`, spans at
+    /// most `84 + log₂ n` bits, inside the compact form's 127 for `n < 2⁴³`. A `(key, band)`
+    /// total therefore never promotes; only the cross-band sum of a key's at most 66 band totals
+    /// can.
+    #[must_use]
+    #[inline]
+    pub fn band(x: f64) -> u8 {
+        match ieee::decompose(x) {
+            None => 255,
+            Some(d) if d.mant == 0 => 0,
+            Some(d) => {
+                // `mant` is odd with its top bit at `63 − leading_zeros`, so the leading bit of
+                // `mant · 2^exp` sits that far above `exp`.
+                let leading = d.exp + (63 - d.mant.leading_zeros() as i32);
+                ((leading + 1074) >> 5) as u8
+            }
         }
     }
 
@@ -462,40 +491,5 @@ impl Exact {
         }
         let negated = Self::assemble(-self.finite(), self.counts().map(|c| -c));
         self.replace(negated);
-    }
-
-    /// Whether the value is held in the compact form: a finite part of at most 127 bits and
-    /// `i32` counts, in the word itself. Every value is, without `alloc`; with it, a value past
-    /// that is in the heap form, and comes back as soon as an operation's result fits again.
-    #[must_use]
-    #[inline]
-    pub fn is_compact(&self) -> bool {
-        !self.is_heap()
-    }
-
-    /// Whether the state is the zero: no finite part and no amounts. The zero is the compact
-    /// zero word, so this is a test of the bits.
-    #[must_use]
-    #[inline]
-    pub fn is_zero(&self) -> bool {
-        self.lo == 0
-            && self.hi == 0
-            && self.exp == 0
-            && self.nan == 0
-            && self.pos_inf == 0
-            && self.neg_inf == 0
-    }
-
-    /// Whether every amount is zero, so a read rounds the finite part. The finite part may still
-    /// round to `±∞` when it lies past `f64::MAX`.
-    #[must_use]
-    #[inline]
-    pub fn is_finite(&self) -> bool {
-        #[cfg(feature = "alloc")]
-        if self.is_heap() {
-            let p = self.parts();
-            return (0..3).all(|i| p.amount(i).is_zero());
-        }
-        self.nan == 0 && self.pos_inf == 0 && self.neg_inf == 0
     }
 }

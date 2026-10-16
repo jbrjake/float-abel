@@ -115,3 +115,21 @@ pub(crate) fn nth_units(i: u64) -> i64 {
 pub(crate) fn amount(units: i64) -> f64 {
     units as f64 * f64::from_bits(((-20i64 + 1023) as u64) << 52)
 }
+
+/// A row of the mixed differential-dataflow fixture: an account and an amount as the double's
+/// bits, because a collection's data must be `Ord` and `f64` is not.
+pub(crate) type Bits = (u32, u64);
+
+/// `n` rows over sixteen accounts with magnitudes uniform over 2^±300, full mantissas and either
+/// sign: the mixed fixture, on which a key's running `Exact` diff spans past the width under the
+/// plain idiom and promotes, where the banded idiom's diffs never leave the compact form. The
+/// oracle is a `Wide` per account.
+pub(crate) fn mixed(n: u64) -> Vec<Bits> {
+    let mut rng = Rng(SEED);
+    (0..n)
+        .map(|i| {
+            let account = ((i * 7919) % ACCOUNTS) as u32;
+            (account, rng.on_grid(-300, 300).to_bits())
+        })
+        .collect()
+}

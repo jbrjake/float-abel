@@ -116,19 +116,21 @@ the refusal out of the dataflow by choosing the window per value.
 
 ## The banded idiom
 
-Put the double's band in the key: `band(x) = ⌊(exponent of the leading bit + 1074) / 32⌋`, 0..=65
-for finite values, 255 for NaN and ±∞. `explode` into `Exact` and `count_total` per `(key, band)`,
-then `reduce` each key's band totals, at most 66 and typically one to three, into a `Wide` and
-emit the double:
+Put the double's band in the key: `Exact::band(x) = ⌊(exponent of the leading bit + 1074) / 32⌋`,
+0..=65 for finite values, 255 for NaN and ±∞. `explode` into `Exact` and `count_total` per
+`(key, band)`, then `reduce` each key's band totals, at most 66 and typically one to three, into
+one `Exact` and emit it with multiplicity one, which is the plain idiom's output. Shipped as
+`BandedSum::banded_sum` on a collection of `(key, amount as bits)` rows behind `differential`
+(src/exact/differential.rs):
 
 ```text
-rows.explode(|(key, bits)| { let x = f64::from_bits(bits); Some((((key, band(x)), ()), Exact::from(x))) })
+rows.explode(|(key, bits)| { let x = f64::from_bits(bits); Some(((key, Exact::band(x)), Exact::from(x))) })
     .count_total()                                        // ((key, band), band total) with isize diffs
-    .map(|(((key, band), ()), total)| (key, (band, total)))
+    .map(|((key, band), total)| (key, (band, total)))
     .reduce(|_key, bands, output| {                       // a key's few band totals, not its rows
-        let mut sum = Wide::default();
-        for ((_band, total), mult) in bands { sum += Wide::try_from(total).unwrap() * (*mult as i64); }
-        output.push((sum.to_f64().to_bits(), 1));
+        let mut total = Exact::ZERO;
+        for ((_band, band_total), mult) in bands { total += band_total * (*mult as i64); }
+        if !total.is_zero() { output.push((total, 1)); }  // the zero has no row, as under count_total
     })
 ```
 
@@ -138,8 +140,11 @@ sum of n of them, in any order, with retractions and multiplicities, spans at mo
 inside the 127-bit width for n < 2⁴³ live rows per (key, band). Each band is a `Fixed` window chosen
 by the value itself, which is what removes the per-value check: every double fits its band, and
 nothing downstream depends on what else is in the key. Specials are counted in band 255 and
-projected by the `Wide` fold. The reduce re-folds a key's bands, not its rows, so the work per
-change stays O(bands).
+projected at read, as in any `Exact`. The reduce re-folds a key's bands, not its rows, so the work
+per change stays O(bands), and its cross-band total is the one value that can promote: it is
+emitted as data, never consolidated. A cancellation across two bands, `2^14` against two `2^13`s,
+sums to the zero, and the reduce emits nothing, as `count_total` emits nothing for a key `is_zero`
+deleted.
 
 Measured (`band`, attached to fl-h41w0tr): the ten histories above complete on 1 and 3 workers
 reading the small value exactly; a seeded multiset of 7,207 updates over 10 epochs on 5 keys,
@@ -148,7 +153,10 @@ retracted each epoch, NaN and ±∞ on one key, 20 bands occupied, lands all 50 
 a `Wide` oracle bit for bit on 1 and 3 workers, while the same multiset through the plain idiom
 panics on 1 worker and hangs on 3 on the compact form. On the heap arm the same shape of multiset
 through the plain idiom lands all 50 (key, epoch) totals on the `Wide` oracle on 1 and 3 workers,
-45 or more of them heap values (tests/differential_products.rs, `the_seeded_multiset`).
+45 or more of them heap values (tests/differential_products.rs, `the_seeded_multiset`), and
+through `banded_sum` lands the plain idiom's updates exactly on both worker counts with every band
+total `count_total` forms compact across the twenty bands occupied, where more than half the key
+totals the reduce emits are heap values (tests/differential_banded.rs).
 
 What it does not do: products. A row's product has a 106-bit mantissa, so a band for products
 would have to be 127 − 106 − log₂ n bits wide. A fold of products inside a dataflow on the compact

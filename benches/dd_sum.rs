@@ -1,16 +1,19 @@
 //! The end-to-end kill condition, DESIGN.md § Targets and kill conditions: a differential-dataflow
 //! `SUM` over 10⁷ updates with `Exact` as the diff against the same dataflow with `isize`, at one
-//! worker and at eight. The fixture is the integration harness's same-scale one
-//! (tests/differential.rs): sixteen accounts, each amount a signed count of units of 2⁻²⁰ below
-//! 2²⁰, which `Exact` carries as the double and `isize` as the count, so both runs fold one
-//! multiset and an integer oracle checks the `Exact` totals bit for bit before anything is timed.
-//! The dataflow is the design's idiom, `explode` into the diff then `count_total`, run twice over:
-//! on serialized exchange (`ProcessBinary`, the shape the probe ran on, where every exchanged diff
-//! crosses the wire as its serde bytes even on one worker) and on typed exchange (`Process`, the
-//! in-process deployment, where it crosses as the word), so the two ratios split the diff's
-//! arithmetic from its serialization. Advisory, never a gate: `cargo bench --bench dd_sum`, and
-//! the numbers go into BENCH.md with the machine and the commit. Peak RSS comes from
-//! `/usr/bin/time` around the bench binary, not from here.
+//! worker and at eight, and beside it the banded idiom (docs/OVERFLOW.md § The banded idiom). Two
+//! fixtures. The same-scale one is the integration harness's (tests/differential.rs): sixteen
+//! accounts, each amount a signed count of units of 2⁻²⁰ below 2²⁰, which `Exact` carries as the
+//! double and `isize` as the count, so all three runs fold one multiset and an integer oracle
+//! checks the `Exact` totals bit for bit before anything is timed. The mixed one spreads the
+//! amounts over 2^±300, where the plain idiom's running diffs promote to the heap form and the
+//! banded idiom's never do, checked against a `Wide` oracle per account; `isize` has no row there.
+//! The plain idiom is the design's, `explode` into the diff then `count_total`; the banded one is
+//! `BandedSum::banded_sum`. Each runs twice over: on serialized exchange (`ProcessBinary`, the
+//! shape the probe ran on, where every exchanged diff crosses the wire as its serde bytes even on
+//! one worker) and on typed exchange (`Process`, the in-process deployment, where it crosses as
+//! the word), so the two ratios split the diff's arithmetic from its serialization. Advisory,
+//! never a gate: `cargo bench --bench dd_sum`, and the numbers go into BENCH.md with the machine
+//! and the commit. Peak RSS comes from `/usr/bin/time` around the bench binary, not from here.
 //!
 //! A sample is one whole run, workers spawned to workers joined, so the harness takes ten of them
 //! flat rather than criterion's hundred.
@@ -29,13 +32,13 @@ use differential_dataflow::difference::Semigroup;
 use differential_dataflow::input::Input;
 use differential_dataflow::operators::CountTotal;
 use differential_dataflow::ExchangeData;
-use float_abel::Exact;
+use float_abel::{BandedSum, Exact, Wide};
 use timely::dataflow::operators::capture::{Event, Extract};
 use timely::dataflow::operators::Capture;
 use timely::{CommunicationConfig, Config, WorkerConfig};
 
 mod support;
-use support::{amount, units, Row, ACCOUNTS};
+use support::{amount, mixed, units, Bits, Row, ACCOUNTS};
 
 /// The design's update count.
 const UPDATES: u64 = 10_000_000;
@@ -48,7 +51,7 @@ type Update<D, R> = (D, u64, R);
 type Captured<D, R> = Receiver<Event<u64, Vec<Update<D, R>>>>;
 
 /// The exact total per account by integer arithmetic on the units.
-fn oracle(rows: &[Row]) -> Vec<(u32, i64)> {
+fn units_oracle(rows: &[Row]) -> Vec<(u32, i64)> {
     let mut totals = [0i64; ACCOUNTS as usize];
     for &(account, units) in rows {
         totals[account as usize] += units;
@@ -60,21 +63,58 @@ fn oracle(rows: &[Row]) -> Vec<(u32, i64)> {
         .collect()
 }
 
+/// The exact total per account through `Wide`, which holds every sum of doubles, as the `Exact`
+/// both idioms must land on the mixed fixture.
+fn wide_oracle(rows: &[Bits]) -> Vec<(u32, Exact)> {
+    let mut totals = vec![Wide::ZERO; ACCOUNTS as usize];
+    for &(account, bits) in rows {
+        totals[account as usize].deposit(f64::from_bits(bits));
+    }
+    totals
+        .iter()
+        .enumerate()
+        .map(|(account, w)| {
+            let total = Exact::try_from(w).expect("every Wide converts under alloc");
+            (account as u32, total)
+        })
+        .collect()
+}
+
+/// The same-scale fixture as bits, so one dataflow builder serves both fixtures.
+fn as_bits(rows: &[Row]) -> Vec<Bits> {
+    rows.iter()
+        .map(|&(account, units)| (account, amount(units).to_bits()))
+        .collect()
+}
+
 /// This worker's share of `rows`: every `peers`-th row from `index`.
-fn share<'a>(worker: &Worker, rows: &'a [Row]) -> impl Iterator<Item = &'a Row> {
+fn share<'a, R>(worker: &Worker, rows: &'a [R]) -> impl Iterator<Item = &'a R> {
     let (index, peers) = (worker.index(), worker.peers());
     rows.iter().skip(index).step_by(peers)
 }
 
-/// The SUM with `Exact` as the diff: `explode` the amount into the diff, then `count_total`
-/// carries each account's exact total as data with multiplicity one.
-fn exact_sum(worker: &mut Worker, rows: &[Row]) -> Captured<(u32, Exact), isize> {
+/// The SUM with `Exact` as the diff, the plain idiom: `explode` the amount into the diff, then
+/// `count_total` carries each account's exact total as data with multiplicity one.
+fn exact_sum(worker: &mut Worker, rows: &[Bits]) -> Captured<(u32, Exact), isize> {
     let (mut input, captured) = worker.dataflow::<u64, _, _>(|scope| {
-        let (input, rows) = scope.new_collection::<Row, isize>();
+        let (input, rows) = scope.new_collection::<Bits, isize>();
         let totals = rows
-            .explode(|(account, units)| Some((account, Exact::from(amount(units)))))
+            .explode(|(account, bits)| Some((account, Exact::from(f64::from_bits(bits)))))
             .count_total();
         (input, totals.inner.capture())
+    });
+    for row in share(worker, rows) {
+        input.insert(*row);
+    }
+    input.close();
+    captured
+}
+
+/// The same SUM through the banded idiom, which lands the same totals.
+fn banded_sum(worker: &mut Worker, rows: &[Bits]) -> Captured<(u32, Exact), isize> {
+    let (mut input, captured) = worker.dataflow::<u64, _, _>(|scope| {
+        let (input, rows) = scope.new_collection::<Bits, isize>();
+        (input, rows.banded_sum().inner.capture())
     });
     for row in share(worker, rows) {
         input.insert(*row);
@@ -97,6 +137,31 @@ fn isize_sum(worker: &mut Worker, rows: &[Row]) -> Captured<(u32, isize), isize>
     }
     input.close();
     captured
+}
+
+/// Which idiom forms the `Exact` totals.
+#[derive(Clone, Copy)]
+enum Idiom {
+    Plain,
+    Banded,
+}
+
+impl Idiom {
+    const ALL: [Self; 2] = [Self::Plain, Self::Banded];
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Plain => "exact",
+            Self::Banded => "banded",
+        }
+    }
+
+    fn totals(self, worker: &mut Worker, rows: &[Bits]) -> Captured<(u32, Exact), isize> {
+        match self {
+            Self::Plain => exact_sum(worker, rows),
+            Self::Banded => banded_sum(worker, rows),
+        }
+    }
 }
 
 /// How a diff crosses between workers.
@@ -156,32 +221,61 @@ where
     updates
 }
 
-/// Both dataflows on every worker count and exchange, after one checked run of each against the
+/// One checked run of `idiom` over `rows`: the totals it lands are `oracle`'s, bit for bit.
+fn check(
+    idiom: Idiom,
+    exchange: Exchange,
+    workers: usize,
+    rows: &Arc<Vec<Bits>>,
+    oracle: &[(u32, Exact)],
+    fixture: &str,
+) {
+    let shared = Arc::clone(rows);
+    let out = run(workers, exchange, move |worker| {
+        idiom.totals(worker, &shared)
+    });
+    let totals: Vec<(u32, Exact)> = out.into_iter().map(|(d, _, _)| d).collect();
+    assert_eq!(totals.len(), ACCOUNTS as usize);
+    assert_eq!(
+        totals,
+        oracle,
+        "{} totals on {workers} workers, {} exchange, {fixture}",
+        idiom.name(),
+        exchange.name()
+    );
+}
+
+/// Every dataflow on every worker count and exchange, after one checked run of each against its
 /// oracle.
 fn sum(c: &mut Criterion) {
     let rows = Arc::new(units(UPDATES));
-    let expected = oracle(&rows);
+    let same = Arc::new(as_bits(&rows));
+    let mixed = Arc::new(mixed(UPDATES));
+    let expected = units_oracle(&rows);
+    let same_oracle: Vec<(u32, Exact)> = expected
+        .iter()
+        .map(|&(account, units)| (account, Exact::from(amount(units))))
+        .collect();
+    let isize_oracle: Vec<(u32, isize)> = expected
+        .iter()
+        .map(|&(account, units)| (account, units as isize))
+        .collect();
+    let mixed_oracle = wide_oracle(&mixed);
+    assert!(
+        mixed_oracle.iter().all(|(_, total)| !total.is_compact()),
+        "the mixed fixture's totals all span past the width"
+    );
 
     for exchange in Exchange::ALL {
         for workers in WORKERS {
-            let shared = Arc::clone(&rows);
-            let exact = run(workers, exchange, move |worker| exact_sum(worker, &shared));
-            let totals: Vec<(u32, Exact)> = exact.into_iter().map(|(d, _, _)| d).collect();
-            let oracle: Vec<(u32, Exact)> = expected
-                .iter()
-                .map(|&(account, units)| (account, Exact::from(amount(units))))
-                .collect();
-            assert_eq!(totals.len(), ACCOUNTS as usize);
-            assert_eq!(totals, oracle, "Exact totals on {workers} workers");
-
+            for idiom in Idiom::ALL {
+                check(idiom, exchange, workers, &same, &same_oracle, "same-scale");
+                check(idiom, exchange, workers, &mixed, &mixed_oracle, "mixed");
+            }
             let shared = Arc::clone(&rows);
             let baseline = run(workers, exchange, move |worker| isize_sum(worker, &shared));
             let totals: Vec<(u32, isize)> = baseline.into_iter().map(|(d, _, _)| d).collect();
-            let oracle: Vec<(u32, isize)> = expected
-                .iter()
-                .map(|&(account, units)| (account, units as isize))
-                .collect();
-            assert_eq!(totals, oracle, "isize totals on {workers} workers");
+            assert_eq!(totals, isize_oracle, "isize totals on {workers} workers");
         }
     }
 
@@ -191,15 +285,17 @@ fn sum(c: &mut Criterion) {
     for exchange in Exchange::ALL {
         for workers in WORKERS {
             let name = exchange.name();
-            let shared = Arc::clone(&rows);
-            g.bench_function(format!("exact/{workers}w/{name}"), |b| {
-                b.iter(|| {
-                    let rows = Arc::clone(&shared);
-                    black_box(run(workers, exchange, move |worker| {
-                        exact_sum(worker, &rows)
-                    }))
+            for idiom in Idiom::ALL {
+                let shared = Arc::clone(&same);
+                g.bench_function(format!("{}/{workers}w/{name}", idiom.name()), |b| {
+                    b.iter(|| {
+                        let rows = Arc::clone(&shared);
+                        black_box(run(workers, exchange, move |worker| {
+                            idiom.totals(worker, &rows)
+                        }))
+                    });
                 });
-            });
+            }
             let shared = Arc::clone(&rows);
             g.bench_function(format!("isize/{workers}w/{name}"), |b| {
                 b.iter(|| {
@@ -209,6 +305,17 @@ fn sum(c: &mut Criterion) {
                     }))
                 });
             });
+            for idiom in Idiom::ALL {
+                let shared = Arc::clone(&mixed);
+                g.bench_function(format!("{}/mixed/{workers}w/{name}", idiom.name()), |b| {
+                    b.iter(|| {
+                        let rows = Arc::clone(&shared);
+                        black_box(run(workers, exchange, move |worker| {
+                            idiom.totals(worker, &rows)
+                        }))
+                    });
+                });
+            }
         }
     }
     g.finish();
