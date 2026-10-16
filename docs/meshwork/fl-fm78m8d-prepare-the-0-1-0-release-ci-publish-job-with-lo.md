@@ -52,12 +52,9 @@ handoff: |
   licences; CHANGELOG.md and
   SECURITY.md stay out of the package, which is usual.
   
-  Open beside this and unrelated: fl-jqbhm8j (bench-baseline.json from the
-  criterion estimates at
-  2a82388; the owner said to move on from benchmarking, so ask before
-  spending a session on it) and
-  fl-qv0vh39 (the AVX-512 kernel, which needs a machine with the flag).
-  The spec audit's 23 re-open
+  Open beside this and unrelated: fl-qv0vh39 (the AVX-512 kernel, which
+  needs a machine with the flag) and fl-cwwnyas (the laws kit's strategy at
+  the limb cap's edge). The spec audit's re-open
   candidates are done tasks whose clauses have moved since they were
   pinned, standing noise from
   before this session, not drift this session caused.

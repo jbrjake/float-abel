@@ -1,11 +1,11 @@
 ---
 id: fl-p4dc5w5
 title: "Measure the heap arm's budget in one quiet sitting — the one-worker same-scale dd_sum rows of the heap Exact at 09c92b5 against the Copy word's control binary, within 1.12× typed and 1.20× serialized, recorded in BENCH.md"
-status: open
+status: done
 category: crate/measure
 labels: [reproducible-floats]
 discovered-from: fl-th7g69s
-verify: contains BENCH.md /heap arm/
+verify: contains BENCH.md /The heap arm.s budget/
 docs:
   - BENCH.md#the-end-to-end-sum
   - docs/OVERFLOW.md#cost
@@ -16,8 +16,11 @@ The control is the Copy word's dd_sum bench binary at 03d96e9, saved in ~/.cache
 
 ## log
 - 2026-10-15T17:47Z created
+- 2026-10-16T18:57Z open→doing — claimed by claude (2ba3bd95-5552-4160-8df2-82be1495b54b)
+- 2026-10-16T19:06Z doing→done — verify exit 0 @ 85b93c2+10
 
 ## comments
 - 2026-10-16T15:40Z [claude (94f54cd7-858c-4c70-ad69-f1f2ca548e35)] 2026-10-16, the banded idiom's session: the Copy word's control binary (float-abel-control/release/deps/dd_sum-ab4b21425246350c) ran --bench '1w' right after the variant's 20-row sitting at 16db257, but the host was shared with the owner's other project's applied experiment (load 7–15) and the control's isize/1w/serialized canary read 263 ms against 207.6 idle, so those rows are not the A/B. The shape that works: sitting.sh (waits for load under 3 and no cargo, criterion, dd_sum-, marasi-applied or chrome-headless-shell process, then runs the newest dd_sum-* binary) chained with control.sh (waits for the sitting's done marker, runs the control on --bench '1w' with CRITERION_HOME apart); both in the 2026-10-16 session's scratchpad and described in the build-environment memory. The variant's exact/1w rows from a clean re-take of 16db257 are in BENCH.md § The end-to-end SUM once it lands; the control half still needs a quiet window.
 - 2026-10-16T16:33Z [claude (94f54cd7-858c-4c70-ad69-f1f2ca548e35)] Harness-shape caveat, measured 2026-10-16 in one quiet window (load 2.41): the 9714758 dd_sum binary (8 rows, one fixture) and the 16db257 binary (20 rows, three fixtures) ran the one-worker typed rows back to back; isize/1w/typed read 121.6 ms against 128.5 and exact/1w/typed 283.7 against 318.8, with the isize dataflow and fixture byte for byte the same in both. So the harness shape alone moves rows 6–12%, and this task's A/B must compare binaries of one harness shape: the control is the 8-row harness at 03d96e9, so build the variant from a worktree with the current lib and that commit's benches/dd_sum.rs (or run both the control and the variant through the current 20-row harness by rebuilding the control from a worktree at 03d96e9 with the current benches/), and say which in BENCH.md.
 - 2026-10-16T18:10Z [claude (cd1130c2-56bf-432b-bcb1-8ed1c474e8fa)] 2026-10-16 owner, in session, on a sitting script that was waiting for the one-minute load to fall under 3 with nothing else running: "dude there is nothing else running WHY DO YOU INSIST ON SO LITTLE LOAD TO RUN YOUR TESTS THIS IS MY DEV BOX????". So this task's "one quiet sitting" means: check ps once for competing work (another cargo, criterion or dd_sum binary, the other project's experiment binaries) and, finding none, run at once; no load-average threshold. Judge the sitting afterwards by the isize canaries. The wide-row sitting at 440ac8c ran that way (started at load 2.75 by chance) and its isize rows read within 1-5% of 16db257's and 9714758's.
+- 2026-10-16T19:05Z [claude (2ba3bd95-5552-4160-8df2-82be1495b54b)] Measured 2026-10-16 on NEON in one sitting, 14:59–15:04, nothing of ours on the host but the shell (ps checked once, no load wait, per the owner's correction). Control: the Copy word's dd_sum binary at 03d96e9, ~/.cache/cargo-target/float-abel-control/release/deps/dd_sum-ab4b21425246350c, the 8-row harness. Variant: the heap form's lib at 85b93c2 (the tree after fl-dchdzd4's fix, which touches only the cap's edge) built into the same 8-row harness from a worktree at 85b93c2 with `git checkout 03d96e9 -- benches/dd_sum.rs` (current benches/support and Cargo.toml), CARGO_TARGET_DIR=~/.cache/cargo-target/float-abel-variant, binary dd_sum-6802e010ed8c390f; it compiled against the current lib unchanged, since the harness imports only `Exact`. Both ran `--bench '1w'` back to back with CRITERION_HOME apart. Rows (ms per run, control / variant / ratio): exact/1w/typed 271.1 / 294.0 / 1.08×; exact/1w/serialized 427.2 / 463.8 / 1.09×; isize/1w/typed 123.7 / 123.0 / 0.99×; isize/1w/serialized 207.4 / 207.7 / 1.00×. Within the budget on both exchanges (1.12× typed, 1.20× serialized), with the isize canaries agreeing to 0.6% between the binaries and the control rows within 1–3% of the 2a82388 rows. Recorded in BENCH.md § The end-to-end SUM, subsection "The heap arm's budget". The verify was `contains BENCH.md /heap arm/`, already green before the work (the phrase stood three times), so it was tightened to the subsection's heading before `start`. Nothing past the budget: no design question for the owner from this row.
