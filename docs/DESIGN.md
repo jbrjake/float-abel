@@ -253,9 +253,11 @@ diff cannot panic on its input short of the two bounds below, and a sum of doubl
 The compact fast paths are the whole cost on data that never promotes: `+=` on a compact word runs
 the compact add in place with no drop glue, `clone_from` between compact words is a copy, `is_zero`
 is a test of the bits (the zero is the compact zero word), and `Eq` compares the words first.
-Measured against the `Copy` word on same-scale data in a differential `SUM`, the form costs 1.11×
-typed and 1.17–1.20× serialized (docs/OVERFLOW.md § Cost): the tag test, the drop glue, and the
-moves of a non-`Copy` type through consolidation's sort, none of them removable by the layout.
+Measured against the `Copy` word's own binary on same-scale data in a differential `SUM`, one
+sitting, the form costs 1.08× typed and 1.09× serialized (BENCH.md § The end-to-end SUM, The heap
+arm's budget; the probe put it at 1.11× and 1.17–1.20×, docs/OVERFLOW.md § Cost): the tag test,
+the drop glue, and the moves of a non-`Copy` type through consolidation's sort, none of them
+removable by the layout.
 
 The caps are the limb cap (`EXACT_MAX_LIMBS`, 16 × 2148 bits ≈ 4.3 KB per run, § Exactness bounds,
 a `const` raised by editing it) and the exponent bound (`EXACT_MAX_EXP`, 2³⁰). Past either the

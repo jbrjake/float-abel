@@ -391,6 +391,31 @@ is 4.4–5.1× cheaper on the same multiset. A cross-sitting note: the plain `Ex
 unchanged between the two commits; the bench binary carries one more dataflow, and the note above
 on harness shape applies.
 
+### The heap arm's budget
+
+The one-sitting A/B against the `Copy` word: its `dd_sum` binary at 03d96e9, the eight-row
+harness on the same-scale fixture, saved before the heap arm landed, against the heap form's lib
+at 85b93c2 built into that same harness (a worktree at 85b93c2 with 03d96e9's benches/dd_sum.rs),
+so the two binaries differ in the lib alone. Both ran their one-worker rows back to back on NEON,
+criterion data apart, with nothing else of ours on the host. The budget is the probe's
+(docs/OVERFLOW.md § Cost): within 1.12× the control typed and 1.20× serialized.
+
+| 10⁷ updates, one worker, time per run | `Copy` word (control) | heap `Exact` (variant) | variant / control | budget |
+|---|--:|--:|--:|--:|
+| `exact`, typed | 271.1 ms | 294.0 ms | 1.08× | 1.12× |
+| `exact`, serialized | 427.2 ms | 463.8 ms | 1.09× | 1.20× |
+| `isize`, typed | 123.7 ms | 123.0 ms | 0.99× | canary |
+| `isize`, serialized | 207.4 ms | 207.7 ms | 1.00× | canary |
+
+The `isize` rows, whose dataflow and fixture are byte for byte the same in both binaries, agree
+to 0.6%, so the sitting is clean and the `exact` gap is the lib's. The heap form costs 2.3 ns an
+update typed (27.1 against 29.4) and 3.7 serialized (42.7 against 46.4) at one worker: inside the
+budget on both exchanges, and under the 1.11× typed and 1.17–1.20× serialized the probe
+predicted. The cross-sitting heap-over-Copy column in the heap-form table above, read against
+another day's control, put the typed row at 1.12× and the serialized one at 1.05×; this row is the
+one the budget is read from. The control rows match the 2a82388 rows at the top of this section
+within 1–3% (432.5, 265.1, 214.9 and 123.7 ms): the same binary on the same machine, days apart.
+
 ## The wire form
 
 Where the serialized gap is. timely's `ProcessBinary` exchange encodes every batch of updates

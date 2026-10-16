@@ -215,7 +215,8 @@ enum, 312 with `Wide`. BENCH.md § The end-to-end SUM has the criterion numbers 
 word's row (2.01× `isize` serialized, 2.14× typed, at one worker on this machine) and for `Wide`
 as the diff (11.7× `isize` serialized, 13.7× typed, at one worker, 179 and 244 ns an update
 against this table's 172 and 236); the heap arm's budget is that row within 1.12× typed and 1.20×
-serialized. The same section has the shipped
+serialized, and the one-sitting A/B against the Copy word's binary reads 1.08× and 1.09× (BENCH.md
+§ The end-to-end SUM, The heap arm's budget). The same section has the shipped
 idiom on the real heap arm beside the plain one, criterion over whole runs of 10⁷ updates: on
 same-scale data banded costs 6–14% over plain, and on the mixed 2^±300 fixture it runs in
 0.54–0.64× the plain idiom's time, 1.86× faster at one worker typed, inside the 1.5–2.0× this
@@ -235,8 +236,9 @@ What it costs. `Exact` is `Clone` and not `Copy`, so it leaves an engine's `Copy
 and a cast over a mapping, which is what `Wide` and `Fixed` are for (DESIGN.md § Exact); the
 `alloc` feature exists, and the build without it is the compact form with the width as its cap;
 the wire form is variable length, a tagged heap encoding beside the compact 32 bytes (DESIGN.md
-§ Wire format); and the form costs 1.11× the `Copy` word typed on data that never promotes and
-1.4–2.0× the banded idiom where promotions happen (§ Cost), which is why the banded idiom ships
+§ Wire format); and the form costs 1.08× the `Copy` word typed and 1.09× serialized on data that
+never promotes (BENCH.md's one-sitting A/B) and 1.4–2.0× the banded idiom where promotions happen
+(§ Cost), which is why the banded idiom ships
 beside it rather than instead of it.
 
 Not taken, each for a stated reason:
