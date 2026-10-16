@@ -1,6 +1,8 @@
 //! [`Wide`]: a `Copy` 34-limb two's-complement integer in units of `2^-1074` plus three signed
 //! special counters. Every `f64` sum, exactly, with NaN and ±∞ counted rather than refused.
 
+#[cfg(feature = "dbsp")]
+mod dbsp;
 #[cfg(feature = "differential")]
 mod differential;
 mod ops;
@@ -48,9 +50,10 @@ pub(crate) const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 /// `(LSB, LIMBS)` pairs `Wide` holds, and `TryFrom<&Wide>` into `Exact` refuses past its width.
 ///
 /// Behind the `differential` feature it is a differential-dataflow diff, the `Copy` one, with
-/// `Multiply` by `i64` and `isize` on either side and `From<i8>`; there is no `Multiply<Wide>`,
-/// because the product of two words has no carrier, so a row's product enters through
-/// [`Wide::deposit_product`] at the door.
+/// `Multiply` by `i64` and `isize` on either side and `From<i8>`; behind `dbsp` it is a DBSP
+/// `DBWeight` for the weighted batch and `aggregate_linear`'s accumulator, its archived form the
+/// word itself. There is no `Multiply<Wide>` and no `Mul<Wide>`, because the product of two words
+/// has no carrier, so a row's product enters through [`Wide::deposit_product`] at the door.
 ///
 /// A plain word: `repr(C)`, the limbs then the counters, with no padding and no invalid bit
 /// pattern, so on a little-endian machine the in-memory bytes are the wire body and an engine may
@@ -58,6 +61,11 @@ pub(crate) const CEILING_BITS: u64 = 64 * LIMBS as u64 - 65;
 /// assertion, and [`Wide::from_parts`] is the safe inverse of [`Wide::limbs`] and
 /// [`Wide::specials`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "dbsp",
+    derive(rkyv::Archive, rkyv::Serialize),
+    archive(as = "Wide")
+)]
 #[repr(C)]
 pub struct Wide {
     limbs: [u64; LIMBS],

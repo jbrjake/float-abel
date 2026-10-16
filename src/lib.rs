@@ -43,7 +43,10 @@
 //! `aggregate_linear` takes it as the accumulator, which is the shape of Feldera's
 //! `CREATE LINEAR AGGREGATE`, the sanctioned route to an exact `SUM` over doubles.
 //! `examples/dbsp_uda/` holds that aggregate's three Rust items beside its SQL. The feature builds
-//! on the toolchain its CI job pins, because rustc 1.97 and 1.98 ICE inside dbsp.
+//! on the toolchain its CI job pins, because rustc 1.97 and 1.98 ICE inside dbsp. [`Wide`] and
+//! [`Fixed`] are `DBWeight`s too, their archived form the word itself, for the weighted batch and
+//! the accumulator; neither is a ring, so a stream's `neg`, `minus` and `differentiate` are
+//! `Exact`'s alone.
 #![no_std]
 #![deny(unsafe_code)]
 // Every public item carries rustdoc. A warning here, not a deny: the gate's `-D warnings` is what

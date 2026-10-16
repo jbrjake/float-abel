@@ -113,9 +113,9 @@ and the crate ships each:
 | exact + constant size (window) | `Fixed<const LSB: i32, const LIMBS: usize>` | 8·LIMBS B (32 at the default) | finite doubles exactly on the 2^LSB grid inside the window; the rest **refused at the door**, or **quantised** by declaration | yes | `×i64` only |
 | constant size + full range: **lossy, batch-only** | `Binned<const K: usize>` | 16·K B + index + counters (80 at K=3) | every `f64` | yes | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
 
-The three groups carry differential-dataflow's weight traits behind the `differential` feature
-(§ differential-dataflow): `Exact` with the ring, `Wide` and `Fixed` with `Multiply` by `i64` and
-`isize` alone, since neither multiplies by itself. `Wide` is the diff for an engine whose weight
+The three groups carry both engines' weight traits behind the `differential` and `dbsp` features
+(§ differential-dataflow, § DBSP): `Exact` with the ring, `Wide` and `Fixed` with `Multiply` by
+`i64` and `isize` alone, since neither multiplies by itself. `Wide` is the diff for an engine whose weight
 slot must be `Copy` or that casts over a mapping, and `Fixed` the same with a declared window, its
 door check per value at the `explode`.
 
@@ -282,8 +282,10 @@ untouched. Behind `differential` it is a differential-dataflow diff, the `Copy` 
 `From<i8>` for `count_core`'s and `distinct_core`'s outputs (§ differential-dataflow). There is no
 `Multiply<Wide> for Wide`, because the product of two words has no carrier, so a `join` of two
 `Wide`-weighted collections does not compile and a row's product enters the diff through
-`deposit_product` at the door. `Wide` has the *fastest* add of any tier; its cost is bytes, not
-time. That suits a per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates
+`deposit_product` at the door. Behind `dbsp` it is a `DBWeight` the same way (§ DBSP), its
+archived form the word itself, for the weighted batch and `aggregate_linear`'s accumulator; not a
+`RingValue`, so a stream's `neg`, `minus` and `differentiate` are `Exact`'s alone. `Wide` has the
+*fastest* add of any tier; its cost is bytes, not time. That suits a per-key aggregate slot, and not a per-update diff, where a batch of 10⁷ updates
 would carry 2.9 GB of weights.
 
 ### Fixed {#sp-fixed}
@@ -297,8 +299,9 @@ onto the grid, for callers who *declare* a floor. It is deterministic per input,
 identically on every engine before the deposit. Group ops are infallible inside the documented budget
 of 2⁶⁴ deposits at the ceiling, and exhausting the headroom is a named panic in every build, release
 included, because a wrapped sum is silently wrong. `Fixed256 = Fixed<−96, 4>` is the named default.
-Behind `differential` it carries the weight traits `Wide` does (§ Wide), as the declared window:
-the door check is per value, `Fixed::try_from(x)` inside the `explode` refusing by name before the
+Behind `differential` it carries the weight traits `Wide` does (§ Wide), and behind `dbsp` it is a
+`DBWeight` as `Wide` is, both as the declared window: the door check is per value,
+`Fixed::try_from(x)` inside the `explode` or the aggregate's closure refusing by name before the
 engine sees the row, so nothing downstream depends on what else is in the key; `From<i8>`, which
 `count_core` and `distinct_core` put out, is pinned by a `const` assertion to the windows that hold
 every `i8`, a grid at or below one with a ceiling above 2⁷, and `Fixed::<1, 4>::from(1i8)` does not
@@ -563,6 +566,22 @@ against a `num-bigint` oracle: the dot-product accumulator a UDA over two column
 | `HasZero` (exact `is_zero`), `AddByRef`/`AddAssignByRef` | `algebra.rs`; blankets over `&T: Add` and `T: AddAssign<&T>` | std ops |
 | `MulByRef<i64, Output = Exact>` | `aggregate_linear`'s accumulator bound; retractions arrive as `f(v).mul_by_ref(&w)` with negative `w` | explicit |
 | `Neg`, `NegByRef`, `Mul`, `MulByRef<Exact>`, `HasOne` (= `ZRingValue`) | only for `minus`/`neg`/`differentiate` on a custom-weight stream | already a ring |
+
+`Wide` and `Fixed<LSB, LIMBS>` are `DBWeight`s too, in src/wide/dbsp.rs and src/fixed/dbsp.rs:
+`HasZero`, `MulByRef<i64>` and `MulByRef<isize>` written out, `AddByRef`, `AddAssignByRef` and
+`NegByRef` from dbsp's blankets over the words' by-reference operators, `SizeOf` counting nothing
+past the word, and `IsNone` and `SupportsRoaring` as `Exact`'s. The storage traits are rkyv's
+derives on the struct with the archived form declared to be the word, `#[archive(as = "...")]`: a
+`Copy` `repr(C)` word with no invalid bit pattern is its own archive, so storage writes the wire
+body behind its version byte, `Ord` on the archived form is the word's, `OrdRepr` is that same
+`cmp`, `Deserialize` is a copy, and no raw memory is touched. Neither word has `HasOne` or
+`Mul<Self>`: the product of two words has no carrier, so neither is a `RingValue`, and `neg`,
+`minus` and `differentiate` on a stream they weight do not compile, where the weighted batch, its
+merge and `aggregate_linear` do, which is the `SUM` shape. tests/dbsp_words.rs runs the batch and
+its merge, the aggregate with the `ZWeight` scaling and the zero group deleted, `Fixed256`'s door
+inside the aggregate's closure, the archived form as the wire body ordering as `Ord` on 2 × 10⁴
+values of either word, specials riding the `Wide` accumulator, and `MulByRef` as the group's
+scaling.
 
 What is **not** reachable from outside DBSP, stated so nobody files it as a crate bug: `join`,
 `distinct`, `weighted_count`, every input handle, and `aggregate_linear`'s *input* are fixed to

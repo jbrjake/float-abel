@@ -20,6 +20,8 @@ mod convert;
 mod dbsp;
 #[cfg(feature = "dbsp")]
 mod dbsp_products;
+#[cfg(feature = "dbsp")]
+mod dbsp_words;
 mod differential;
 mod differential_banded;
 mod differential_products;

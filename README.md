@@ -123,7 +123,7 @@ methods return the cap as `PastCap` instead with the state as it was. Without th
 `Exact` is the compact form alone and the width is its cap. A word that can hold a pointer is
 `Clone` and not `Copy`, so `Exact` leaves an engine's `Copy` weight slot and a cast over a mapping;
 `Wide` and `Fixed` are the `Copy` words for that slot, and `Fixed` for a declared window besides,
-each carrying the weight traits behind the same feature (§ In an engine).
+each carrying both engines' weight traits behind the same features (§ In an engine).
 
 `Exact` is the engine weight. `Wide` has the fastest add of any tier and costs bytes, which suits a
 per-key aggregate slot rather than a per-update diff. `Fixed` is for data whose scale the caller
@@ -247,7 +247,10 @@ Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch 
 columns. That is the shape of Feldera's `CREATE LINEAR AGGREGATE`, the sanctioned route to an
 exact `SUM` over doubles, since the SQL compiler refuses to make `SUM(DOUBLE)` linear by design. `examples/dbsp_uda/` holds that aggregate's three Rust items
 beside its SQL. The feature builds on the toolchain its CI job pins, rustc 1.99.0, because 1.97 and
-1.98 ICE inside dbsp.
+1.98 ICE inside dbsp. `Wide` and `Fixed` are `DBWeight`s too, their archived form the word itself,
+so a weighted batch and `aggregate_linear`'s accumulator take either, `Fixed` with its door check
+inside the aggregate's closure; `neg`, `minus` and `differentiate` on a stream they weight do not
+compile, because those bound the weight on a ring neither word has.
 
 `Binned` implements none of either engine's weight traits, and a compile-fail test pins that.
 

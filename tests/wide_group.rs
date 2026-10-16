@@ -185,6 +185,31 @@ fn wide_order_is_numeric_then_lexicographic_on_the_counters() {
     }
 }
 
+/// The by-reference operators, what DBSP's `AddByRef`, `AddAssignByRef` and `NegByRef` blankets
+/// reach, are the by-value ones bit for bit, specials included.
+#[test]
+#[allow(clippy::op_ref)] // the by-reference impls are what the test exercises
+fn wide_by_reference_operators_are_the_by_value_ones() {
+    let mut rng = Rng(17);
+    for _ in 0..rounds(10_000) {
+        let (a, b) = (w(rng.any()), w(rng.any()));
+        assert_eq!(&a + &b, a + b);
+        assert_eq!(a + &b, a + b);
+        assert_eq!(&a - &b, a - b);
+        assert_eq!(a - &b, a - b);
+        assert_eq!(-&a, -a);
+        let mut s = a;
+        s += &b;
+        assert_eq!(s, a + b);
+        s -= &b;
+        assert_eq!(s, a);
+    }
+    let nan_inf = &w(NAN) + &w(INF);
+    assert_eq!(nan_inf.specials(), (1, 1, 0));
+    assert_eq!(-&w(NINF), w(NINF) * -1i64);
+    assert_eq!((-&w(NINF)).specials(), (0, 0, -1));
+}
+
 #[test]
 #[should_panic(expected = "counter")]
 fn wide_overflowing_a_special_counter_is_a_named_panic_in_every_build() {

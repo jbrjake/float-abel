@@ -1,5 +1,7 @@
 //! [`Fixed`]: a `Copy` two's-complement fixed-point integer in units of `2^LSB`, exact or refused.
 
+#[cfg(feature = "dbsp")]
+mod dbsp;
 #[cfg(feature = "differential")]
 mod differential;
 mod ops;
@@ -66,11 +68,22 @@ impl std::error::Error for OutOfWindow {}
 ///
 /// Behind the `differential` feature it is a differential-dataflow diff with a declared window:
 /// `Multiply` by `i64` and `isize` on either side, and `From<i8>` pinned by a `const` assertion
-/// to the windows that hold every `i8`. The door check is per value, `TryFrom<f64>` inside the
-/// `explode`, so a value the window cannot hold is refused by name before the engine sees it.
+/// to the windows that hold every `i8`. Behind `dbsp` it is a DBSP `DBWeight` for the weighted
+/// batch and `aggregate_linear`'s accumulator, its archived form the word itself. The door check
+/// is per value, `TryFrom<f64>` inside the `explode` or the aggregate's closure, so a value the
+/// window cannot hold is refused by name before the engine sees it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "dbsp",
+    derive(rkyv::Archive, rkyv::Serialize),
+    archive(as = "Fixed<LSB, LIMBS>")
+)]
 #[repr(C)]
 pub struct Fixed<const LSB: i32, const LIMBS: usize> {
+    // Without `omit_bounds` the derive adds `[u64; LIMBS]: Archive` to its where-clause, and that
+    // bound shadows the impl the array's archived type normalises through, so the derive's own
+    // `resolve` fails to type-check; the impl holds for every `LIMBS` without the clause.
+    #[cfg_attr(feature = "dbsp", omit_bounds)]
     limbs: [u64; LIMBS],
 }
 

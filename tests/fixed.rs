@@ -422,6 +422,28 @@ fn fixed_out_of_window_is_an_error_with_a_message() {
     assert_eq!(format!("{:?}", OutOfWindow::NotFinite), "NotFinite");
 }
 
+/// The by-reference operators, what DBSP's `AddByRef`, `AddAssignByRef` and `NegByRef` blankets
+/// reach, are the by-value ones bit for bit.
+#[test]
+#[allow(clippy::op_ref)] // the by-reference impls are what the test exercises
+fn fixed_by_reference_operators_are_the_by_value_ones() {
+    let mut rng = Rng(18);
+    for _ in 0..rounds(10_000) {
+        let (a, b) = (dep(rng.on_grid(-40, 90)), dep(rng.on_grid(-40, 90)));
+        assert_eq!(&a + &b, a + b);
+        assert_eq!(a + &b, a + b);
+        assert_eq!(&a - &b, a - b);
+        assert_eq!(a - &b, a - b);
+        assert_eq!(-&a, -a);
+        let mut s = a;
+        s += &b;
+        assert_eq!(s, a + b);
+        s -= &b;
+        assert_eq!(s, a);
+    }
+    assert_eq!(-&Fixed256::ZERO, Fixed256::ZERO);
+}
+
 #[test]
 fn fixed_debug_names_the_window_and_the_value() {
     let s = format!("{:?}", dep(1.5));

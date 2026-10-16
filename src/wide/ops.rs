@@ -51,6 +51,56 @@ impl Add for Wide {
     }
 }
 
+// The by-reference forms, which DBSP's `AddByRef`, `AddAssignByRef` and `NegByRef` blankets
+// reach: each is the by-value operator over a copy of the word.
+
+impl Add<&Wide> for &Wide {
+    type Output = Wide;
+    fn add(self, rhs: &Wide) -> Wide {
+        *self + *rhs
+    }
+}
+
+impl Add<&Wide> for Wide {
+    type Output = Self;
+    fn add(self, rhs: &Wide) -> Self {
+        self + *rhs
+    }
+}
+
+impl AddAssign<&Wide> for Wide {
+    fn add_assign(&mut self, rhs: &Wide) {
+        *self += *rhs;
+    }
+}
+
+impl Neg for &Wide {
+    type Output = Wide;
+    fn neg(self) -> Wide {
+        -*self
+    }
+}
+
+impl Sub<&Wide> for &Wide {
+    type Output = Wide;
+    fn sub(self, rhs: &Wide) -> Wide {
+        *self - *rhs
+    }
+}
+
+impl Sub<&Wide> for Wide {
+    type Output = Self;
+    fn sub(self, rhs: &Wide) -> Self {
+        self - *rhs
+    }
+}
+
+impl SubAssign<&Wide> for Wide {
+    fn sub_assign(&mut self, rhs: &Wide) {
+        *self -= *rhs;
+    }
+}
+
 impl Neg for Wide {
     type Output = Self;
     fn neg(mut self) -> Self {

@@ -65,6 +65,56 @@ impl<const LSB: i32, const LIMBS: usize> Add for Fixed<LSB, LIMBS> {
     }
 }
 
+// The by-reference forms, which DBSP's `AddByRef`, `AddAssignByRef` and `NegByRef` blankets
+// reach: each is the by-value operator over a copy of the word.
+
+impl<const LSB: i32, const LIMBS: usize> Add<&Fixed<LSB, LIMBS>> for &Fixed<LSB, LIMBS> {
+    type Output = Fixed<LSB, LIMBS>;
+    fn add(self, rhs: &Fixed<LSB, LIMBS>) -> Fixed<LSB, LIMBS> {
+        *self + *rhs
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> Add<&Fixed<LSB, LIMBS>> for Fixed<LSB, LIMBS> {
+    type Output = Self;
+    fn add(self, rhs: &Fixed<LSB, LIMBS>) -> Self {
+        self + *rhs
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> AddAssign<&Fixed<LSB, LIMBS>> for Fixed<LSB, LIMBS> {
+    fn add_assign(&mut self, rhs: &Fixed<LSB, LIMBS>) {
+        *self += *rhs;
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> Neg for &Fixed<LSB, LIMBS> {
+    type Output = Fixed<LSB, LIMBS>;
+    fn neg(self) -> Fixed<LSB, LIMBS> {
+        -*self
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> Sub<&Fixed<LSB, LIMBS>> for &Fixed<LSB, LIMBS> {
+    type Output = Fixed<LSB, LIMBS>;
+    fn sub(self, rhs: &Fixed<LSB, LIMBS>) -> Fixed<LSB, LIMBS> {
+        *self - *rhs
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> Sub<&Fixed<LSB, LIMBS>> for Fixed<LSB, LIMBS> {
+    type Output = Self;
+    fn sub(self, rhs: &Fixed<LSB, LIMBS>) -> Self {
+        self - *rhs
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> SubAssign<&Fixed<LSB, LIMBS>> for Fixed<LSB, LIMBS> {
+    fn sub_assign(&mut self, rhs: &Fixed<LSB, LIMBS>) {
+        *self -= *rhs;
+    }
+}
+
 impl<const LSB: i32, const LIMBS: usize> Neg for Fixed<LSB, LIMBS> {
     type Output = Self;
     fn neg(mut self) -> Self {
