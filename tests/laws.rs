@@ -1,6 +1,7 @@
-//! The laws kit run against every exact tier, and against a naive `f64` newtype as the negative
-//! control, which must fail: a control that passes means the kit is blind. Every test is named
-//! `laws_*` so the task verify can filter on it.
+//! The laws kit run against every exact tier, and against two negative controls, a naive `f64`
+//! newtype and a compact-only `Exact`, which must fail: a control that passes means the kit is
+//! blind. `tests/laws_cap.rs` runs the kit at the limb cap's edge. Every test is named `laws_*`
+//! so the task verify can filter on it.
 
 use core::hash::{Hash, Hasher};
 use core::ops::{Add, Mul, Neg, Sub};
@@ -11,19 +12,23 @@ use float_abel::laws::{self, Case, RingCase, Weight};
 use float_abel::{Exact, Fixed256, Wide};
 
 /// One seed for every run, so a failure here is the same failure on every machine.
-const SEED: u64 = 1;
+pub(crate) const SEED: u64 = 1;
 /// DESIGN.md § Verification: 256 cases in CI with a fixed seed.
 const CASES: u32 = 256;
 
-fn runner() -> TestRunner {
+pub(crate) fn runner() -> TestRunner {
     laws::runner(CASES, SEED)
 }
 
 /// The control's runner reports the first failing case as drawn, so every law it breaks shows at
 /// once; shrinking would pare the input down to the one law that survives on two weights.
-fn unshrunk() -> TestRunner {
+pub(crate) fn unshrunk() -> TestRunner {
+    unshrunk_for(CASES)
+}
+
+pub(crate) fn unshrunk_for(cases: u32) -> TestRunner {
     TestRunner::new(Config {
-        cases: CASES,
+        cases,
         rng_seed: RngSeed::Fixed(SEED),
         failure_persistence: None,
         max_shrink_iters: 0,
@@ -68,7 +73,7 @@ fn exact() -> impl Strategy<Value = Exact> {
 /// Every normal binade, `2^±300` with a full fraction and either sign, one in sixteen a special:
 /// the adversary of DESIGN.md § Exactness bounds, three of whose four pairwise sums leave the
 /// compact form. The closure law's strategy, since the law is only as strong as the strategy.
-fn exact_full() -> impl Strategy<Value = Exact> {
+pub(crate) fn exact_full() -> impl Strategy<Value = Exact> {
     prop_oneof![1 => special(), 15 => double(-300, 300)].prop_map(Exact::from)
 }
 
@@ -90,7 +95,7 @@ fn exact_small() -> impl Strategy<Value = Exact> {
     prop_oneof![1 => special().prop_map(Exact::from), 7 => exact_integer()]
 }
 
-fn small_int() -> impl Strategy<Value = i64> {
+pub(crate) fn small_int() -> impl Strategy<Value = i64> {
     -1024i64..1024
 }
 
@@ -246,7 +251,10 @@ fn naive() -> impl Strategy<Value = Naive> {
 }
 
 /// The failing case the kit reported, with the laws it names.
-fn failure<I: core::fmt::Debug>(outcome: Result<(), TestError<I>>, check: &str) -> (String, I) {
+pub(crate) fn failure<I: core::fmt::Debug>(
+    outcome: Result<(), TestError<I>>,
+    check: &str,
+) -> (String, I) {
     match outcome {
         Err(TestError::Fail(why, input)) => (why.message().to_string(), input),
         other => panic!("the control did not fail {check}: {other:?}"),

@@ -58,7 +58,9 @@ past the cap because `plus_equals` cannot return an error. The set of compact `E
 closed under addition, and closure is the first group axiom; the laws kit's `Exact` strategy draws
 doubles within 56 binades of each other, inside the width by construction, so its `check_closure`
 sees the cap only on a strategy past the width, where tests/laws.rs runs a compact-only control
-that must fail. Two kinds of sum get formed, and they fail differently:
+that must fail; the heap form's limb cap is seen the same way, on a strategy at its edge in
+tests/laws_cap.rs, where a control refusing the cap's last bit must fail. Two kinds of sum get
+formed, and they fail differently:
 
 1. **A key's running total at some epoch.** `count.rs:108,120` folds a key's diffs in time order,
    so 2¹⁰⁰⁰ held while 2⁻¹⁰⁰⁰ arrives is a total that is formed whatever the arrival order, and

@@ -84,7 +84,9 @@
 //!
 //! A control that passes would mean the kit is blind, so `tests/laws.rs` runs a naive `f64`
 //! newtype through it and asserts the laws it breaks, and a compact-only `Exact` through the
-//! closure check on a strategy past its width.
+//! closure check on a strategy past its width; `tests/laws_cap.rs` runs an `Exact` refusing the
+//! limb cap's last bit through the closure check on a strategy at the cap's edge, where it must
+//! fail, and on every binade, where it must hold.
 
 mod closure;
 mod report;

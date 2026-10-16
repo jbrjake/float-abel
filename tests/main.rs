@@ -35,6 +35,8 @@ mod fixed;
 // are the tier topics' own.
 #[cfg(not(miri))]
 mod laws;
+#[cfg(not(miri))]
+mod laws_cap;
 mod layout;
 mod posture;
 mod rounding;

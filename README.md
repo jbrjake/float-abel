@@ -278,9 +278,10 @@ let mut runner = laws::runner(64, 0);
 check_abelian_group(&mut runner, (-1.0e6..1.0e6).prop_map(Exact::from)).unwrap();
 ```
 
-The kit runs against every tier in CI, and against two negative controls, a naive `f64` wrapper that
-must **fail** associativity and inverse and a compact-only `Exact` that must fail closure past its
-width; a control that passes means the kit is blind.
+The kit runs against every tier in CI, and against three negative controls, a naive `f64` wrapper
+that must **fail** associativity and inverse, a compact-only `Exact` that must fail closure past its
+width, and an `Exact` refusing the limb cap's last bit that must fail closure on a strategy at the
+cap's edge; a control that passes means the kit is blind.
 
 ## Bulk sums
 

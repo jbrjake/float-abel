@@ -141,7 +141,8 @@ weight traits, so a compile error, not a convention, keeps it out of the increme
   normalisation. So a sum or product is refused exactly when its result would span more than the
   cap, and the group is closed under retraction up to it: every value the operations or the
   decoder produce retracts and scales by one (tests/exact_cap.rs, `exact_cap_closed_*`, against
-  a `num-bigint` oracle). Without `alloc` the width caps instead, and the memory is 32 bytes
+  a `num-bigint` oracle, and the laws kit's closure and group laws on a strategy at the edge,
+  tests/laws_cap.rs). Without `alloc` the width caps instead, and the memory is 32 bytes
   whatever the input.
 - Every exponent is bounded: a held value is `m · 2^exp` with |exp| ≤ `EXACT_MAX_EXP` = 2³⁰, checked
   after every operation that moves an exponent, in every build. A sum's exponent stays inside its
@@ -628,8 +629,13 @@ theirs or ours. It checks with proptest:
   catches the panic at the operation and reports it with the operands as the witness, so a capped
   type is seen whether or not it declares its cap. The other laws hold on any strategy inside a
   type's domain, so this one runs on the values the engine will see: `Exact` passes on every
-  binade with the specials in and on row products, and the compact form alone, `Exact` without
-  `alloc`, is not closed, by design, which a compact-only control asserts past its width.
+  binade with the specials in, on row products, and at the limb cap's edge, on a strategy at the
+  check's own budget under the cap (a weight under 2^(cap − 5), since a case folds thirty-two of
+  them, with the multiplier inside those five bits), where a case's fold climbs onto the cap's
+  last bit and retracts across it; a control refusing that bit fails there and holds on every
+  binade, which is why the edge has a strategy of its own (tests/laws_cap.rs). The compact form
+  alone, `Exact` without `alloc`, is not closed, by design, which a compact-only control asserts
+  past its width.
 
 The entry points are `check_abelian_group`, `check_ring`, `check_canonical`,
 `check_consolidation_invariance` and `check_closure`, generic over a `Strategy`. A type opts in through `laws::Weight`
@@ -713,7 +719,7 @@ push.
 
 | level | what | how |
 |---|---|---|
-| laws | associativity/commutativity under shuffles, identity, exact inverse, canonicality, distributivity, consolidation-timing invariance | proptest, 256 cases in CI with a fixed seed |
+| laws | associativity/commutativity under shuffles, identity, exact inverse, canonicality, distributivity, consolidation-timing invariance, closure; the three negative controls fail | proptest, 256 cases in CI with a fixed seed, 32 at the limb cap's edge |
 | rounding | `to_f64`/`to_f32`/`div_f64` against the CPython-generated vectors; ties, subnormals, overflow | committed vector file |
 | cross-tier | `Fixed`, `Wide` and `Exact` agree bit for bit on their shared domain; `Exact::to_f64 == bitrep::SumF64::value` on random finite multisets | 10⁶ random multisets |
 | decode | canonical round-trip; non-canonical bytes refused; a refusal names the first rule FORMAT.md gives; serde agrees with `from_bytes` | unit tests, `cargo-fuzz` nightly (`decode_robustness`) |
