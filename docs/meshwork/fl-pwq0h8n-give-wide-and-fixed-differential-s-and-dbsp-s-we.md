@@ -118,11 +118,11 @@ handoff: |
   check).
   
   Settled this session: docs/OVERFLOW.md is shortened on the owner's
-  ruling (fl-5h12vf3,
-  fl-62b32y9), its § Options replaced by § What was decided, which names
-  this task as what gives
-  `Wide` and `Fixed` the traits; the push of main to origin for leras
-  (fl-4fcbtkx) is blocked at
+  ruling (ec2ae7c), its
+  § Options replaced by § What was decided, which names this task as
+  what gives `Wide` and
+  `Fixed` the traits; the push of main to origin for leras (fl-4fcbtkx) is
+  blocked at
   the owner's word, "ignore the push to main for now", and stays blocked
   until the owner reopens
   it. Neither touches this task.
@@ -150,3 +150,4 @@ end-to-end SUM (the rough figure is 198 ns an update against `isize`'s 12.8, doc
 - 2026-10-15T15:15Z created
 - 2026-10-16T17:06Z handoff by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
 - 2026-10-16T17:24Z handoff by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
+- 2026-10-16T17:25Z handoff by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
