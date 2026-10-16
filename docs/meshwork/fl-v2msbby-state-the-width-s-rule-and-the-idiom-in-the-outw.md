@@ -37,3 +37,6 @@ why.
 
 ## log
 - 2026-10-15T15:15Z created
+
+## comments
+- 2026-10-16T14:22Z [claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)] 9714758 (fl-xf8hv25) landed part of this scope while stating what the product-fold tests prove: README § In an engine now says a join of two Exact-weighted collections multiplies the weights, that the limb cap is the one panic left inside a dataflow, reachable through nested products alone, and that a consumer who can reach it builds with panic = "abort"; DESIGN.md § differential-dataflow carries the same with the hang's reason, and docs/OVERFLOW.md's opening, § What fits (a heap-arm row), § Why Exact panics and § The banded idiom say which rows describe the compact form alone and what the heap arm holds now. So this task's verify is already green and blind to what remains: README § The contract's promise, DESIGN.md § Exactness bounds and § Exact (the compact form's 127-bit rule as the allocation-free band, Exact not Copy and why Wide and Fixed are), the banded fast path's place once fl-gpjzcqc lands, and OVERFLOW.md's fate. Re-set the verify to a predicate those sentences fail today before starting.
