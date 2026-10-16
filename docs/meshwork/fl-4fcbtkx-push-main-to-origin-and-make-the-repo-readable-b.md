@@ -1,7 +1,7 @@
 ---
 id: fl-4fcbtkx
 title: "Push main to origin and make the repo readable by leras's CI — git push origin main through the push gate, then flip jbrjake/float-abel public or add it to leras's ORESEUR_TOKEN PAT, both the owner's acts"
-status: open
+status: blocked
 category: rulings
 labels: [reproducible-floats]
 answers: leras#le-yxhtwgw
@@ -11,6 +11,7 @@ docs:
 seq: 56
 created: 2026-10-16T16:51Z
 verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-readable-b.md /2026-[0-9][0-9]-[0-9][0-9] owner pushed main to origin/
+blocked-reason: "owner, 2026-10-16, in session: \"ignore the push to main for now\"; held until the owner reopens it"
 ---
 
 Answers leras#le-yxhtwgw, whose body names both steps as owner actions on this repo. leras ships
@@ -38,3 +39,4 @@ green, and leras's swap task waits only on leras closing its ask.
 
 ## log
 - 2026-10-16T16:51Z created
+- 2026-10-16T17:22Z open→blocked — owner, 2026-10-16, in session: "ignore the push to main for now"; held until the owner reopens it

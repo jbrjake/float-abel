@@ -1,7 +1,7 @@
 ---
 id: fl-5h12vf3
 title: "Rule on docs/OVERFLOW.md's fate — shorten it to the rule, the histories, the hang, the idiom and the measurements with § Options replaced by what was decided, keeping every section the tree cites, or fold it into DESIGN.md and delete it, moving twenty citations"
-status: open
+status: done
 category: rulings
 labels: [reproducible-floats, docs]
 discovered-from: fl-v2msbby
@@ -68,3 +68,7 @@ rewrite is filed as its own task with `lacks docs/OVERFLOW.md "## Options"` (a) 
 
 ## log
 - 2026-10-16T16:49Z created
+- 2026-10-16T17:22Z open→done — verify exit 0 @ 96f8cc7+1
+
+## comments
+- 2026-10-16T17:22Z [claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)] 2026-10-16 owner ruled, in session: "yes follow your recs on overflow. ignore the push to main for now." So (a): shorten docs/OVERFLOW.md, keeping the opening and the six cited sections and replacing § Options and its recommendation with a closing section on what was decided; no citation in the tree moves. The rewrite is its own task, filed from this one.

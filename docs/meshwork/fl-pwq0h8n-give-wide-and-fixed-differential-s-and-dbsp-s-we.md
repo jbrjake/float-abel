@@ -7,7 +7,7 @@ verify: "all(contains src/wide.rs /differential/, run cargo test package=float-a
 seq: 70
 labels: [reproducible-floats]
 docs:
-  - docs/OVERFLOW.md#options
+  - docs/OVERFLOW.md#what-fits
   - docs/DESIGN.md#wide-sp-wide
   - docs/DESIGN.md#fixed-sp-fixed
 status: open
@@ -117,12 +117,15 @@ handoff: |
   that casts over a mapping; a declared window with a per-value door
   check).
   
-  Open for the owner, filed this session: fl-5h12vf3 (docs/OVERFLOW.md's
-  fate, recommendation
-  shorten, with the twenty citations listed) and fl-4fcbtkx (push main to
-  origin and make the
-  repo readable by leras's CI, both steps the owner's). Neither blocks
-  this task.
+  Settled this session: docs/OVERFLOW.md is shortened on the owner's
+  ruling (fl-5h12vf3,
+  fl-62b32y9), its § Options replaced by § What was decided, which names
+  this task as what gives
+  `Wide` and `Fixed` the traits; the push of main to origin for leras
+  (fl-4fcbtkx) is blocked at
+  the owner's word, "ignore the push to main for now", and stays blocked
+  until the owner reopens
+  it. Neither touches this task.
 ---
 
 With the heap arm (owner, 2026-10-15: "yes let's do heap and allow product fols inside a
@@ -146,3 +149,4 @@ end-to-end SUM (the rough figure is 198 ns an update against `isize`'s 12.8, doc
 ## log
 - 2026-10-15T15:15Z created
 - 2026-10-16T17:06Z handoff by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
+- 2026-10-16T17:24Z handoff by claude (84727215-1ab8-4972-b9d9-cd4dd0eb435e)
