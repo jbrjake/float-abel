@@ -17,18 +17,20 @@ handoff: |
   publish`: CI on the owner's
   signed tag, or the owner's machine with CI packaging and attesting);
   build nothing of the publish
-  step before it lands, and `why` names it. The tree at 6b92804 has the
-  outward docs in: README.md
-  with its three Rust blocks run as doctests through `mod readme` in
-  src/lib.rs (behind
-  `cfg(doctest)` and `differential`), SECURITY.md pointing at GitHub's
-  private vulnerability
-  reporting alone (switching the form on in the repository settings is the
-  owner's act and is not
-  done), and CHANGELOG.md opening with an `## Unreleased` list of what
-  0.1.0 carries. The commit gate
-  ran 169 tests green at 1621409; the push gate was last run green end to
-  end at 6be0b49.
+  step before it lands, and `why` names it. That ruling, fl-k3g1511, is
+  blocked on the owner's words
+  of 2026-10-16, "i don't want to publish yet", with its three gating
+  tasks done. The tree at 6b92804
+  has the outward docs in: README.md with its three Rust blocks run as
+  doctests through `mod readme`
+  in src/lib.rs (behind `cfg(doctest)` and `differential`), SECURITY.md
+  pointing at GitHub's private
+  vulnerability reporting alone (switching the form on in the repository
+  settings is the owner's act
+  and is not done), and CHANGELOG.md opening with an `## Unreleased` list
+  of what 0.1.0 carries. The
+  commit gate ran 236 tests green at 18e42b3, and the push gate ran green
+  end to end there.
   
   What this task builds once ruled: `.github/workflows/release.yml` on tag
   push `v*`, every `uses:`
@@ -53,11 +55,11 @@ handoff: |
   SECURITY.md stay out of the package, which is usual.
   
   Open beside this and unrelated: fl-qv0vh39 (the AVX-512 kernel, which
-  needs a machine with the flag) and fl-cwwnyas (the laws kit's strategy at
-  the limb cap's edge). The spec audit's re-open
-  candidates are done tasks whose clauses have moved since they were
-  pinned, standing noise from
-  before this session, not drift this session caused.
+  needs a machine with the
+  flag). The spec audit's 35 re-open candidates are done tasks whose
+  clauses have moved since they
+  were pinned, standing noise from before this session, not drift this
+  session caused.
 ---
 Per DESIGN.md § Release. This task makes 0.1.0 ready to ship: the CI publish job, the signed-tag
 flow, provenance, `cargo-semver-checks` armed from here, and the `## 0.1.0` CHANGELOG entry. Running
@@ -67,3 +69,4 @@ flow, provenance, `cargo-semver-checks` armed from here, and the `## 0.1.0` CHAN
 - 2026-10-11T15:02Z created
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-release @56381872cf6a
 - 2026-10-14T21:28Z handoff by claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)
+- 2026-10-16T19:34Z handoff by claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
