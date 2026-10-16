@@ -206,11 +206,13 @@ timely::execute_directly(|worker| {
 });
 ```
 
-Reach for `banded_sum` when a key's amounts span about 2⁷⁰ or more, or when nothing bounds them;
-on same-scale amounts the two idioms run at the same speed, and on mixed magnitudes the banded one
-never allocates where the plain one promotes (`BENCH.md` § The end-to-end SUM). It sums, and
-nothing else: a row's product has a 106-bit mantissa and no band narrow enough, so a `join` of two
-weighted collections stays on the plain idiom, which the heap form holds.
+Reach for `banded_sum` when a key's amounts span about 2⁷⁰ or more, or when nothing bounds them.
+Measured on 10⁷ updates (`BENCH.md` § The end-to-end SUM): on same-scale amounts the banded idiom
+costs 6–14% over the plain one, two to four nanoseconds an update at one worker, and on amounts
+spread over 2^±300 it runs 1.6–1.9× faster, allocating nothing where the plain one promotes at
+every consolidation step. It sums, and nothing else: a row's product has a 106-bit mantissa and
+no band narrow enough, so a `join` of two weighted collections stays on the plain idiom, which
+the heap form holds.
 
 Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
 `aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two

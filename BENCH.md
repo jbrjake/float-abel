@@ -299,6 +299,58 @@ cross-sitting ratio; the one-sitting A/B against the Copy word's saved control b
 the fixture never promotes, so the heap form allocates nothing on these rows, and the macOS
 high-water mark below is the allocator's as much as the dataflow's.
 
+The banded idiom beside the plain one, at commit 16db257 on NEON in one quiet sitting (the
+one-minute load 2.90 at the start with nothing else running on the host, the four `isize` rows
+within 0.4–4.4% of the 9714758 rows above). Two fixtures: the same-scale one above, and a mixed
+one whose amounts spread over 2^±300 with full mantissas and either sign, checked against a `Wide`
+oracle per account, on which every account's total spans past the width. `exact` is the plain
+idiom, `explode` into the diff then `count_total`; `banded` is `BandedSum::banded_sum`, `explode`
+and `count_total` per (account, band) and a `reduce` of each account's band totals into one
+`Exact` (docs/OVERFLOW.md § The banded idiom). `isize` has no mixed row: an integer diff has no
+magnitudes to mix.
+
+| 10⁷ updates, time per run | `exact` | `banded` | banded / exact | `isize` | exact / isize | banded / isize |
+|---|--:|--:|--:|--:|--:|--:|
+| same-scale, serialized, 1 worker | 478.4 ms | 517.6 ms | 1.08× | 198.4 ms | 2.41× | 2.61× |
+| same-scale, serialized, 8 workers | 82.4 ms | 94.3 ms | 1.14× | 39.5 ms | 2.09× | 2.39× |
+| same-scale, typed, 1 worker | 323.2 ms | 341.0 ms | 1.06× | 128.4 ms | 2.52× | 2.66× |
+| same-scale, typed, 8 workers | 57.9 ms | 62.7 ms | 1.08× | 28.2 ms | 2.05× | 2.22× |
+| mixed 2^±300, serialized, 1 worker | 1,082.0 ms | 693.2 ms | 0.64× | | | |
+| mixed 2^±300, serialized, 8 workers | 189.9 ms | 116.9 ms | 0.62× | | | |
+| mixed 2^±300, typed, 1 worker | 930.5 ms | 501.5 ms | 0.54× | | | |
+| mixed 2^±300, typed, 8 workers | 156.4 ms | 87.9 ms | 0.56× | | | |
+
+Three readings. On same-scale data neither idiom promotes, and the banded one costs 6–14% over
+the plain one: 1.8 ns an update typed and 3.9 serialized at one worker, which is the wider
+(account, band) key through `count_total`'s arrangement and the second operator, a `reduce`
+over each account's band totals with an arrangement and an exchange of its own, the exchange
+being why the gap is widest on serialized exchange at eight workers. On mixed data the plain
+idiom's running diffs promote, and its row costs 2.3–2.9× its same-scale row, 60 ns an update
+more at one worker on either exchange; the typed and serialized gaps are the same 60 ns, so the
+cost is the heap form's promotion and limb arithmetic at each consolidation step, not the wire,
+whose compact bytes the heap form leaves alone. The banded idiom's diffs stay compact
+(tests/differential_banded.rs asserts every band total compact on its multiset), and its mixed
+row costs 1.24–1.47× its same-scale row, 16–18 ns an update at one worker: the fixture occupies
+nineteen finite bands per account, so `count_total` arranges nineteen times the groups and the
+reduce re-folds up to nineteen band totals per change. Net, the banded idiom runs the mixed
+rows in 0.54–0.64× the plain idiom's time, 1.56–1.86× faster, and allocates nothing where the
+plain one promotes. Read against the probe's rough table in docs/OVERFLOW.md § Cost, which had
+the niche form at 70–86 ns typed on the spread and mixed bands against banded 42–49, 1.5–2.0×,
+the real arm reads 93 against 50 on the mixed fixture at one worker typed, 1.86×, inside that
+range in a slower sitting shape (criterion's whole runs against the probe's one timed epoch).
+
+A cross-sitting note. The plain idiom's same-scale rows here read 4–9% above the 9714758 rows
+above while the `isize` rows read within 4% of theirs, so the exact / isize column sits at
+2.05–2.52× against that sitting's 1.93–2.38×. The plain path's code is unchanged between the two
+commits; the bench binary now carries the banded and mixed rows and holds three 160 MB fixtures
+in place of one. The two binaries then ran the one-worker typed rows back to back in one quiet
+window, criterion data apart: 9714758's read 283.7 ms `exact` and 121.6 ms `isize`, 2.33×, and
+this one 318.8 and 128.5, 2.48×. The `isize` dataflow and its fixture are byte for byte the same
+in both, so the shift is the bench binary's, 6% on `isize` and 12% on `exact`, not the lib's
+plain path and not the day. A ratio in this table reads against the rows above only through
+such an A/B, and the heap arm's budget against the Copy word (fl-p4dc5w5) compares binaries of
+one harness shape.
+
 Peak resident set of the bench process over one row's iterations, `/usr/bin/time -l` on macOS and
 `/usr/bin/time -v` on Linux, on the serialized rows: NEON 3.43 GB (`Exact`, 1 worker), 5.04 GB
 (`isize`, 1), 3.09 GB (`Exact`, 8), 2.51 GB (`isize`, 8); AVX2 1.26 GB, 1.25 GB, 1.31 GB and

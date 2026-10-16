@@ -211,7 +211,11 @@ adds in place. The banded idiom costs 2% over the Copy word typed and 9% seriali
 tuple with a `u64` key is 48 bytes with the Copy word and with either niche shape, 56 with the
 enum, 312 with `Wide`. BENCH.md § The end-to-end SUM has the criterion numbers for the Copy
 word's row (2.01× `isize` serialized, 2.14× typed, at one worker on this machine); the heap arm's
-budget is that row within 1.12× typed and 1.20× serialized.
+budget is that row within 1.12× typed and 1.20× serialized. The same section has the shipped
+idiom on the real heap arm beside the plain one, criterion over whole runs of 10⁷ updates: on
+same-scale data banded costs 6–14% over plain, and on the mixed 2^±300 fixture it runs in
+0.54–0.64× the plain idiom's time, 1.86× faster at one worker typed, inside the 1.5–2.0× this
+table predicted.
 
 ## Options
 
