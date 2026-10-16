@@ -13,6 +13,86 @@ docs:
 status: open
 created: 2026-10-15T15:15Z
 needs: [fl-th7g69s]
+handoff: |
+  Next session ships the banded SUM idiom as the fast path here. What
+  stands at 91abe38: the heap
+  arm (09c92b5), its wire form (2ca2ddd), and the engine proof (9714758,
+  findings on the closed
+  task `search "Prove product folds"`): the plain `explode` +
+  `count_total` idiom completes every
+  history and the seeded 2^±300 multiset on the heap `Exact`, products
+  fold, and the bench rows at
+  91abe38 price the non-`Copy` word at 3 ns an update over the Copy word
+  on same-scale data
+  (BENCH.md § The end-to-end SUM; the one-worker typed ratio past the
+  accepted band is the open ask
+  fl-vy2nxc8, which banding does not answer: inside a band the diff is the
+  same non-`Copy` word).
+  What banding buys is the promoting bands: OVERFLOW.md § Cost has the
+  niche form at 70–86 ns typed
+  against banded 42–49 on the spread and mixed fixtures, and this task's
+  rows re-take that on the
+  real arm.
+  
+  Where to build. `Exact::band` must be `pub fn band` in src/exact/mod.rs
+  literally, because the
+  verify greps that file; mod.rs is 501 lines, so move something out first
+  (src/exact/read.rs is 116
+  lines and takes `band`'s neighbours) or re-set the verify to the file it
+  lands in. The extension
+  trait goes in src/exact/differential.rs (79 lines). Tests go in a new
+  topic,
+  tests/differential_banded.rs (tests/differential.rs is 512 lines and
+  scripts/check-file-length.sh
+  warns past 500), a `mod` of tests/main.rs, every test
+  `differential_banded_*` for the verify.
+  Reuse tests/differential_products.rs rather than re-prototype:
+  `multiset()` is the seeded shape
+  (10 epochs, 5 keys, 400 inserts an epoch over 2^±300, a third of the
+  live rows retracted,
+  specials on key 4) and returns the `Wide`-derived totals per (key,
+  epoch); `histories(big, small)`
+  and `pairs()` are the ten histories; `epochs_dataflow` feeds epochs from
+  worker 0 and steps each
+  to its probe; `count_total_updates(&totals)` is what `count_total` must
+  emit. Lift those to
+  `pub(crate)` and give the banded dataflow the same `Epochs` so the two
+  idioms run one input. The
+  control the body asks for is already measured on the plain side:
+  `the_seeded_multiset` asserts 45
+  of the 50 (key, epoch) totals are heap values; on the banded side count
+  `is_compact()` over
+  `count_total`'s per-band outputs, which must all be compact, while the
+  reduce's one `Exact` per
+  key is the cross-band sum and may promote. The allocation counter in
+  tests/support.rs is
+  per-thread and the dataflow runs on worker threads, so it does not see
+  those allocations;
+  `is_compact()` on the outputs is the count. In differential 0.25
+  `probe(self)` consumes and
+  returns the collection, `join` takes the other side by value, and a
+  collection is cloned before
+  any consuming operator; tests/differential_products.rs shows each.
+  
+  The bench: benches/dd_sum.rs with a banded row beside the plain `exact`
+  rows on the same-scale
+  fixture, and both on a mixed fixture over 2^±300
+  (benches/support/mod.rs's `Rng::on_grid`; the
+  oracle there is `Wide` per key, not the integer units). Build with
+  `cargo bench --bench dd_sum
+  --no-run` and run the binary in one quiet sitting: the script in the
+  2026-10-16 session's
+  scratchpad waited 750 s for the one-minute load under 3 (the desktop app
+  and WindowServer held it
+  at 3.8 with nothing of ours running) and the `isize` canaries landed
+  within 0.3–5% of the earlier
+  rows, which is the check a sitting passes. The rows go in BENCH.md §
+  The end-to-end SUM under the
+  heap-form table with the machine and the commit. README § In an engine
+  then shows both idioms and
+  says when to reach for the banded one; fl-v2msbby carries the rest of
+  the outward docs and has a
+  comment on what 9714758 already landed.
 ---
 
 Owner, 2026-10-15, in session: "i like your option 4 so if there's a way to get the best of both
@@ -46,3 +126,4 @@ shows both idioms and says when to reach for the banded one.
 
 ## log
 - 2026-10-15T15:15Z created
+- 2026-10-16T14:43Z handoff by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)

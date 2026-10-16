@@ -11,67 +11,8 @@ docs:
   - docs/DESIGN.md#differential-dataflow-sp-differential
   - docs/DESIGN.md#dbsp-sp-dbsp
   - docs/OVERFLOW.md#why-exact-panics-in-a-dataflow
-status: doing
+status: done
 created: 2026-10-15T15:33Z
-handoff: |
-  The test half landed at 9714758 (findings in the comment of the same
-  date): tests/differential_products.rs
-  and tests/dbsp_products.rs, both green on their toolchains, the docs
-  amended. What remains is the
-  bench half: benches/dd_sum.rs re-taken for the heap `Exact` at HEAD,
-  typed and serialized, 1 and 8
-  workers, beside `isize`, into BENCH.md § The end-to-end SUM with the
-  machine (this aarch64 Mac,
-  NEON) and the commit, and the kill-table row read against 2× (the owner
-  accepted 1.8–2.2× for the
-  Copy word in the ruling on the end-to-end SUM ratio, `search "Rule on
-  the end-to-end SUM ratio"`,
-  and is re-asked if the heap form moves it).
-  
-  The release bench binary at 9714758 is built:
-  ~/.cache/cargo-target/float-abel/release/deps/dd_sum-369f3f9511ffa6c9
-  (the hash is per target,
-  not per content, so a rebuild overwrites it; `cargo bench --bench dd_sum
-  --no-run` rebuilds in
-  seconds warm). A sitting script that waits for the one-minute load under
-  3 and no cargo, criterion
-  or dd_sum process, up to 45 minutes, then runs the binary with `--bench`
-  and appends to a log, was
-  started in the 2026-10-16 session's scratchpad (sitting.sh, log
-  dd_sum.log, a `.done` marker when
-  it ends); it is not in the tree. The host's load sat at 3.9 all morning,
-  carried by the Claude
-  desktop app and WindowServer, nothing of ours, so the script may run
-  past its wait. Judge the
-  sitting by the `isize` canaries against BENCH.md's rows at 2a82388
-  (214.9 ms serialized 1w,
-  43.0 at 8w, 123.7 typed 1w, 28.2 at 8w on this machine): within a few
-  percent is a clean
-  sitting, 20–70% off is contested and is re-taken. The fixture is
-  unchanged since 2a82388
-  (benches/support/mod.rs's `nth_units` is a refactor with the same
-  values), so the rows compare.
-  `grep -A1 "^dd_sum/" <log>` reads the `time:` lines; the estimates are
-  under
-  `<target>/criterion/dd_sum_<row>/new/estimates.json`.
-  
-  Write the rows as a second table in BENCH.md § The end-to-end SUM
-  headed by the commit and the
-  form ("the heap form at 9714758, NEON"), with the ratio to `isize` and,
-  with the cross-sitting
-  caveat, to the Copy word's rows at 2a82388; the A/B against the saved
-  control binary within the
-  1.12×/1.20× budget is fl-p4dc5w5's sitting, not this one, so do not
-  fold them. Peak RSS: the
-  macOS high-water mark is allocator-driven (BENCH.md says the Linux
-  figures are the ones to read)
-  and the same-scale fixture never promotes, so state that RSS was not
-  re-taken rather than take it.
-  Then commit `bench(dd_sum): …`, `close fl-xf8hv25` (its verify is the
-  differential_products_
-  filter, warm), set the handoff on the task `prime` leads with, and
-  commit the store.
-claimed-by: claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
 ---
 Owner, 2026-10-15, in session: "allow product fols inside a dataflow". The adapters in
 src/exact/differential.rs and src/exact/dbsp.rs are the group operators by name and change
@@ -103,6 +44,7 @@ fl-gpjzcqc's.
 - 2026-10-16T14:06Z open→doing — claimed by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
 - 2026-10-16T14:23Z handoff by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
 - 2026-10-16T14:24Z handoff by claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)
+- 2026-10-16T14:42Z doing→done — verify exit 0 @ 91abe38+1
 
 ## comments
 - 2026-10-16T14:23Z [claude (028f9a17-8bd2-4590-bb38-7e9820e83a28)] Findings at 9714758, the test half. Every history and product fold the body names holds on the
