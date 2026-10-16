@@ -21,10 +21,10 @@ use timely::{CommunicationConfig, Config, WorkerConfig};
 
 use crate::support::pow2;
 
-type Worker = timely::worker::Worker;
+pub(crate) type Worker = timely::worker::Worker;
 /// One update: data, epoch, diff.
-type Update<D, R> = (D, u64, R);
-type Captured<D, R> = Receiver<Event<u64, Vec<Update<D, R>>>>;
+pub(crate) type Update<D, R> = (D, u64, R);
+pub(crate) type Captured<D, R> = Receiver<Event<u64, Vec<Update<D, R>>>>;
 /// An account and an amount, the amount as the double's bits.
 pub(crate) type Row = (u32, u64);
 /// The fixture the operator tests share: `(key, value)` rows weighted by `Exact`.
@@ -65,14 +65,14 @@ where
 }
 
 /// `expected`, in the order `netted` returns.
-fn sorted<D: Ord, R: Semigroup>(mut expected: Vec<Update<D, R>>) -> Vec<Update<D, R>> {
+pub(crate) fn sorted<D: Ord, R: Semigroup>(mut expected: Vec<Update<D, R>>) -> Vec<Update<D, R>> {
     consolidate_updates(&mut expected);
     expected
 }
 
 /// This worker's share of `rows`: every `peers`-th row from `index`, so three workers feed three
 /// interleaved thirds and exchange reassembles the accounts.
-fn share<'a>(worker: &Worker, rows: &'a [Row]) -> impl Iterator<Item = &'a Row> {
+pub(crate) fn share<'a>(worker: &Worker, rows: &'a [Row]) -> impl Iterator<Item = &'a Row> {
     let (index, peers) = (worker.index(), worker.peers());
     rows.iter().skip(index).step_by(peers)
 }

@@ -29,12 +29,12 @@ use crate::support::Rng;
 type Weighted = OrdIndexedWSet<u32, u32, Exact, DynWeightTyped<Exact>>;
 /// The SUM circuit's two ends: rows keyed by account with the amount's bits as the value, and
 /// each account's `Exact` total as a value with a `ZWeight` multiplicity.
-type Ends = (
+pub(crate) type Ends = (
     IndexedZSetHandle<u32, u64>,
     OutputHandle<OrdIndexedZSet<u32, Exact>>,
 );
 
-fn e(x: f64) -> Exact {
+pub(crate) fn e(x: f64) -> Exact {
     Exact::from(x)
 }
 
@@ -68,7 +68,7 @@ fn weighted(rows: &[((u32, u32), f64)]) -> Weighted {
 
 /// The SUM circuit on two workers, the idiom `examples/dbsp_uda` documents: `aggregate_linear`
 /// folds each account's amounts into an `Exact` accumulator, scaling each row by its `ZWeight`.
-fn sum_circuit() -> (dbsp::DBSPHandle, Ends) {
+pub(crate) fn sum_circuit() -> (dbsp::DBSPHandle, Ends) {
     Runtime::init_circuit(2, |circuit| {
         let (rows, handle) = circuit.add_input_indexed_zset::<u32, u64>();
         let totals = rows.aggregate_linear(|bits: &u64| e(f64::from_bits(*bits)));
@@ -79,18 +79,20 @@ fn sum_circuit() -> (dbsp::DBSPHandle, Ends) {
 
 /// The output's change at the last step: `(account, total, multiplicity)`, consolidated over
 /// the workers, in the batch's order.
-fn changes(output: &OutputHandle<OrdIndexedZSet<u32, Exact>>) -> Vec<(u32, Exact, ZWeight)> {
+pub(crate) fn changes(
+    output: &OutputHandle<OrdIndexedZSet<u32, Exact>>,
+) -> Vec<(u32, Exact, ZWeight)> {
     output.consolidate().iter().collect()
 }
 
 /// `expected` in a batch's order: by key, then by value, which for an `Exact` is numeric with
 /// the counts breaking a tie.
-fn sorted(mut expected: Vec<(u32, Exact, ZWeight)>) -> Vec<(u32, Exact, ZWeight)> {
+pub(crate) fn sorted(mut expected: Vec<(u32, Exact, ZWeight)>) -> Vec<(u32, Exact, ZWeight)> {
     expected.sort_by(|a, b| (a.0, &a.1).cmp(&(b.0, &b.1)));
     expected
 }
 
-fn push(ledger: &IndexedZSetHandle<u32, u64>, rows: &[(u32, f64, ZWeight)]) {
+pub(crate) fn push(ledger: &IndexedZSetHandle<u32, u64>, rows: &[(u32, f64, ZWeight)]) {
     for &(account, amount, multiplicity) in rows {
         ledger.push(account, (amount.to_bits(), multiplicity));
     }

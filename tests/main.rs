@@ -18,7 +18,10 @@ mod binned_product;
 mod convert;
 #[cfg(feature = "dbsp")]
 mod dbsp;
+#[cfg(feature = "dbsp")]
+mod dbsp_products;
 mod differential;
+mod differential_products;
 mod exact_cap;
 mod exact_heap;
 mod exact_heap_ring;

@@ -21,7 +21,7 @@ fn e(x: f64) -> Exact {
 }
 
 /// `x`'s finite part in units of `2^-2148`, the grid of a product of two doubles, through `Wide`.
-fn product_units(x: &Exact) -> BigInt {
+pub(crate) fn product_units(x: &Exact) -> BigInt {
     wide_units(&Wide::try_from(x).expect("a product fold of this band lies inside Wide's window"))
         << 1074
 }

@@ -164,12 +164,18 @@ timely::execute_directly(|worker| {
 
 `examples/dd_sum.rs` is the same idiom on three workers with a retraction epoch that nets to
 nothing. The multi-worker integration test covers `join`, `antijoin` with `isize`, `iterate`,
-`reduce`, `threshold`, `distinct` and `semijoin` with `Exact` in the diff.
+`reduce`, `threshold`, `distinct` and `semijoin` with `Exact` in the diff. A `join` of two
+`Exact`-weighted collections multiplies the weights, so a `float × float` join folded by
+`count_total`, a depth-3 join chain, and an `iterate` whose weight is multiplied every round all
+hold on the heap form; each is checked against an integer oracle on one worker and three, with
+retractions. The one panic left inside a dataflow is the limb cap, reachable through nested
+products alone; a consumer who can reach it builds with `panic = "abort"`, because one worker's
+panic otherwise leaves the others spinning.
 
 Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
-`aggregate_linear` takes it as the accumulator. That is the shape of Feldera's `CREATE LINEAR
-AGGREGATE`, the sanctioned route to an exact `SUM` over doubles, since the SQL compiler refuses to
-make `SUM(DOUBLE)` linear by design. `examples/dbsp_uda/` holds that aggregate's three Rust items
+`aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two
+columns. That is the shape of Feldera's `CREATE LINEAR AGGREGATE`, the sanctioned route to an
+exact `SUM` over doubles, since the SQL compiler refuses to make `SUM(DOUBLE)` linear by design. `examples/dbsp_uda/` holds that aggregate's three Rust items
 beside its SQL. The feature builds on the toolchain its CI job pins, rustc 1.99.0, because 1.97 and
 1.98 ICE inside dbsp.
 

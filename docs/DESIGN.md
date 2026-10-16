@@ -466,6 +466,19 @@ arrive as `−1 × Exact` through the same `Multiply<isize>`. The multi-worker i
 three workers and covers every operator listed above, an `antijoin` with `isize`, and a retraction
 epoch whose netted output is empty.
 
+What the heap form buys inside the engine, tests/differential_products.rs on one worker and three
+with serialized exchange: the five histories of docs/OVERFLOW.md and its seeded 2^±300 multiset
+complete through the plain idiom and land a `Wide` oracle per (key, epoch); a `join` of two
+`Exact`-weighted collections lands on `Multiply<Exact, Output = Exact>`, so a `float × float` join
+folded by `count_total` and a depth-3 join chain land a `num-bigint` oracle bit for bit, with
+retractions; and `iterate` carries a float weight through three rounds of `Exact × Exact`, the
+159- and 212-bit weights of the later rounds riding the feedback loop as heap values. A fold whose
+partial sums span any width holds, with nothing to check at the door. The one panic left inside
+a dataflow is the limb cap, sixteen products' worth of bits, reachable through nested products
+alone, and the exponent bound; a consumer who can reach either keeps `panic = "abort"`, because
+one worker's panic otherwise leaves the others spinning (docs/OVERFLOW.md § Why one worker's panic
+hangs the rest).
+
 ### DBSP {#sp-dbsp}
 
 A probe weight with `Exact`'s layout was compiled and run against published dbsp 0.364.0 on rustc
@@ -478,7 +491,10 @@ the leaf's `Neg`, which bounds the weight on `ZRingValue`, and no public operato
 directly. Nothing in dbsp is sealed: `DBData`, `DBWeight`, `Data`, `Weight`, `WeightTrait` and
 `Erase` are all blanket impls over public bounds. A custom-weight batch has no `iter`, which
 `IndexedZSetReader` keeps for `ZWeight`; its cursor reads it, with the typed weight derefing.
-tests/dbsp.rs runs the probe's cases against the shipped adapter.
+tests/dbsp.rs runs the probe's cases against the shipped adapter, and tests/dbsp_products.rs
+promotes an account's accumulator past the width through `aggregate_linear`, scales it by the
+`ZWeight`, demotes it on retraction, and folds a row's product, `Exact::product` of two columns,
+against a `num-bigint` oracle: the dot-product accumulator a UDA over two columns holds.
 
 | requirement | source | how |
 |---|---|---|

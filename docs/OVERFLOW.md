@@ -1,10 +1,13 @@
 # Overflow inside differential-dataflow
 
-`Exact` panics inside a dataflow on ordinary numbers, and no check on a single value can rule the
-panic out. This memo states what fits, why the panic lands where it does, and the ways out, each
-with what it costs and the evidence. The owner ruled for option 5, the heap arm, with option 1,
-the banded idiom, kept as its allocation-free fast path (fl-t154dsp), and § Cost measures the
-ruled 32-byte layout against the alternatives.
+The compact `Exact` panics inside a dataflow on ordinary numbers, and no check on a single value
+can rule the panic out. This memo states what fits, why the panic lands where it does, and the
+ways out, each with what it costs and the evidence. The owner ruled for option 5, the heap arm,
+with option 1, the banded idiom, kept as its allocation-free fast path (fl-t154dsp), and § Cost
+measures the ruled 32-byte layout against the alternatives. With the `alloc` feature the heap arm
+stands: every history and the seeded multiset below complete through the plain idiom, and
+products fold inside both engines (tests/differential_products.rs, tests/dbsp_products.rs); the
+compact form alone, which is `Exact` without `alloc`, is what the measurements describe.
 
 Every result below was run on a scratch crate outside the tree (its sources are attached to
 fl-zxpq1wz and fl-h41w0tr) against float-abel at 57e1354, differential-dataflow 0.25.1 and timely
@@ -18,11 +21,12 @@ not run.
 |---|---|---|---|---|
 | `Wide` | 296 B | every double, NaN and ±∞ included | nothing to check | never panics short of 2⁶³ updates the size of `f64::MAX` |
 | `Fixed256` | 32 B | finite doubles smaller than 3.96·10²⁸, on its grid: every double from 5.7·10⁻¹⁴ up is on it, a smaller one only if it is a multiple of 2⁻⁹⁶ | `Fixed256::try_from(x)` is `Ok`; or `Fixed256::quantize(x)` rounds it onto the grid first, by choice | never panics short of 2⁶⁴ updates at the ceiling |
-| `Exact` | 32 B | every double on its own | **no per-value check exists**: whether a value fits depends on the other values in the same total | panics when a sum it forms needs more than 127 bits |
+| `Exact`, compact form alone (no `alloc`) | 32 B | every double on its own | **no per-value check exists**: whether a value fits depends on the other values in the same total | panics when a sum it forms needs more than 127 bits |
 | `Exact`, banded (§ The banded idiom) | 32 B | every double, NaN and ±∞ included | nothing to check | never panics short of 2⁴³ live rows in one band of one key, or 2³¹ NaN or ∞ rows in one key |
+| `Exact`, heap arm (`alloc`) | 32 B, plus one allocation past a 127-bit span | every double, NaN and ±∞ included, and every product | nothing to check | panics at the limb cap, sixteen products' worth of bits (2³⁴³⁶⁸ in span), reachable through nested products alone, or at 2³⁰ in the exponent |
 
-**The rule for a plain `Exact`.** Write a sum out in binary. From its first 1 to its last 1 it may
-use at most 127 bits. A typical decimal such as 0.1, 3.14 or 1e-12 already uses 53 of them, so two
+**The rule for the compact `Exact`.** Write a sum out in binary. From its first 1 to its last 1 it
+may use at most 127 bits. A typical decimal such as 0.1, 3.14 or 1e-12 already uses 53 of them, so two
 such values in one total must be within about 10²² of each other in size:
 
 | sum | `f64` | `Exact` |
@@ -78,7 +82,11 @@ Five histories, every one ending at the same multiset {small}, with `|` between 
 Each cell held on 1 and 3 workers alike. C and E are the same three updates in one epoch in two
 arrival orders. The panic needs no dataflow: differential's public `consolidate_updates` over the
 three updates of C panics, and over E's order consolidates to `[small]` (`repro`, attached to
-fl-h41w0tr). `Fixed256` refuses 2¹⁰⁰⁰ at its door (`AboveCeiling`) before a dataflow starts, which
+fl-h41w0tr). On the heap arm every cell of the first two columns is exact, and on 1e300 and 1e-300
+too: history B holds the promoted `big + small` across an epoch as `count_total`'s data, C forms it
+inside `consolidate_updates` on the way to `small`, and both orders of the `repro` case
+consolidate to `[small]` in the compact form
+(tests/differential_products.rs, `the_five_histories` and `consolidate_updates`). `Fixed256` refuses 2¹⁰⁰⁰ at its door (`AboveCeiling`) before a dataflow starts, which
 is the per-value check doing its job. Every run that completed read the same double on both
 worker counts, so the order-independence of a result holds; what depends on order is whether
 a plain `Exact` gets to a result at all.
@@ -90,7 +98,10 @@ in timely_communication 0.31.0), so it blocks on worker 0, which keeps stepping 
 progress the dead worker will never send. The process spun at about 200% CPU until killed. Built
 with `panic = "abort"`, the same run exits with status 134 on 1 and 3 workers. A consumer who keeps
 any type that can still panic inside a dataflow needs that profile setting, or a panic becomes a
-hang.
+hang. On the heap arm the panic left inside a dataflow is the limb cap and the exponent bound: a
+value of sixteen products' worth of bits, reachable through nested products alone, which the
+2^±300 bands of the tests sit thousands of bits below; so the setting still applies to a consumer
+who can reach it, and the hang is the same.
 
 ## Why no 32-byte word takes every double
 
@@ -135,12 +146,17 @@ reading the small value exactly; a seeded multiset of 7,207 updates over 10 epoc
 magnitudes uniform over 2^±300 with full mantissas and either sign, a third of the live rows
 retracted each epoch, NaN and ±∞ on one key, 20 bands occupied, lands all 50 (key, epoch) reads on
 a `Wide` oracle bit for bit on 1 and 3 workers, while the same multiset through the plain idiom
-panics on 1 worker and hangs on 3.
+panics on 1 worker and hangs on 3 on the compact form. On the heap arm the same shape of multiset
+through the plain idiom lands all 50 (key, epoch) totals on the `Wide` oracle on 1 and 3 workers,
+45 or more of them heap values (tests/differential_products.rs, `the_seeded_multiset`).
 
 What it does not do: products. A row's product has a 106-bit mantissa, so a band for products
-would have to be 127 − 106 − log₂ n bits wide. A fold of products inside a dataflow is `Wide`'s
-(BENCH.md § Where the width caps: 42% of same-scale products refuse in an `Exact` fold), with
-`deposit_product` refused at the door past 2¹⁰³⁷.
+would have to be 127 − 106 − log₂ n bits wide. A fold of products inside a dataflow on the compact
+form is `Wide`'s (BENCH.md § Where the width caps: 42% of same-scale products refuse in an `Exact`
+fold), with `deposit_product` refused at the door past 2¹⁰³⁷. The heap arm holds that fold: a
+`float × float` join folded by `count_total`, a depth-3 join chain and three rounds of
+`Exact × Exact` through `iterate` land a `num-bigint` oracle in tests/differential_products.rs,
+and `aggregate_linear` over `Exact::product` of two columns lands it in tests/dbsp_products.rs.
 
 ## Cost
 
