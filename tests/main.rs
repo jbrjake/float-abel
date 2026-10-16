@@ -37,3 +37,4 @@ mod ui;
 mod wide;
 mod wide_group;
 mod wire;
+mod wire_heap;

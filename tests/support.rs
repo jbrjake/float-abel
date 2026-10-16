@@ -1,7 +1,57 @@
-//! Helpers the test topics share: a deterministic random stream and a hasher. Nothing here is a
-//! test, so the file is a `mod` of tests/main.rs like a topic but carries no `#[test]`.
+//! Helpers the test topics share: a deterministic random stream, a hasher, and an allocation
+//! counter, so a test can assert that a refusal allocated nothing. Nothing here is a test, so the
+//! file is a `mod` of tests/main.rs like a topic but carries no `#[test]`.
 
+use core::cell::Cell;
 use core::hash::{Hash, Hasher};
+use std::alloc::{GlobalAlloc, Layout, System};
+
+thread_local! {
+    /// Allocations made on this thread, counted by the test binary's allocator. A `const` initialiser
+    /// with no destructor, so reading it from inside `alloc` never allocates.
+    static ALLOCATIONS: Cell<u64> = const { Cell::new(0) };
+}
+
+/// The system allocator with a per-thread count of its allocations, so [`allocations`] can say
+/// how many a closure made with the other test threads out of the picture.
+struct Counting;
+
+// SAFETY: every method forwards to `System`, which upholds the contract; the count is the only
+// addition, and reading the thread-local allocates nothing.
+unsafe impl GlobalAlloc for Counting {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        ALLOCATIONS.with(|c| c.set(c.get() + 1));
+        // SAFETY: the caller's contract is this method's, passed through unchanged.
+        unsafe { System.alloc(layout) }
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        ALLOCATIONS.with(|c| c.set(c.get() + 1));
+        // SAFETY: as `alloc`.
+        unsafe { System.alloc_zeroed(layout) }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        ALLOCATIONS.with(|c| c.set(c.get() + 1));
+        // SAFETY: as `alloc`; `ptr` and `layout` are what this allocator handed out.
+        unsafe { System.realloc(ptr, layout, new_size) }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: as `realloc`.
+        unsafe { System.dealloc(ptr, layout) }
+    }
+}
+
+#[global_allocator]
+static ALLOCATOR: Counting = Counting;
+
+/// `f`'s result and the number of allocations it made on this thread.
+pub(crate) fn allocations<T>(f: impl FnOnce() -> T) -> (T, u64) {
+    let before = ALLOCATIONS.with(Cell::get);
+    let out = f();
+    (out, ALLOCATIONS.with(Cell::get) - before)
+}
 
 /// splitmix64: a deterministic stream for the randomised tests.
 pub(crate) struct Rng(pub(crate) u64);

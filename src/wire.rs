@@ -2,7 +2,7 @@
 //! little-endian. `to_bytes` and `from_bytes` on every exact type, [`WireError`] as the one
 //! refusal, and the `serde` feature carrying the same bytes. This file holds the error, the byte
 //! helpers and the [`Wide`] and [`Fixed`] codecs, which are total apart from the version byte and
-//! the length; `Exact`'s codec lives beside its canonical form, in `exact::wire`.
+//! the length; `Exact`'s codec, both forms, lives beside its canonical form, in `exact::wire`.
 
 use core::fmt;
 
@@ -19,11 +19,16 @@ mod serde_impls;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WireError {
     /// The first byte is not the type's [`WIRE_VERSION`](crate::Exact::WIRE_VERSION), so the body
-    /// is another type's, another revision's, or not this format at all.
+    /// is another type's, another revision's, or not this format at all. `Exact`'s
+    /// [`HEAP_TAG`](crate::Exact::HEAP_TAG) is read only behind the `alloc` feature; without it
+    /// the heap form's body is refused here.
     Version(u8),
-    /// The byte count is not the type's [`BYTES`](crate::Exact::BYTES).
+    /// The byte count is not the type's [`BYTES`](crate::Exact::BYTES), or, for `Exact`'s heap
+    /// form, not the length its header implies: the tag, the four header limbs and the limbs
+    /// they count, at least 33 bytes.
     Length {
-        /// The type's encoded length.
+        /// The type's encoded length, or the heap body's: the least it could be while the
+        /// header is unread, and the header's length once it is.
         expected: usize,
         /// The length offered.
         found: usize,
@@ -37,12 +42,14 @@ pub enum WireError {
     Exponent,
     /// `Exact`: a count equal to `i32::MIN`, which no operation produces and negation cannot take.
     Count,
-    /// `Exact`, heap form: a run's limb count past `EXACT_MAX_LIMBS`, refused before anything is
-    /// allocated, because an untrusted size gets a ceiling.
+    /// `Exact`, heap form: a run's limb count past `EXACT_MAX_LIMBS`, refused on the header before
+    /// the length is checked or anything is allocated, because an untrusted size gets a ceiling.
     Limbs,
     /// `Exact`, heap form: a body in a form no operation writes, so a second spelling of a value:
     /// a run that is not normalised (a leading zero limb, or a sign or an exponent on an empty
     /// run), or a value that fits the compact form and so belongs in its encoding.
+    /// [`EvenMantissa`](WireError::EvenMantissa) and [`Exponent`](WireError::Exponent) name a
+    /// run's even first limb and its exponent outside the bound, as they do the compact form's.
     Form,
 }
 

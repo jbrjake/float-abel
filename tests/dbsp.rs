@@ -1,8 +1,9 @@
 //! `Exact` as a DBSP weight, DESIGN.md § DBSP: a weighted batch consolidates and cancels exactly,
 //! `aggregate_linear` scales each row by its `ZWeight` and deletes a group on the exact zero, the
-//! archived form orders as `Ord` does and refuses a non-canonical word, and the integer scaling
-//! is the ring's. Every test is named `dbsp_*` so the task verify can filter on it; the topic
-//! compiles only under the `dbsp` feature, on the toolchain CLAUDE.md § Commands names.
+//! archived form of either form orders as `Ord` does and refuses a non-canonical word, a heap
+//! weight archives with its block beside the word, and the integer scaling is the ring's. Every
+//! test is named `dbsp_*` so the task verify can filter on it; the topic compiles only under the
+//! `dbsp` feature, on the toolchain CLAUDE.md § Commands names.
 //!
 //! A row carries its amount as the double's bits where it is a value, because `f64` is not `Ord`;
 //! dbsp's own `F64` would do too, and `examples/dbsp_uda` uses it.
@@ -95,11 +96,11 @@ fn push(ledger: &IndexedZSetHandle<u32, u64>, rows: &[(u32, f64, ZWeight)]) {
     }
 }
 
-/// `n` compact values over the tiers, seeded: a double as drawn, with a NaN or an infinity one
-/// time in sixteen; the exact sum of two such doubles, which spans far more than 53 bits when
-/// their exponents differ; the exact product of two, which spans 106; and an integer multiple. A
-/// result in the heap form, or past a cap, falls back to the first double alone, because the
-/// archived form is the compact word's.
+/// `n` values over the tiers and both forms, seeded: a double as drawn, with a NaN or an infinity
+/// one time in sixteen; the exact sum of two such doubles, which promotes when their exponents
+/// are far apart; the exact product of two, which spans 106 bits and stays compact; an integer
+/// multiple; a product of a sum, which promotes on most draws; and a dyadic special amount. A
+/// result past a cap falls back to the first double alone.
 fn mixed(n: usize) -> Vec<Exact> {
     let mut rng = Rng(0x5EED_DB5B);
     (0..n)
@@ -107,15 +108,22 @@ fn mixed(n: usize) -> Vec<Exact> {
             let a = e(rng.any());
             let b = e(rng.any());
             let k = (rng.next() % 2001) as i64 - 1000;
-            let result = match i % 4 {
+            let result = match i % 6 {
                 0 => Ok(a.clone()),
                 1 => a.checked_add(&b),
                 2 => a.checked_mul(&b),
-                _ => a.checked_mul_i64(k),
+                3 => a.checked_mul_i64(k),
+                4 => a.checked_add(&b).and_then(|s| s.checked_mul(&b)),
+                _ => a.checked_mul(&e(f64::NAN * 0.0 + 2.5)),
             };
-            result.ok().filter(Exact::is_compact).unwrap_or(a)
+            result.unwrap_or(a)
         })
         .collect()
+}
+
+/// How many of `values` are in the heap form.
+fn promoted(values: &[Exact]) -> usize {
+    values.iter().filter(|v| !v.is_compact()).count()
 }
 
 /// `x` in rkyv's archived form, as dbsp's storage writes it.
@@ -241,12 +249,18 @@ fn dbsp_specials_ride_the_accumulator_and_retract_exactly() {
 }
 
 /// `OrdRepr`'s contract: the archived form of `a` compared with `b` is `a.cmp(&b)`, and two
-/// archived forms order as their values do, on 10⁵ values over the tiers with the specials in,
-/// each against itself, its neighbour and a random partner. The three orderings are each seen
-/// at least a thousand times, so the check is not vacuous.
+/// archived forms order as their values do, on 10⁵ values over the tiers and both forms with
+/// the specials in, each against itself, its neighbour and a random partner. The three orderings
+/// are each seen at least a thousand times, and a fifth of the values are heap words, so the
+/// check is not vacuous on either form or across them.
 #[test]
 fn dbsp_archived_order_agrees_with_ord_on_mixed_tiers_and_specials() {
     let values = mixed(100_000);
+    assert!(
+        promoted(&values) > values.len() / 5,
+        "{}",
+        promoted(&values)
+    );
     let bytes: Vec<AlignedVec> = values.iter().map(archived).collect();
     let mut rng = Rng(7);
     let mut seen = [0usize; 3];
@@ -276,11 +290,13 @@ fn dbsp_archived_order_agrees_with_ord_on_mixed_tiers_and_specials() {
     );
 }
 
-/// The archived form is the 32-byte word itself, the wire body without its version byte, and it
-/// deserialises back to the value.
+/// The archived form of a compact value is the 32-byte word itself, the wire body without its
+/// version byte, and it deserialises back to the value.
 #[test]
 fn dbsp_archived_word_is_the_wire_body_and_round_trips() {
-    for x in mixed(1_000) {
+    let values: Vec<Exact> = mixed(1_000).into_iter().filter(Exact::is_compact).collect();
+    assert!(values.len() > 500, "{}", values.len());
+    for x in values {
         let bytes = archived(&x);
         assert_eq!(bytes.as_slice(), &x.to_bytes()[1..]);
         let back: Exact = root(&bytes)
@@ -290,33 +306,126 @@ fn dbsp_archived_word_is_the_wire_body_and_round_trips() {
     }
 }
 
-/// A word with an even mantissa is not a value, and no operation writes one; one that reaches
-/// the archived form from outside is refused with the invariant named, by the deserialiser and
-/// by the comparisons alike, because dbsp's deserialiser has no error channel.
+/// A heap value archives as the word with its block beside it: the root's `lo` is the block's
+/// used length doubled, the heap tag as in memory, its `hi` the block's offset from that field,
+/// the trailing fields zero, and the block, 8-aligned earlier in the archive, is the heap wire
+/// body behind its tag. It deserialises back to the value, in the heap form, and orders against
+/// every other form through `OrdRepr`.
+#[test]
+fn dbsp_an_archived_heap_word_carries_its_block_and_round_trips() {
+    let values: Vec<Exact> = mixed(3_000)
+        .into_iter()
+        .filter(|v| !v.is_compact())
+        .collect();
+    assert!(values.len() > 500, "{}", values.len());
+    let mut dyadic = 0;
+    for x in &values {
+        let body = x.encode();
+        let block = &body[1..];
+        let bytes = archived(x);
+        let root_at = bytes.len() - 32;
+        let word = &bytes[root_at..];
+        let used = (block.len() / 8) as u64;
+        assert_eq!(&word[..8], &(used << 1).to_ne_bytes());
+        let offset = i64::from_ne_bytes(word[8..16].try_into().unwrap());
+        assert!(word[16..].iter().all(|&b| b == 0));
+        let block_at = (root_at as i64 + 8 + offset) as usize;
+        assert_eq!(block_at % 8, 0);
+        // The block in the archive is the wire body's limbs, each in the machine's byte order,
+        // which on this little-endian target is the wire's.
+        let archived_block: Vec<u8> = bytes[block_at..block_at + block.len()]
+            .chunks_exact(8)
+            .flat_map(|c| u64::from_ne_bytes(c.try_into().unwrap()).to_le_bytes())
+            .collect();
+        assert_eq!(archived_block, block);
+        let arch = root(&bytes);
+        let back: Exact = arch.deserialize(&mut rkyv::Infallible).expect("infallible");
+        assert_eq!(&back, x);
+        assert!(!back.is_compact());
+        assert_eq!(arch.ord_cmp(x), Ordering::Equal);
+        assert_eq!(arch.ord_cmp(&e(0.1)), x.cmp(&e(0.1)));
+        assert_eq!(arch.ord_cmp(&-x), x.cmp(&-x));
+        dyadic += usize::from(x.specials().is_none());
+    }
+    assert!(dyadic > 100, "{dyadic}");
+}
+
+/// A word that is not a value, which no operation writes, reaching the archived form from
+/// outside is refused with the invariant named, by the deserialiser and by the comparisons alike,
+/// because dbsp's deserialiser has no error channel: a compact word with an even mantissa, a
+/// compact word whose flipped bit makes it look like a heap word, and a heap word whose block is
+/// not canonical, refused before its block is read where the word alone says so.
 #[test]
 fn dbsp_a_non_canonical_archived_word_is_refused() {
-    let mut raw = archived(&e(0.1)).to_vec();
-    raw[0] ^= 1;
-    let mut bytes = AlignedVec::new();
-    bytes.extend_from_slice(&raw);
-    let arch = root(&bytes);
-    let refused = |run: &dyn Fn()| {
-        let payload = catch_unwind(AssertUnwindSafe(run)).expect_err("refused");
-        let message = payload
-            .downcast_ref::<String>()
-            .cloned()
-            .unwrap_or_default();
-        assert!(message.contains("canonical"), "{message}");
+    let refused = |bytes: &AlignedVec| {
+        let arch = root(bytes);
+        let refused = |run: &dyn Fn()| {
+            let payload = catch_unwind(AssertUnwindSafe(run)).expect_err("refused");
+            let message = payload
+                .downcast_ref::<String>()
+                .cloned()
+                .unwrap_or_default();
+            assert!(message.contains("canonical"), "{message}");
+        };
+        refused(&|| {
+            let _: Exact = arch.deserialize(&mut rkyv::Infallible).expect("infallible");
+        });
+        refused(&|| {
+            let _ = arch.ord_cmp(&e(0.1));
+        });
+        refused(&|| {
+            let _ = arch.cmp(arch);
+        });
+        refused(&|| {
+            let _ = arch == arch;
+        });
     };
-    refused(&|| {
-        let _: Exact = arch.deserialize(&mut rkyv::Infallible).expect("infallible");
-    });
-    refused(&|| {
-        let _ = arch.ord_cmp(&e(0.1));
-    });
-    refused(&|| {
-        let _ = arch.cmp(arch);
-    });
+    let flipped = |x: &Exact, byte: usize| -> AlignedVec {
+        let mut raw = archived(x).to_vec();
+        raw[byte] ^= 1;
+        let mut bytes = AlignedVec::new();
+        bytes.extend_from_slice(&raw);
+        bytes
+    };
+    // An even mantissa with a nonzero exponent: no heap word has an exponent in the word.
+    refused(&flipped(&e(0.1), 0));
+    // 3 flipped to 2, exponent 0, no counts: the heap tag with a length under the header.
+    refused(&flipped(&e(3.0), 0));
+    // A heap word's block: the finite run's first limb made even, its last limb zeroed, and a
+    // header count raised past what the block holds.
+    let x = e(1e300) + e(1e-300);
+    assert!(!x.is_compact());
+    let bytes = archived(&x);
+    let root_at = bytes.len() - 32;
+    let offset = i64::from_ne_bytes(bytes[root_at + 8..root_at + 16].try_into().unwrap());
+    let block_at = (root_at as i64 + 8 + offset) as usize;
+    let header = &bytes[block_at..block_at + 8];
+    let len = (u64::from_ne_bytes(header.try_into().unwrap()) >> 32) as usize & 0x7FFF_FFFF;
+    assert_eq!(len, 32);
+    let corrupted = |edit: &dyn Fn(&mut [u8])| -> AlignedVec {
+        let mut raw = bytes.to_vec();
+        edit(&mut raw);
+        let mut out = AlignedVec::new();
+        out.extend_from_slice(&raw);
+        out
+    };
+    refused(&corrupted(&|raw| raw[block_at + 32] ^= 1));
+    refused(&corrupted(&|raw| {
+        raw[block_at + 32 + 8 * 31..block_at + 32 + 8 * 32].fill(0);
+    }));
+    refused(&corrupted(&|raw| raw[block_at + 4] += 1));
+    // The length in the word past the cap's block: refused on the word, before the block.
+    refused(&corrupted(&|raw| {
+        raw[root_at..root_at + 8].copy_from_slice(&(u64::MAX << 1).to_ne_bytes());
+    }));
+    refused(&corrupted(&|raw| raw[root_at + 16] = 1));
+    // The same corruptions are what `from_bytes` refuses on the wire, by the same rules.
+    let mut body = x.encode();
+    body[33] ^= 1;
+    assert_eq!(
+        Exact::from_bytes(&body),
+        Err(float_abel::WireError::EvenMantissa)
+    );
 }
 
 /// `MulByRef<i64>` and `MulByRef<isize>`, what `aggregate_linear` scales a row's contribution by,

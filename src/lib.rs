@@ -21,8 +21,9 @@
 //! and converts to a [`Wide`] rather than serving as a weight.
 //!
 //! Each group type has one canonical encoding, `FORMAT.md`: `to_bytes` and `from_bytes` on every
-//! feature set, and `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A
-//! decoder refuses anything that is not a canonical value, as a [`WireError`], never a panic.
+//! feature set, `Exact::encode` for either of its forms behind `alloc`, and
+//! `Serialize`/`Deserialize` carrying the same bytes behind the `serde` feature. A decoder refuses
+//! anything that is not a canonical value, as a [`WireError`], never a panic.
 //! `Binned` has none, and crosses a boundary as the `Wide` it converts to. Behind the `arbitrary`
 //! feature each group type implements `Arbitrary`, so a fuzz target draws canonical values
 //! directly; the crate's own targets live under `fuzz/`.

@@ -247,8 +247,11 @@ type (`0x01` `Exact`, `0x02` `Wide`, `0x03` `Fixed`) then the type's `repr(C)` b
 impls carry the same bytes: `Exact` and `Wide` as one byte string, so bincode 1 frames the 33 with a
 `u64` length and postcard with a varint, and `Fixed` as a tuple of its bytes. A decoder refuses
 anything that is not a canonical value, as a `WireError`, never a panic, because a non-canonical
-value smuggled through a batch would break `Eq`-substitutability in an engine's builder. `Binned` has
-no wire form and crosses a boundary as the `Wide` it converts to. The format freezes at 1.0.
+value smuggled through a batch would break `Eq`-substitutability in an engine's builder. `Exact`'s
+heap form, behind `alloc`, encodes under its own first byte (`0x04`) as the block the word holds,
+through `encode`, and `from_bytes` reads both forms; the decoder bounds the limb counts by the cap
+before it allocates and refuses a heap body whose value the compact form holds. `Binned` has no
+wire form and crosses a boundary as the `Wide` it converts to. The format freezes at 1.0.
 
 ## Features
 

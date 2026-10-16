@@ -4,11 +4,12 @@
 //! sets and 10⁴ seeded random multisets from the stream frozen in stream.rs. Each multiset goes
 //! through every tier: `Wide` with its group ops, its reads and its view as a `Binned`; a `Binned`
 //! fold with its bins and the `Wide` it converts to, since `Binned` has no wire form; `Fixed256`
-//! with every input accepted or refused by name; `Exact` with every input accepted, in the compact
-//! form by its bytes and in the heap form by its reads alone; the conversions between them; the
-//! 106-bit product on each; the bulk entries, `extend_from_slice` on `Wide`, `Fixed256` and
-//! `Binned` and the dot product of the multiset with its own reverse through `deposit_products`
-//! on each, which run whatever kernel this target dispatches to behind the `simd` feature.
+//! with every input accepted or refused by name; `Exact` with every input accepted, in either form
+//! by its bytes; the conversions between them; the 106-bit product on each; the bulk entries,
+//! `extend_from_slice` on `Wide`, `Fixed256` and `Binned` and the dot product of the multiset with
+//! its own reverse through `deposit_products` on each, which run whatever kernel this target
+//! dispatches to behind the `simd` feature, and through `Exact`'s product deposits one pair at a
+//! time, a fold of products that promotes.
 //! Every integer enters the digest little-endian, every double as its
 //! bits and every refusal as one tag byte, so a difference on a big-endian target is the crate's,
 //! never this file's. Every test is named `golden_*`.
@@ -41,7 +42,7 @@ const MULTISETS: u64 = 10_000;
 /// seed and the record layout, and both are asserted before the hash because a different count of
 /// records is a more legible finding than a different hash.
 const ELEMENTS: u64 = 325_745;
-const BYTES: u64 = 65_385_705;
+const BYTES: u64 = 74_365_506;
 /// The batch tier's width here: three bins, the design's default.
 const K: usize = 3;
 
@@ -57,8 +58,7 @@ mod tag {
     pub(crate) const FIXED: u8 = 0x21;
     pub(crate) const EXACT: u8 = 0x22;
     pub(crate) const BINNED: u8 = 0x23;
-    /// An `Exact` in its heap form: its reads alone, with no bytes, because the heap form's
-    /// encoding is the wire task's.
+    /// An `Exact` in its heap form: its `encode` bytes, the tag then the block, and its reads.
     pub(crate) const EXACT_HEAP: u8 = 0x24;
     /// A lone double read, such as a quotient.
     pub(crate) const F64: u8 = 0x30;
@@ -166,13 +166,15 @@ impl Transcript {
         self.reads(f.to_f64(), f.try_to_f64(), f.to_f32());
     }
 
+    /// Either form by its own tag and its `encode` bytes, which for the compact form are
+    /// `to_bytes`.
     fn exact(&mut self, e: &Exact) {
-        if e.is_compact() {
-            self.tag(tag::EXACT);
-            self.put(&e.to_bytes());
+        self.tag(if e.is_compact() {
+            tag::EXACT
         } else {
-            self.tag(tag::EXACT_HEAP);
-        }
+            tag::EXACT_HEAP
+        });
+        self.put(&e.encode());
         self.reads(e.to_f64(), e.try_to_f64(), e.to_f32());
     }
 
@@ -215,15 +217,18 @@ struct Stats {
     multisets: u64,
     elements: u64,
     /// Inputs `Fixed256` refused one at a time and in bulk, products `Wide`, `Fixed256` and
-    /// `Binned` refused, and deposits that left `Exact` in its heap form: each path must have
-    /// been taken, so each is asserted positive. A product deposit on `Exact::ZERO` never
-    /// promotes (two doubles' product fits the width) and is not counted.
+    /// `Binned` refused, deposits that left `Exact` in its heap form, product folds that did, and
+    /// heap values carrying a dyadic special amount: each path must have been taken, so each is
+    /// asserted positive. A product deposit on `Exact::ZERO` never promotes (two doubles' product
+    /// fits the width) and is not counted.
     fixed_refused: u64,
     fixed_bulk_refused: u64,
     wide_products_refused: u64,
     fixed_products_refused: u64,
     binned_products_refused: u64,
     exact_promoted: u64,
+    exact_dot_promoted: u64,
+    exact_dyadic: u64,
     bytes: u64,
 }
 
@@ -373,6 +378,9 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         t.exact(&e);
     }
     if let Some(e) = t.result(exact_sum.checked_mul(&factor)) {
+        // A non-integer factor on a special count is a dyadic amount, which only the heap form
+        // holds.
+        s.exact_dyadic += u64::from(!e.is_compact() && e.specials().is_none());
         t.exact(&e);
     }
     t.tag(tag::F64);
@@ -384,7 +392,17 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         t.exact(&e);
     }
 
-    // The 106-bit product of the first and last inputs on every tier.
+    products(t, s, xs, first, last);
+
+    s.multisets += 1;
+    s.elements += xs.len() as u64;
+}
+
+/// The products of one multiset: the 106-bit product of its first and last inputs on every tier,
+/// and its dot product with its own reverse through each tier's bulk entry, or the refusal, and
+/// through `Exact` one product deposit per pair, a fold of products that promotes on mixed
+/// magnitudes and holds every pair.
+fn products(t: &mut Transcript, s: &mut Stats, xs: &[f64], first: f64, last: f64) {
     t.exact(&Exact::product(first, last));
     let mut wide_product = Wide::ZERO;
     match t.result(wide_product.deposit_product(first, last)) {
@@ -401,8 +419,6 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
         Some(()) => t.binned(&binned_product),
         None => s.binned_products_refused += 1,
     }
-    // The multiset's dot product with its own reverse through each tier's bulk entry, or its
-    // refusal.
     let reversed: Vec<f64> = xs.iter().rev().copied().collect();
     let mut wide_dot = Wide::ZERO;
     match t.result(wide_dot.deposit_products(xs, &reversed)) {
@@ -425,9 +441,12 @@ fn absorb(t: &mut Transcript, s: &mut Stats, rng: &mut Rng, xs: &[f64]) {
     {
         t.exact(&exact_product);
     }
-
-    s.multisets += 1;
-    s.elements += xs.len() as u64;
+    let mut exact_dot = Exact::ZERO;
+    for (&a, &b) in xs.iter().zip(&reversed) {
+        t.result(exact_dot.checked_deposit_product(a, b));
+    }
+    s.exact_dot_promoted += u64::from(!exact_dot.is_compact());
+    t.exact(&exact_dot);
 }
 
 /// The whole transcript: the two vector sets, then `multisets` random multisets from `seed`.
@@ -459,8 +478,10 @@ fn golden_hash_matches_the_committed_claim() {
             && s.wide_products_refused > 0
             && s.fixed_products_refused > 0
             && s.binned_products_refused > 0
-            && s.exact_promoted > 0,
-        "every refusal path and the heap form are in the transcript: {s:?}"
+            && s.exact_promoted > 0
+            && s.exact_dot_promoted > 0
+            && s.exact_dyadic > 0,
+        "every refusal path and every heap vector are in the transcript: {s:?}"
     );
     assert_eq!(s.elements, ELEMENTS, "{s:?}");
     assert_eq!(s.bytes, BYTES, "{s:?}");

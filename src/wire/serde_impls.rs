@@ -2,8 +2,8 @@
 //! string, the bytes `to_bytes` gives handed to `serialize_bytes`, so a format frames them with its
 //! own length (a `u64` on bincode 1, a varint on postcard, an array of numbers on `serde_json`) and
 //! the serializer runs about once per value rather than once per byte, which is what an engine's
-//! exchange pays per update, three passes over. An `Exact` in its heap form serialises as its heap
-//! body, the same way, behind `alloc`. `Fixed` serialises as a fixed-length tuple of its bytes,
+//! exchange pays per update, three passes over. An `Exact` in its heap form serialises as its
+//! `encode` body, the same way, behind `alloc`. `Fixed` serialises as a fixed-length tuple of its bytes,
 //! one element each, because its length is `1 + 8 * LIMBS`, which stable Rust cannot spell as an
 //! array type inside the impl, and a byte string needs one slice; a format that writes a tuple's
 //! elements back to back emits its `to_bytes` byte for byte. Every decoder gathers the bytes, from
@@ -36,8 +36,8 @@ fn fill<'de, A: SeqAccess<'de>>(
 
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Exact {
-    /// [`Exact::to_bytes`] as one byte string of 33 bytes for the compact form; the heap body for
-    /// the heap form.
+    /// [`Exact::to_bytes`] as one byte string of 33 bytes for the compact form; `encode`'s heap
+    /// body, the same way, for the heap form.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         #[cfg(feature = "alloc")]
         if !self.is_compact() {
@@ -49,19 +49,6 @@ impl Serialize for Exact {
 
 struct ExactVisitor;
 
-impl ExactVisitor {
-    fn decode<E: de::Error>(bytes: &[u8]) -> Result<Exact, E> {
-        #[cfg(feature = "alloc")]
-        {
-            Exact::decode(bytes).map_err(de::Error::custom)
-        }
-        #[cfg(not(feature = "alloc"))]
-        {
-            Exact::from_bytes(bytes).map_err(de::Error::custom)
-        }
-    }
-}
-
 impl<'de> Visitor<'de> for ExactVisitor {
     type Value = Exact;
 
@@ -69,9 +56,9 @@ impl<'de> Visitor<'de> for ExactVisitor {
         write!(f, "the {}-byte wire encoding of an Exact", Exact::BYTES)
     }
 
-    /// The byte string, whatever its length: the decoder refuses the wrong one by name.
+    /// The byte string, whatever its length: [`Exact::from_bytes`] refuses the wrong one by name.
     fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Exact, E> {
-        Self::decode(v)
+        Exact::from_bytes(v).map_err(de::Error::custom)
     }
 
     /// A human-readable format's array of numbers, one byte each. A heap body is gathered whole
@@ -81,17 +68,17 @@ impl<'de> Visitor<'de> for ExactVisitor {
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(0, &self))?;
         #[cfg(feature = "alloc")]
-        if first == crate::exact::HEAP_TAG {
+        if first == Exact::HEAP_TAG {
             let mut buf = alloc::vec![first];
             while let Some(b) = seq.next_element::<u8>()? {
                 buf.push(b);
             }
-            return Self::decode(&buf);
+            return Exact::from_bytes(&buf).map_err(de::Error::custom);
         }
         let mut buf = [0u8; Exact::BYTES];
         buf[0] = first;
         fill(&mut seq, &mut buf[1..], 1, &self)?;
-        Self::decode(&buf)
+        Exact::from_bytes(&buf).map_err(de::Error::custom)
     }
 }
 

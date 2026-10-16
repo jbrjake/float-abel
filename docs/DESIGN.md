@@ -223,9 +223,10 @@ copy in the compact form and one allocation in the heap form, `Drop` frees the b
 fields, 32 bytes, 8-aligned, and a differential update tuple with a `u64` key stays 48 bytes.
 `src/exact/heap.rs` is the one module beside `src/simd/` that lifts `#![deny(unsafe_code)]`, each
 block stating its invariant: the tag bit decides the form, a heap `hi` is a pointer that module
-allocated with the capacity in `lo`, and no other code reads a heap word's fields. The fields are
-private because a word with an even mantissa is not a compact value: bytes from outside go through
-the validating decoder.
+allocated with the capacity in `lo`, no other code reads a heap word's fields, and an archived
+heap word's offset reaches the block its `Serialize` wrote beside it. The fields are private
+because a word with an even mantissa is not a compact value: bytes from outside go through the
+validating decoder.
 
 The compact fast paths are the whole cost on data that never promotes: `+=` on a compact word runs
 the compact add in place with no drop glue, `clone_from` between compact words is a copy, `is_zero`
@@ -245,9 +246,10 @@ highest exceeds 127 bits, so a sum is refused on what it is, not on what an oper
 way) and the counts (an `i32`, never `i32::MIN`, so negation is total; and a non-integer amount)
 are its caps, `PastCap::Width` and `PastCap::Count`; `PastCap` carries all four variants on every
 feature set, and the two builds differ in which are ever returned. `to_bytes` encodes the compact
-form and panics by name on the heap form, whose encoding is § Wire format's open item;
-`specials()` returns the `(n, p, q)` counts as `i64` when every amount is an integer `i64` holds,
-and `None` for a dyadic amount or one past `i64`, which only the heap form has.
+form in place and panics by name on the heap form, `encode` writes either form and `from_bytes`
+reads both (§ Wire format); `specials()` returns the `(n, p, q)` counts as `i64` when every amount
+is an integer `i64` holds, and `None` for a dyadic amount or one past `i64`, which only the heap
+form has.
 
 ### Wide {#sp-wide}
 
@@ -360,25 +362,30 @@ One canonical little-endian encoding per type, a leading version byte then the b
 the `serde` feature and by `to_bytes`/`from_bytes` without it:
 
 - `Exact` in its compact form as its 32 bytes, two limbs, the exponent and three counts, which is
-  that form's in-memory layout. The heap form has no `to_bytes` encoding; under `serde` it crosses
-  an engine's exchange as a tagged body (`0x04`, then each run's sign, exponent and limb count,
-  then the limbs), whose decoder refuses a body that is not normalised or whose value fits the
-  compact form, and which `from_bytes` does not take;
+  that form's in-memory layout; in its heap form, under its own first byte, as the block the word
+  holds, four header limbs (sign, limb count, exponent) for the finite part and the three amounts
+  then the four runs of normalised limbs, which is the block's in-memory layout and its rkyv
+  archive too. `to_bytes` is the compact form's fixed array, `encode` either form's bytes behind
+  `alloc`, and `from_bytes` reads both;
 - `Wide` as 272 limb bytes then 24 counter bytes, which is its in-memory layout;
 - `Fixed` as its limbs, which is its in-memory layout.
 
-The version byte names the type as well as the revision (`0x01` `Exact`, `0x02` `Wide`, `0x03`
-`Fixed`), so a `Fixed256` body is never read as an `Exact` though both are 33 bytes, and a later
-revision of a type's encoding takes a fresh value. Each body is the type's `repr(C)` bytes on a
-little-endian machine, with the size and alignment pinned by `const` assertions, so an engine that
-frames its own extents casts a mapping to `Wide` or `Fixed` without a copy, every bit pattern of
-theirs being a value. `Exact`'s bytes from outside still pass the validating decoder, because an even
-mantissa is not a value.
+The version byte names the type and its form as well as the revision (`0x01` `Exact`, `0x02`
+`Wide`, `0x03` `Fixed`, `0x04` the heap `Exact`), so a `Fixed256` body is never read as an `Exact`
+though both are 33 bytes, and a later revision of a type's encoding takes a fresh value. Each body
+is the type's `repr(C)` bytes on a little-endian machine, with the size and alignment pinned by
+`const` assertions, so an engine that frames its own extents casts a mapping to `Wide` or `Fixed`
+without a copy, every bit pattern of theirs being a value. `Exact`'s bytes from outside still pass
+the validating decoder, because an even mantissa is not a value.
 
 **Decoding validates canonical form and refuses anything else.** A non-canonical value smuggled
 through a batch would break `Eq`-substitutability in differential-dataflow's builder, so a decoder
 that accepted one would be a correctness hole, not a leniency. A refusal is a typed error,
-`WireError`, never a panic. Under `serde`, `Exact` and `Wide` serialise as one byte string, the
+`WireError`, never a panic. The heap decoder checks the header's limb counts against
+`EXACT_MAX_LIMBS` before the length and before it allocates, because an untrusted size gets a
+ceiling, validates every run over the bytes, and refuses a body whose value fits the compact form,
+so one value has one encoding across the forms; the archive's reader applies the same rules to a
+block. Under `serde`, `Exact` and `Wide` serialise as one byte string, the
 `to_bytes` bytes handed to `serialize_bytes`, so a format frames them with its own length (a `u64` on
 bincode 1, a varint on postcard, an array of numbers on serde_json) and the serializer runs about
 once per value rather than once per byte, which is what an engine's exchange pays per update, three
@@ -386,15 +393,16 @@ passes over; `tests/wire.rs` pins the framing with postcard, which is maintained
 as a fixed-length tuple of its bytes, as a `[u8; N]` does, because its length is not a constant the
 impl can spell, so a format writing elements back to back emits its `to_bytes` byte for byte. Through
 differential-dataflow the encoding rides whatever timely frames exchanged data with, which at timely
-0.31 is bincode 1.3; through DBSP it is rkyv 0.7. The format freezes at 1.0 and is documented in
-`FORMAT.md`, in bitrep's style, with vectors.
+0.31 is bincode 1.3; through DBSP it is rkyv 0.7, the word with a heap block beside it (§ DBSP).
+The format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, with vectors.
 
 ## Crate posture {#sp-posture}
 
 - MIT OR Apache-2.0. Edition 2021.
 - `#![deny(unsafe_code)]` crate-wide, lifted only inside `src/simd/`, where the intrinsics live, and
-  `src/exact/heap.rs`, where `Exact`'s heap form owns its block, with a `// SAFETY:` line on every
-  block. With the `simd` and `alloc` features off, the crate is `unsafe`-free end to end.
+  `src/exact/heap.rs`, where `Exact`'s heap form owns its block and its rkyv archive reaches it,
+  with a `// SAFETY:` line on every block. With the `simd` and `alloc` features off, the crate is
+  `unsafe`-free end to end.
 - `#![no_std]`. `Wide`, `Fixed` and `Binned` are `Copy` plain words that never allocate; `Exact`
   allocates only in its heap form, behind `alloc`, and is the compact form alone without it. `std`
   (the default) implies `alloc` and adds the test kit and `std::error::Error`.
@@ -416,7 +424,7 @@ differential-dataflow the encoding rides whatever timely frames exchanged data w
 |---|---|---|
 | `alloc` | — | `Exact`'s heap form: promotion past the width, dyadic special amounts, the limb cap as the one cap beside the exponent bound |
 | `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
-| `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode; the heap form's exchange body with `alloc` |
+| `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode; either form of `Exact` with `alloc` |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
 | `dbsp` | dbsp 0.364 + rkyv 0.7 (`std`, `size_64`) + feldera-size-of 0.1.7 + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
@@ -476,8 +484,8 @@ tests/dbsp.rs runs the probe's cases against the shipped adapter.
 |---|---|---|
 | `Clone + Default + Debug + Eq + Ord + Hash + Send + Sync + 'static` | `DBData` | already |
 | `SizeOf` | feldera-size-of 0.1.7 (`package = "feldera-size-of"`) | derive |
-| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | `Archive` and `Serialize` derived on the struct, six integers, so the archived form is the compact word itself (the wire body without its version byte); `Deserialize`, `Eq` and `Ord` on the archived form hand-written through one validating constructor, which refuses a non-canonical word with a panic naming the invariant, because dbsp's deserialiser has no error channel. A heap word archived as its six integers is refused the same way, by its even low limb: a promoted weight lives in dbsp's in-memory batches, and the heap form's archived form is § Wire format's open item |
-| `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written through the same constructor, because `Ord` is hand-written; tested against `Ord` on 10⁵ values over mixed tiers and specials |
+| rkyv 0.7 `Archive + Serialize + Deserialize`, with `Archived<Exact>: Ord` | `ArchivedDBData` | `Archive` and `Serialize` hand-written: the archived form is the 32-byte word, for a compact value the word itself (the wire body without its version byte), for a heap value the word with its heap tag in `lo` and in `hi` the offset of the block `Serialize` wrote 8-aligned beside it, the heap wire body behind its tag. `Deserialize`, `Eq` and `Ord` on the archived form hand-written through the wire decoder's two validating constructors, one per form, which refuse a non-canonical word with a panic naming the invariant, because dbsp's deserialiser has no error channel; a heap block is bounded by the cap before it is read and validated before it is used, and the comparisons read it in place without a copy. The one `unsafe fn`, `resolve`, and the block's reader live in `src/exact/heap.rs` |
+| `OrdRepr<Exact> for Archived<Exact>`, agreeing with `Ord` | `ord_repr.rs`: *"an implementation that disagrees with Ord silently returns the wrong rows"* | hand-written through the same constructors, because `Ord` is hand-written; tested against `Ord` on 10⁵ values over mixed tiers, both forms and specials |
 | `IsNone` + `SupportsRoaring` | `utils/{is_none,supports_roaring}.rs` | dbsp's own exported `never_none!` and `never_roaring_filter!`, which expand to what `#[derive(feldera_macros::IsNone)]` emits, so feldera-macros is not a dependency |
 | `HasZero` (exact `is_zero`), `AddByRef`/`AddAssignByRef` | `algebra.rs`; blankets over `&T: Add` and `T: AddAssign<&T>` | std ops |
 | `MulByRef<i64, Output = Exact>` | `aggregate_linear`'s accumulator bound; retractions arrive as `f(v).mul_by_ref(&w)` with negative `w` | explicit |
@@ -578,11 +586,13 @@ they are missed.
 
 No floating-point instruction executes in any group op or in `to_f64`: only `to_bits`, shifts and
 adds with carry. So rounding modes, FTZ/DAZ, x87 excess precision and FMA contraction can't reach the
-result. CI proves it the way bitrep does. One SHA-256 is taken over every tier's `to_bytes` and reads
-(`to_f64`, `try_to_f64`, `to_f32`, `div_f64`) for every vector in the rounding and conformance sets
-and for 10⁴ seeded random multisets, each run through `Wide`, `Fixed`, `Exact` and `Binned` with
-every refusal entering by name; `Binned` has no wire form, so its `index`, `limbs` and `carries`
-enter with the `Wide` it converts to. The transcript is `tests/golden/`, its own workspace member,
+result. CI proves it the way bitrep does. One SHA-256 is taken over every tier's canonical bytes
+(`to_bytes`, and `encode` for an `Exact` in its heap form) and reads (`to_f64`, `try_to_f64`,
+`to_f32`, `div_f64`) for every vector in the rounding and conformance sets and for 10⁴ seeded random
+multisets, each run through `Wide`, `Fixed`, `Exact` and `Binned` with every refusal entering by
+name, the heap form entering through promoted sums, a fold of row products and a dyadic special
+amount; `Binned` has no wire form, so its `index`, `limbs` and `carries` enter with the `Wide` it
+converts to. The transcript is `tests/golden/`, its own workspace member,
 because the main test target links engine dependencies wasm32 cannot run. It is asserted equal to
 `tests/data/golden.sha256` on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32 (wasmtime),
 and, through QEMU via `cross`, riscv64gc and s390x. s390x is big-endian, which is what catches a
@@ -678,10 +688,6 @@ owner's act; so is any announcement.
 - **The `Exact` limb cap.** The design takes a named panic at `EXACT_MAX_LIMBS`, because
   `plus_equals` can't return an error. The alternative refuses at `deposit_product` and makes
   `Multiply` saturate to a sticky NaN amount: that is total, but non-linear.
-- **The heap form on the wire.** `to_bytes` is the compact form's, serde carries the heap form
-  under a provisional tag, and rkyv's archive refuses it by name; one encoding for both forms, the
-  decoder's limb-count ceiling, the golden hash over heap vectors and the archived form are one
-  piece of work.
 
 ## References
 

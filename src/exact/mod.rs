@@ -35,8 +35,6 @@ mod wire;
 use core::fmt;
 
 use compact::{Compact, Overflow};
-#[cfg(all(feature = "alloc", feature = "serde"))]
-pub(crate) use wire::HEAP_TAG;
 
 use crate::ieee::{self, Special};
 
@@ -127,13 +125,12 @@ impl PastCap {
 /// The layout is `repr(C)` with no padding: two limbs, the exponent, three counts. In the compact
 /// form the bytes are the little-endian wire form on a little-endian machine. A byte pattern with
 /// an even mantissa is not a compact value, so bytes from outside go through the validating
-/// decoder, [`Exact::from_bytes`], and `to_bytes` encodes the compact form; a heap value crosses
-/// an engine's exchange as its serde bytes.
+/// decoder, [`Exact::from_bytes`], which reads both forms; `to_bytes` encodes the compact form in
+/// place and `encode` either form behind `alloc`, the heap form as its tag and its block.
 ///
 /// Behind the `dbsp` feature the compact word is its own rkyv archive, so DBSP's storage writes it
-/// as these bytes; the archived form's `Deserialize` and comparisons refuse a non-canonical word,
-/// and a heap word, by name.
-#[cfg_attr(feature = "dbsp", derive(rkyv::Archive, rkyv::Serialize))]
+/// as these bytes, and a heap word archives as the word with its block beside it; the archived
+/// form's `Deserialize` and comparisons refuse a non-canonical word by name.
 #[repr(C)]
 pub struct Exact {
     lo: u64,
