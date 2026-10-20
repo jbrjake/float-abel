@@ -243,7 +243,7 @@ does not compile; a row's product enters through `deposit_product` at the door. 
 bytes: a `Wide` update tuple is 312 bytes against `Exact`'s 48, and on 10⁷ same-scale updates the
 `Wide` diff runs 4.4–5.1× the `Exact` one and 9.5–13.7× `isize` (BENCH.md § The end-to-end SUM).
 
-Behind the `dbsp` feature, `Exact` is a DBSP 0.364 `DBWeight`: a weighted batch takes it, and
+Behind the `dbsp` feature, `Exact` is a DBSP 0.367 `DBWeight`: a weighted batch takes it, and
 `aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two
 columns. That is the shape of Feldera's `CREATE LINEAR AGGREGATE`, the sanctioned route to an
 exact `SUM` over doubles, since the SQL compiler refuses to make `SUM(DOUBLE)` linear by design. `examples/dbsp_uda/` holds that aggregate's three Rust items
@@ -345,7 +345,7 @@ wire form and crosses a boundary as the `Wide` it converts to. The format freeze
 | `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
-| `dbsp` | dbsp 0.364 + rkyv 0.7 + feldera-size-of + `std` | the DBSP adapter |
+| `dbsp` | dbsp 0.367 + rkyv 0.7 + feldera-size-of + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
 | `simd` | `std` | runtime-dispatched NEON and AVX2 bulk kernels, the `unsafe` beside the heap form's |
 | `arbitrary` | arbitrary 1 | fuzz inputs |

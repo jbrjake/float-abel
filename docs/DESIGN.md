@@ -468,7 +468,7 @@ The format freezes at 1.0 and is documented in `FORMAT.md`, in bitrep's style, w
 | `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
 | `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode; either form of `Exact` with `alloc` |
 | `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
-| `dbsp` | dbsp 0.364 + rkyv 0.7 (`std`, `size_64`) + feldera-size-of 0.1.7 + `std` | the DBSP adapter |
+| `dbsp` | dbsp 0.367 + rkyv 0.7 (`std`, `size_64`) + feldera-size-of 0.1.7 + `std` | the DBSP adapter |
 | `laws` | proptest | the laws kit |
 | `simd` | `std` (runtime detection is `std::arch`'s macro) | runtime-dispatched NEON/AVX2/AVX-512 bulk kernels, the `unsafe` beside the heap form's |
 | `arbitrary` | arbitrary 1 | fuzz inputs |
@@ -552,8 +552,9 @@ nothing. The idiom sums: a row's product has a 106-bit mantissa and no band narr
 
 ### DBSP {#sp-dbsp}
 
-A probe weight with `Exact`'s layout was compiled and run against published dbsp 0.364.0 on rustc
-1.99.0 (its source is attached to the store's "Ship the dbsp feature" task). It covered consolidation
+A probe weight with `Exact`'s layout was compiled and run against published dbsp on rustc 1.99.0
+(its source is attached to the store's "Ship the dbsp feature" task), and the adapter's own tests
+run at the feature's floor, dbsp 0.367.0, on the same compiler. The probe covered consolidation
 of `0.1 + 0.2` on an `OrdIndexedWSet` and its exact cancellation on merge with `−0.2, −0.1`, and
 `aggregate_linear` scaling by `MulByRef<i64>` and retracting a group on an exact zero. Three
 deliberate breaks failed on `IsNone`/`SupportsRoaring`, `OrdRepr`, and `HasOne`/`Mul`/`Neg`
@@ -604,11 +605,11 @@ compiler wraps it in `Tup3<acc, i64, i64>`), and the crate ships that UDA as its
 Constraints: the `dbsp` CI job pins rustc 1.99.0, and the push gate runs the feature's tests and
 its example on that toolchain when it is installed. rkyv is used with
 `default-features = false, features = ["std", "size_64"]` to match dbsp's. The feature takes
-`dbsp = "0.364"`, a caret on the minor like differential's, so a consumer's own 0.364.x unifies
+`dbsp = "0.367"`, a caret on the minor like differential's, so a consumer's own 0.367.x unifies
 with it; the probe runs at the floor of the range, and moving the floor means re-running the probe
-there first. The feature's closure is 440 crates against the crate's 114, carrying eight licences the
-crate's own allow-list lacks (BSD-3-Clause, ISC, Zlib, MIT-0, CC0-1.0, BSL-1.0, CDLA-Permissive-2.0
-and bzip2-1.0.6, across 18 crates), 30 duplicate majors and rkyv 0.7's RUSTSEC-2026-0235, so
+there first. The feature's closure is 513 crates against the crate's 114, carrying nine licences the
+crate's own allow-list lacks (BSD-3-Clause, ISC, Zlib, MIT-0, CC0-1.0, BSL-1.0, CDLA-Permissive-2.0,
+bzip2-1.0.6 and MPL-2.0, across 22 crates), 27 duplicate majors and rkyv 0.7's RUSTSEC-2026-0235, so
 `deny.toml` checks every feature but `dbsp` and `deny-dbsp.toml` states that closure row by row, run
 by the dbsp CI job and the push gate.
 

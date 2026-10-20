@@ -72,9 +72,10 @@ outside `~/Documents`.
   through timely and paste through columnation, are ignored by id in `deny.toml` with the dragging
   crate named, never by `unmaintained = "workspace"`, so a third advisory still fails the gate
   (owner: "Ignore both by id").
-- `dbsp` is on a caret, `"0.364"`, like differential's, so a consumer's own 0.364.x unifies with
+- `dbsp` is on a caret, `"0.367"`, like differential's, so a consumer's own 0.367.x unifies with
   it, and its probe runs at the floor of the range (owner: chose "Caret: dbsp = "0.364"" over the
-  exact pin). Its closure is checked by `deny-dbsp.toml` in the dbsp CI job and the push gate
+  exact pin, then "Bump dbsp to 0.367" past zip 6's advisories, the floor moving with the caret
+  kept). Its closure is checked by `deny-dbsp.toml` in the dbsp CI job and the push gate
   while `deny.toml` checks every other feature, so the crate's own posture stays as strict as it
   is (owner: "follow your rec on dbsp's CI job").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
