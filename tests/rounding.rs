@@ -8,7 +8,7 @@
 
 use float_abel::{Exact, Fixed256, Wide};
 
-use crate::support::{pow2, Rng};
+use crate::support::{pow2, rounds, Rng};
 
 /// `(-1)^negative · mant · 2^exp`, the mantissa as limbs, low first, with no zero limb on top.
 struct Dyadic {
@@ -461,7 +461,7 @@ fn agree(seed: u64, multisets: usize) {
 
 #[test]
 fn rounding_tiers_agree_on_a_slice_of_random_multisets() {
-    agree(0x2a9ee, 20_000);
+    agree(0x2a9ee, rounds(20_000));
 }
 
 /// The full million, which the push gate runs with `--include-ignored`.
