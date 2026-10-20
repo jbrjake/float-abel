@@ -1,7 +1,7 @@
 ---
 id: fl-ss8hygv
 title: Free the runner's disk in CI's dbsp job and drop its stale-cache fallback
-status: doing
+status: done
 category: ci/dbsp
 relates: [fl-v6f5d70, fl-jphvxrs]
 verify: contains .github/workflows/ci.yml /df -h/
@@ -9,7 +9,6 @@ docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 55
 created: 2026-10-20T15:45Z
-claimed-by: claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
 ---
 
 The `ci` workflow's dbsp job failed at 79cf25b (run 39449087008, job 118718750574, 7m24s): clippy
@@ -34,3 +33,16 @@ splitting clippy and the tests into two jobs so no single runner holds both arti
 ## log
 - 2026-10-20T15:45Z created
 - 2026-10-20T17:01Z open→doing — claimed by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
+- 2026-10-20T17:24Z doing→done — verify exit 0 @ cd82359+1
+
+## comments
+- 2026-10-20T17:24Z [claude (30b8d01c-d5ec-456d-a066-16edcae1c161)] Green on the pushed commit: run 39463529492 on 4a83a00 (19cecd2 is the ci change), dbsp job 118768785008, 14m31s end to end against the 17m45s of the 0.364 cold run and the two deaths at 0.367. The disk step's two readings, on ubuntu-24.04 image 20261018.339, /dev/root 72G:
+  
+  - before: 61G used, 12G available (84%)
+  - after: 39G used, 34G available (54%)
+  
+  so the four trees held 22G, removed in 65 s (the Android SDK is the slow one). The paths are the ones the image's own build scripts name: `install-android-sdk.sh` ANDROID_ROOT=/usr/local/lib/android, `install-dotnetcore-sdk.sh` --install-dir /usr/share/dotnet, `install-haskell.sh` GHCUP_INSTALL_BASE_PREFIX=/usr/local (so `/usr/local/.ghcup`, not the `/opt/ghc` the body guessed), `install-codeql-bundle.sh` under $AGENT_TOOLSDIRECTORY/CodeQL, reached in the job as `$RUNNER_TOOL_CACHE/CodeQL`. The Ubuntu 26.04 readme lists the same four (ANDROID_HOME at the same path), and the label's migration notice now says November 2026, so the step carries over.
+  
+  The cache: "Cache not found for input keys: dbsp-Linux-dc0215dc…" (no fallback, as intended), the closure built cold, clippy 2m02s, the dbsp_ tests 7m58s (22 passed, 346 s in the harness), the UDA example 5 s, ui_ 1m16s (2 passed), cargo-deny 32 s, and "Cache saved with key: dbsp-Linux-dc0215dc…" in 51 s. The next run with this lockfile restores that exact key. The 0.364 caches (dbsp-Linux-f7e7afa1…, 1.8 GiB each on main and the three dependabot refs) age out on their own; nothing restores them now.
+  
+  Left as it was: the miri job's and the gate job's `restore-keys`. The gate passed on its fallback every run, and the miri job has never saved a cache (no miri-* key exists), so neither has shown the failure; if either does, this step and the key change are the shape.
