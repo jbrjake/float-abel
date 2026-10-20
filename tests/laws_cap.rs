@@ -3,8 +3,8 @@
 //! is only as strong as its strategy. Here the strategy sits at the closure check's own budget
 //! under the cap, where a case's fold climbs onto the cap's last bit and retracts across it and
 //! the products land there too, and a control that refuses that bit fails the law on this
-//! strategy and holds on every binade. Every test is named `laws_closure_exact_at_the_cap_*` so
-//! the task verify can filter on it.
+//! strategy and holds on every binade. Every test is named `laws_closure_exact_at_the_cap_*` or
+//! `laws_ring_exact_at_the_cap_*` so a task verify can filter on it.
 
 use core::ops::{Add, Mul, Neg, Sub};
 
@@ -32,7 +32,12 @@ const CAP_BITS: i32 = 64 * EXACT_MAX_LIMBS as i32;
 /// The bits the closure check needs under the cap: it folds up to `WEIGHTS` weights in a
 /// thousand orders, and thirty-two integers under `2^k` sum under `2^(k + 5)` in every order and
 /// every partial, so a weight under `2^(CAP_BITS − 5)` keeps every sum a case forms inside the
-/// cap, and a weight one bit wider does not. The multipliers take the same five bits.
+/// cap, and a weight one bit wider does not. The multipliers take the same five bits, for the
+/// ring check too: it forms `(a + b)·k` and `(a − b)·k`, one bit wider than a weight, but every
+/// shape below is odd, so a pairwise sum or difference is even and the heap form's odd mantissa
+/// is a bit narrower than the sum, which pays for the ring's extra bit. A weight alone times an
+/// odd `k ≥ 17` spans exactly `CAP_BITS`; a four-bit multiplier would leave every product a bit
+/// short of the cap's last bit, which the ring control below would catch.
 const HEADROOM: i32 = WEIGHTS.trailing_zeros() as i32;
 const _: () = assert!(WEIGHTS == 1 << HEADROOM);
 
@@ -163,6 +168,50 @@ fn laws_closure_exact_at_the_cap_holds_the_group_laws() {
     assert_eq!(
         laws::check_abelian_group(&mut edge_runner(), exact_at_the_cap()),
         Ok(())
+    );
+}
+
+/// Distributivity on the same strategy, `(a + b)·k == a·k + b·k` and its retraction form bit for
+/// bit, with the products landing on the cap's last bit: the law differential-dataflow's join
+/// relies on, checked where the heap form is widest.
+#[test]
+fn laws_ring_exact_at_the_cap_holds_by_an_integer() {
+    assert_eq!(
+        laws::check_ring(&mut edge_runner(), exact_at_the_cap(), edge_int()),
+        Ok(())
+    );
+}
+
+/// The same with the multiplier an `Exact`, so `Mul<Exact>` distributes on the cap's last bit too.
+#[test]
+fn laws_ring_exact_at_the_cap_holds_by_an_exact() {
+    assert_eq!(
+        laws::check_ring(&mut edge_runner(), exact_at_the_cap(), edge_exact()),
+        Ok(())
+    );
+}
+
+/// The ring reaches the edge inside the sweep's own cases: the control fails on a product, a
+/// weight at the edge times an odd `k ≥ 17`, which spans exactly `CAP_BITS`. The ring check
+/// forms its products outside the kit's panic catch, so the reason is the control's own message.
+#[test]
+fn laws_ring_exact_at_the_cap_control_fails_on_the_last_bit() {
+    let (why, case) = failure(
+        laws::check_ring(
+            &mut unshrunk_for(CASES),
+            exact_at_the_cap().prop_map(UnderCap),
+            edge_int(),
+        ),
+        "the ring check",
+    );
+    assert!(
+        why.contains("a product lands on the cap's last bit"),
+        "{why}"
+    );
+    assert!(!case.weights.is_empty(), "{case:?}");
+    assert!(
+        case.multipliers.iter().any(|k| k.abs() >= 17 && k % 2 != 0),
+        "no odd multiplier of five bits to land on the last bit: {case:?}"
     );
 }
 
