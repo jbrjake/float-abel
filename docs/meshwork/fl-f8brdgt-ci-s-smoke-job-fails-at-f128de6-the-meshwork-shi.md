@@ -1,9 +1,11 @@
 ---
 id: fl-f8brdgt
 title: "CI's smoke job fails at f128de6: the meshwork shim execs a v0.5.3 binary the runner never installs (exit 127)"
-status: open
+status: doing
 category: ci/smoke
 created: 2026-10-20T00:33Z
+verify: contains scripts/smoke.sh CI:-
+claimed-by: claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 ---
 
 The `ci` workflow's `smoke + regression (stable)` job fails at `f128de6` (run 38957258898,
@@ -23,3 +25,4 @@ commit.
 
 ## log
 - 2026-10-20T00:33Z created
+- 2026-10-20T14:58Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
