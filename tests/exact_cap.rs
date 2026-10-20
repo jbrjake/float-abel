@@ -539,9 +539,24 @@ fn exact_cap_closed_a_product_at_the_cap_is_refused_only_past_it() {
     assert_eq!(all_ones, two_to(c - 1) - e(1.0));
 }
 
+/// The shapes the cross keeps under miri, where every limb of a cap-wide operand is interpreted
+/// and a product of two is quadratic in them: the two widest, the half-span one whose doubled sum
+/// lands exactly at the cap, a power past the cap and the two small ones, so held and refused
+/// sums and products all still occur.
+#[cfg(miri)]
+const MIRI_CROSS: [&str; 6] = [
+    "2^(C-1) + 3",
+    "2^C - 1",
+    "2^(C-2) + 1",
+    "2^(C+64)",
+    "1",
+    "2^64 + 1",
+];
+
 /// Every pairwise sum, difference and product of the edge shapes is held exactly when its result
 /// spans at most the cap and refused exactly when it spans more: the operations decide by the
-/// result, not by the operands' spans, and every value they land retracts.
+/// result, not by the operands' spans, and every value they land retracts. Under miri the cross
+/// runs over `MIRI_CROSS` and the identities over every shape.
 #[test]
 fn exact_cap_closed_sums_and_products_at_the_edge_agree_with_the_oracle() {
     let shapes = edge_shapes();
@@ -554,6 +569,13 @@ fn exact_cap_closed_sums_and_products_at_the_edge_agree_with_the_oracle() {
         assert_eq!(v.checked_mul_i64(-1), Ok(-v), "{name}");
         assert_eq!(&(v + v) - v, *v, "{name}");
     }
+    #[cfg(miri)]
+    let shapes: Vec<_> = shapes
+        .into_iter()
+        .filter(|(name, ..)| MIRI_CROSS.contains(name))
+        .collect();
+    let n = shapes.len();
+    assert_eq!(n, if cfg!(miri) { 6 } else { 11 });
     for (an, a, oa) in &shapes {
         for (bn, b, ob) in &shapes {
             for (sign, bb, obb) in [(1, b.clone(), ob.clone()), (-1, -b, -ob)] {
@@ -590,6 +612,6 @@ fn exact_cap_closed_sums_and_products_at_the_edge_agree_with_the_oracle() {
             }
         }
     }
-    assert_eq!(held + refused, 11 * 11 * 3);
+    assert_eq!(held + refused, n * n * 3);
     assert!(held > 0 && refused > 0, "{held} held, {refused} refused");
 }

@@ -119,8 +119,9 @@ jobs:
 
   # Undefined behaviour under the interpreter, DESIGN.md § Hardening: the lib's unit tests, the
   # no-feature build and the integration suite. Under `cfg(miri)` the statistical sweeps run a
-  # hundredth of their rounds, because miri runs a limb operation some thousand times slower than
-  # the machine does; trybuild (spawns cargo) and the timely topics (three worker threads) are
+  # hundredth of their rounds and the cap-edge oracle cross six of its eleven shapes, because miri
+  # runs a limb operation some thousand times slower than the machine does and the suite step has
+  # an hour; trybuild (spawns cargo) and the timely topics (three worker threads) are
   # ignored, the laws kit is out (a proptest case runs minutes under the interpreter), and every
   # bulk entry takes the portable kernel, because miri interprets no vector intrinsic. The dbsp
   # feature stays out: its toolchain is pinned, and nothing in it reads bytes from outside except
