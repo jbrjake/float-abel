@@ -13,9 +13,9 @@ handoff: |
   Next session: main is at the first fully green `ci` runs (39471909369
   and 39483989145, every job),
   and this is the one open runner issue. The dbsp job is fixed for good
-  (disk step, exact cache key,
-  fl-ss8hygv) and the miri job ends inside its hour at 41 to 43 minutes,
-  which is the problem: the
+  (the disk step and the exact
+  cache key in ci.yml) and the miri job ends inside its hour at 41 to 43
+  minutes, which is the problem: the
   suite step's wall is the suite's total work over the runner's threads,
   the box varies a quarter
   between runs, and the ceiling is sixty.
@@ -44,10 +44,11 @@ handoff: |
   miri's virtual clock).
   Then push and read the step's wall from `gh run view <run> --json jobs`;
   the per-test gap table
-  is the python in this session's close comments on fl-sq2sv0n and
-  fl-jphvxrs, over the job log
-  fetched with `gh api repos/jbrjake/float-abel/actions/jobs/<id>/logs`
-  once the run completes.
+  is a short python over the job log's timestamps (`search "gap table"`
+  finds the comment that
+  records one, with the method), the log fetched with `gh api
+  repos/jbrjake/float-abel/actions/jobs/<id>/logs` once the whole run
+  completes.
   
   The ceiling itself is the owner's: `timeout-minutes: 90` on the miri job
   costs billed minutes and
@@ -68,3 +69,4 @@ The ci miri job's suite step is throughput-bound on the runner's cores: identica
 ## log
 - 2026-10-20T20:16Z created
 - 2026-10-20T20:17Z handoff by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
+- 2026-10-20T20:18Z handoff by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
