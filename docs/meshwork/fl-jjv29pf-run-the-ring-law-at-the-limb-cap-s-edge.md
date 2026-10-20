@@ -1,7 +1,7 @@
 ---
 id: fl-jjv29pf
 title: Run the ring law at the limb cap's edge
-status: open
+status: doing
 category: crate/types
 labels: [reproducible-floats]
 discovered-from: fl-cwwnyas
@@ -10,6 +10,7 @@ verify: run cargo test package=float-abel laws_ring_exact_at_the_cap
 docs:
   - docs/DESIGN.md#the-laws-kit-sp-laws-kit
 created: 2026-10-16T19:42Z
+claimed-by: claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 ---
 
 tests/laws_cap.rs runs the closure and group laws at the limb cap's edge on `exact_at_the_cap()`,
@@ -28,3 +29,4 @@ the task's close comment.
 
 ## log
 - 2026-10-16T19:42Z created
+- 2026-10-20T15:22Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)

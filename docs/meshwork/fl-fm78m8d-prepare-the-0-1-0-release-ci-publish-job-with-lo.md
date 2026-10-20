@@ -11,7 +11,7 @@ status: open
 created: 2026-10-11T15:02Z
 covers:
   - ref: docs/DESIGN.md#sp-release
-    sha: 56381872cf6a1b1ceef187cdda6df4028cbdee7e10fddf87590a202cc3ee6f62
+    sha: 3478ee626df5140b33eec38f959ee91cf3e5745abfb611a5e9d4941b60eec782
 handoff: |
   Waits on the publish ruling in this task's `needs:` (who runs `cargo
   publish`: CI on the owner's
@@ -70,3 +70,5 @@ flow, provenance, `cargo-semver-checks` armed from here, and the `## 0.1.0` CHAN
 - 2026-10-11T15:03Z cover docs/DESIGN.md#sp-release @56381872cf6a
 - 2026-10-14T21:28Z handoff by claude (4e0e29d7-b85d-4a99-93e3-a9a5c00bb168)
 - 2026-10-16T19:34Z handoff by claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
+- 2026-10-20T15:18Z cover docs/DESIGN.md#sp-release @3478ee626df5
+- 2026-10-20T15:22Z cover docs/DESIGN.md#sp-release @3478ee626df5

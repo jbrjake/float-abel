@@ -10,7 +10,7 @@ docs:
   - docs/DESIGN.md#release-sp-release
   - CLAUDE.md#standing-decisions
 verify: "all(exists .github/workflows/release.yml, contains .github/workflows/release.yml workflow_dispatch, contains .github/workflows/release.yml crates-io-auth-action)"
-status: open
+status: done
 created: 2026-10-20T15:04Z
 ---
 Owner, 2026-10-20, on fl-k3g1511: "make it a ci publish on my manual trigger". A `release.yml` on
@@ -34,3 +34,8 @@ DESIGN.md § Release say the ruling. Nothing publishes until the owner dispatche
 
 ## log
 - 2026-10-20T15:04Z created
+- 2026-10-20T15:19Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:22Z doing→done — verify exit 0 @ 9f651e2+4
+
+## comments
+- 2026-10-20T15:22Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 built at 9f651e2. Validated here: scripts/check-actions-pinned.sh OK on release.yml, YAML parses (8 steps, inputs tag and auth), cargo publish --dry-run --locked exit 0 (49 files, 148.4KiB compressed), and cargo package --locked leaves target/package/float-abel-<v>.crate, the attestation's subject. Not validated: a dispatch, which is the owner's act and needs the release environment (auto-created on first run), the CARGO_REGISTRY_TOKEN secret for the first publish, and a public repository for actions/attest-build-provenance. The tag's signature is fl-x2k7fbb's.

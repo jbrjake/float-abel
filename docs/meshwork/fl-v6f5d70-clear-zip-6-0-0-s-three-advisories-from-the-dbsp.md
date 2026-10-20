@@ -41,3 +41,4 @@ Recommendation: (a). The verify is the lockfile's zip at 9.
 
 ## comments
 - 2026-10-20T15:07Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 owner ruled, in session, choosing route (a): "Bump dbsp to 0.367". The floor moves from "0.364" to "0.367" with the caret kept; the probe re-runs at the new floor on rustc 1.99.0 and deny-dbsp.toml's rows are re-derived there.
+- 2026-10-20T15:13Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 owner, in session, on the bump's one licence cost: allowed MPL-2.0 in deny-dbsp.toml for colored 3.1.1, feldera-observability 0.367.0's; deny.toml's posture unchanged.

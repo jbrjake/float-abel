@@ -3,7 +3,7 @@ id: fl-x2k7fbb
 title: "Verify the dispatched tag's signature in release.yml against the owner's committed key"
 category: crate/release
 labels: [reproducible-floats]
-seq: 170
+seq: 175
 discovered-from: fl-k3g1511
 needs: [fl-5qbt792]
 docs:
