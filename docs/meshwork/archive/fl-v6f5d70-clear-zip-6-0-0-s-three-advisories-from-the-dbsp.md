@@ -1,7 +1,7 @@
 ---
 id: fl-v6f5d70
 title: "Clear zip 6.0.0's three advisories from the dbsp closure, which fail the push gate"
-status: doing
+status: done
 category: crate/adapters
 relates: [fl-f8brdgt]
 verify: contains Cargo.lock /(?s)name = "zip"\nversion = "9\./
@@ -10,7 +10,6 @@ docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 50
 created: 2026-10-20T15:05Z
-claimed-by: claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 ---
 
 The push gate's `cargo deny --config deny-dbsp.toml check` fails closed at ef90777 on three
@@ -38,7 +37,9 @@ Recommendation: (a). The verify is the lockfile's zip at 9.
 ## log
 - 2026-10-20T15:05Z created
 - 2026-10-20T15:07Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:31Z doing→done — verify exit 0 @ 79cf25b+1
 
 ## comments
 - 2026-10-20T15:07Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 owner ruled, in session, choosing route (a): "Bump dbsp to 0.367". The floor moves from "0.364" to "0.367" with the caret kept; the probe re-runs at the new floor on rustc 1.99.0 and deny-dbsp.toml's rows are re-derived there.
 - 2026-10-20T15:13Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 owner, in session, on the bump's one licence cost: allowed MPL-2.0 in deny-dbsp.toml for colored 3.1.1, feldera-observability 0.367.0's; deny.toml's posture unchanged.
+- 2026-10-20T15:31Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 cleared at db4e5d9, pushed in 79cf25b: the push gate's two cargo-deny checks read 'advisories ok, bans ok, licenses ok, sources ok' on the way out (regression: OK), with dbsp at 0.367.0 and zip at 9.0.5 in Cargo.lock. deny-dbsp.toml's rows were re-derived from a no-skip bans run over the new closure; MPL-2.0 allowed for colored on the owner's word. CI run 39449087008 carries the dbsp job's own deny check.
