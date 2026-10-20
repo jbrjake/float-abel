@@ -421,10 +421,11 @@ fn binned_product_deposit_products_is_the_pairwise_fold_or_nothing() {
     assert_same_bits(&bulk, &base, "deposit_products");
     assert!(!bulk.is_zero());
     // A pair at the ceiling anywhere in the slices refuses them whole: nothing is deposited.
+    let last = lhs.len() - 1;
     let mut poisoned_lhs = lhs.clone();
     let mut poisoned_rhs = rhs.clone();
-    poisoned_lhs[2999] = pow2(1000);
-    poisoned_rhs[2999] = -pow2(37);
+    poisoned_lhs[last] = pow2(1000);
+    poisoned_rhs[last] = -pow2(37);
     let mut same = base;
     assert_eq!(
         same.deposit_products(&poisoned_lhs, &poisoned_rhs),
