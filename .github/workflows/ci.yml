@@ -1,5 +1,6 @@
 # The functional gate, in CI. The gate job runs the same scripts the git hooks run, so local and
-# remote green have one definition. The other jobs cover what a local run may skip: the MSRV build
+# remote green have one definition, less the task store's lint, which smoke.sh skips under CI
+# because no job installs meshwork. The other jobs cover what a local run may skip: the MSRV build
 # on exactly the default features, cargo-deny, and on the one toolchain dbsp builds on, the dbsp
 # feature and the compile-fail wording. Benchmarks and the golden hash have their own workflows.
 name: ci

@@ -33,8 +33,13 @@ if [ "$actions" -eq 1 ]; then
   ./scripts/check-actions-pinned.sh "${files[@]}"
 fi
 
+# The store lint is the one leg CI never runs: the shim execs a binary only a session's machine
+# installs, and CI carries no meshwork dependency at all (owner: "not running meshwork calls in ci
+# to avoid the dependency altogether"). The store is linted where it is edited, at commit time.
 if [ "$store" -eq 1 ]; then
-  if [ -x docs/meshwork/meshwork ]; then
+  if [ -n "${CI:-}" ]; then
+    echo "smoke: SKIPPED meshwork lint (CI never installs meshwork; the store is linted at commit time)" >&2
+  elif [ -x docs/meshwork/meshwork ]; then
     docs/meshwork/meshwork lint
   else
     echo "smoke: SKIPPED meshwork lint (docs/meshwork/meshwork is not executable here)" >&2
