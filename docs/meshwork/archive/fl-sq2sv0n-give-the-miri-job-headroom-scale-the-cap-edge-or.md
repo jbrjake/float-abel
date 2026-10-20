@@ -1,7 +1,7 @@
 ---
 id: fl-sq2sv0n
 title: "Give the miri job headroom: scale the cap-edge oracle cross under miri"
-status: doing
+status: done
 category: crate/hardening
 relates: [fl-jphvxrs, fl-mewakns]
 verify: contains tests/exact_cap.rs /cfg(_attr)?\(miri/
@@ -9,7 +9,6 @@ docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 62
 created: 2026-10-20T18:05Z
-claimed-by: claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
 ---
 
 The ci miri job's `cargo miri test --locked --test main` step first ran to the end of the suite on 2026-10-20 (run 39463529492, job 118768785023) and took 49m26s of its 60-minute ceiling (17:12:18 to 18:01:44, 175 tests, 135 passed, 39 ignored, the one failure being fl-mewakns). Gaps between consecutive test-completion lines in that log, a lower bound on the test named since the harness runs tests in parallel: `exact_cap::exact_cap_closed_sums_and_products_at_the_edge_agree_with_the_oracle` 961.6 s, `exact_heap_ring::exact_heap_ring_a_dot_product_of_mixed_pairs_matches_the_oracle_both_ways` 205.9 s, `wide_group::wide_folds_are_order_independent` 176.2 s, `exact_ring::exact_ring_mul_is_a_commutative_ring_with_integer_special_amounts` 82.1 s, then a tail of 50 to 65 s each (simd extend_from_slice, binned_product's truncation sweep, the conformance vectors, the merge-partition fold, the rounding slice). The edge test is not a `rounds()` sweep: it crosses every pair of the 11 cap-edge shapes in tests/exact_cap.rs's `edge_shapes()` through sum, difference and product against the BigInt oracle, each operand a thousand-odd limbs, which the interpreter runs some thousand times slower than the machine. Ten minutes of headroom on a shared runner is not enough; the fix is either a subset of the shapes under `cfg(miri)` (the first and last few, so the cap edge still crosses once), or `#[cfg_attr(miri, ignore = ...)]` on the edge test with the reason, as the laws kit is. Measure first: run the suite here with `cargo +nightly miri test --test main -- --test-threads=1` through the `date +%T` prefix loop in the build-environment memory so each test's own time is known, record the top ten in a comment, then scale, push and record the miri step's duration on the pushed commit.
@@ -17,6 +16,7 @@ The ci miri job's `cargo miri test --locked --test main` step first ran to the e
 ## log
 - 2026-10-20T18:05Z created
 - 2026-10-20T18:49Z open→doing — claimed by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
+- 2026-10-20T20:17Z doing→done — verify exit 0 @ 0fb05d8+2
 
 ## comments
 - 2026-10-20T19:15Z [claude (30b8d01c-d5ec-456d-a066-16edcae1c161)] Measured here on 2026-10-20 at d43282d, `cargo +nightly miri test --test main -- --test-threads=1` with a clock prefix per line (miri-profile.sh in this session's scratchpad), M5 Max, nothing else of ours running: the suite is 1312 s over 163 non-ignored tests (136 passed, 39 ignored; 21m52s wall for the step). Each test's own time, top ten:
@@ -33,3 +33,8 @@ The ci miri job's `cargo miri test --locked --test main` step first ran to the e
   - 24 s rounding::rounding_tiers_agree_on_a_slice_of_random_multisets
   
   So the cap-edge cross is 30% of the suite on its own and the only test not already through rounds(); the runner ran it about 2.4× slower (961 s lower bound). The cut: under cfg(miri) the cross runs over six of the eleven shapes (the two widest, the half-span one, 2^(C+64), 1 and 2^64 + 1), 108 ops for 363, with the identity loop still over all eleven; the count assertion follows n.
+- 2026-10-20T20:17Z [claude (30b8d01c-d5ec-456d-a066-16edcae1c161)] Green on the pushed commit: run 39483989145 on 6caea03 (d367260 is the change), miri job 118840223548, the suite step 40m52s (19:33:35 to 20:14:27) and the job 43m00s, inside its hour. In that log the cap-edge cross's gap is 310 s where it was 961 s at eleven shapes (run 39463529492), so the cut took about two thirds off the one test, as the 400 s to 2 min wall here predicted.
+  
+  The step's wall did not follow, and the reason is in the gap tables: every other heavy test's gap is 5 to 10% longer than in run 39471909369 (dot product 206 to 225 s, wide folds 176 to 184, exact_ring 82 to 88), and that run and 39463529492 ran the same test code in 38m55s and 49m26s. The suite is throughput-bound on the runner's cores, not on one long test, and the box's speed varies by a quarter between runs. So the headroom this cut buys is the work it removed, roughly eight runner minutes, hidden this time under a slower box. The harness's own "finished in 3855 s" is miri's virtual clock and means nothing; only the step's wall and the log's timestamps do.
+  
+  What remains for real headroom is on fl-wpgpd4q: print `nproc` in the job so the thread count is known, cut the next two heavy tests under miri with their own counts the way tests/simd.rs's MULTISETS does (the heap ring dot product at 1000 pairs is 110 s here, wide folds at 2000 draws 80 s), and put the ceiling question to the owner, since a 90-minute `timeout-minutes` costs billed minutes on a private repo and nothing else.
