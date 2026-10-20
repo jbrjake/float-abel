@@ -81,11 +81,23 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # The dbsp closure is some five hundred crates, and the hosted runner's root disk shares its
+      # headroom with the image's preinstalled tools, so the trees this job never reads go first:
+      # the Android SDK, the .NET SDKs, GHCup's Haskell and the CodeQL bundle, at the paths the
+      # image's own build scripts install them to. `df -h` before and after puts the headroom in
+      # the log as a number.
+      - name: Free the runner's disk
+        run: |
+          df -h
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/local/.ghcup "$RUNNER_TOOL_CACHE/CodeQL"
+          df -h
       - name: Install rustc 1.99.0 with rust-src
         run: |
           rustup toolchain install 1.99.0 --profile minimal --component clippy,rust-src
           rustup default 1.99.0
           cargo --version && rustc --version
+      # No restore-keys: a lockfile change builds from a clean target, not on top of the previous
+      # closure's artifacts, which a restored near-miss would leave on the disk beside the new ones.
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
@@ -93,7 +105,6 @@ jobs:
             ~/.cargo/registry/cache
             target
           key: dbsp-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: dbsp-${{ runner.os }}-
       - run: cargo clippy --locked --features dbsp --all-targets -- -D warnings
       - run: cargo test --locked --features dbsp --test main dbsp_
       - run: cargo run --locked --features dbsp --example dbsp_uda
