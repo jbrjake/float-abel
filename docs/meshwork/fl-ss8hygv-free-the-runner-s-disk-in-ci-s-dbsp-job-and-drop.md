@@ -1,7 +1,7 @@
 ---
 id: fl-ss8hygv
 title: Free the runner's disk in CI's dbsp job and drop its stale-cache fallback
-status: open
+status: doing
 category: ci/dbsp
 relates: [fl-v6f5d70, fl-jphvxrs]
 verify: contains .github/workflows/ci.yml /df -h/
@@ -9,6 +9,7 @@ docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 55
 created: 2026-10-20T15:45Z
+claimed-by: claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
 ---
 
 The `ci` workflow's dbsp job failed at 79cf25b (run 39449087008, job 118718750574, 7m24s): clippy
@@ -32,3 +33,4 @@ splitting clippy and the tests into two jobs so no single runner holds both arti
 
 ## log
 - 2026-10-20T15:45Z created
+- 2026-10-20T17:01Z open→doing — claimed by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)

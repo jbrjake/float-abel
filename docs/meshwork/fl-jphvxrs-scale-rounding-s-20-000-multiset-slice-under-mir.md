@@ -7,7 +7,7 @@ relates: [fl-f8brdgt]
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
 verify: "contains tests/rounding.rs /agree\\(0x2a9ee, rounds\\(20_000\\)\\)/"
-status: open
+status: doing
 created: 2026-10-20T15:04Z
 handoff: |
   Next session: this is the one buildable, un-held task in `ready`, and it
@@ -54,6 +54,7 @@ handoff: |
   actions/upload-artifact 7.0.2) whose `ci`
   runs were red on the same smoke failure and need a rebase onto main to
   re-run.
+claimed-by: claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
 ---
 The `ci` workflow's miri job has hit its 60-minute ceiling on every run so far (the five of
 2026-10-16, run 38957258898 among them: "The job has exceeded the maximum execution time of
@@ -75,3 +76,4 @@ and never runs under miri.
 - 2026-10-20T15:04Z created
 - 2026-10-20T15:31Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 - 2026-10-20T15:46Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T17:04Z open→doing — claimed by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
