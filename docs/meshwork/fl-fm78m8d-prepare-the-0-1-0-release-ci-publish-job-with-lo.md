@@ -13,53 +13,26 @@ covers:
   - ref: docs/DESIGN.md#sp-release
     sha: 3478ee626df5140b33eec38f959ee91cf3e5745abfb611a5e9d4941b60eec782
 handoff: |
-  Waits on the publish ruling in this task's `needs:` (who runs `cargo
-  publish`: CI on the owner's
-  signed tag, or the owner's machine with CI packaging and attesting);
-  build nothing of the publish
-  step before it lands, and `why` names it. That ruling, fl-k3g1511, is
-  blocked on the owner's words
-  of 2026-10-16, "i don't want to publish yet", with its three gating
-  tasks done. The tree at 6b92804
-  has the outward docs in: README.md with its three Rust blocks run as
-  doctests through `mod readme`
-  in src/lib.rs (behind `cfg(doctest)` and `differential`), SECURITY.md
-  pointing at GitHub's private
-  vulnerability reporting alone (switching the form on in the repository
-  settings is the owner's act
-  and is not done), and CHANGELOG.md opening with an `## Unreleased` list
-  of what 0.1.0 carries. The
-  commit gate ran 236 tests green at 18e42b3, and the push gate ran green
-  end to end there.
-  
-  What this task builds once ruled: `.github/workflows/release.yml` on tag
-  push `v*`, every `uses:`
-  hash-pinned with the tag in a trailing comment
-  (scripts/check-actions-pinned.sh fails both gates
-  otherwise), `git verify-tag` against a committed public key (the owner's
-  signing key is not in the
-  tree: ask for it, or for the fingerprint to pin), `cargo package
-  --locked`, the dry-run or the
-  publish per the ruling, `actions/attest-build-provenance` over the
-  `.crate`, and a GitHub release
-  carrying it. A `semver` job in ci.yml running `cargo semver-checks`
-  against the crates.io baseline
-  errors while the crate is unpublished, so arm it in the same change as
-  the `## 0.1.0` entry. The
-  `## 0.1.0` CHANGELOG entry is this task's verify: it moves the
-  Unreleased list under a `## 0.1.0`
-  heading at release time, the owner's moment, so it is the last thing
-  written. Cargo.toml is at
-  version 0.0.0 with `include` naming README.md, FORMAT.md and the two
-  licences; CHANGELOG.md and
-  SECURITY.md stay out of the package, which is usual.
-  
-  Open beside this and unrelated: fl-qv0vh39 (the AVX-512 kernel, which
-  needs a machine with the
-  flag). The spec audit's 35 re-open candidates are done tasks whose
-  clauses have moved since they
-  were pinned, standing noise from before this session, not drift this
-  session caused.
+  The publish ruling is in (owner, 2026-10-20: "make it a ci publish on my
+  manual trigger") and
+  built: `.github/workflows/release.yml` at 9f651e2 publishes on
+  `workflow_dispatch` with inputs `tag`
+  and `auth` (`token` for the first publish, `trusted` after), packages
+  with `--locked`, attests the
+  `.crate` and attaches it to a GitHub release; `cargo publish --dry-run
+  --locked` is green here. What
+  this umbrella still waits on, each its own task: the tag-signature step,
+  fl-x2k7fbb, held on the
+  owner naming a key (nothing in the checkout signs today); the first
+  publish itself, fl-7en8z60, the
+  owner's act, blocked on "i don't want to publish yet" and the ship
+  list's AVX-512 kernel
+  (fl-qv0vh39); `cargo-semver-checks`, fl-cr71vam, behind the first
+  publish; and this task's own
+  verify, a `## 0.1.0` entry in CHANGELOG.md, which does not exist yet.
+  dbsp's floor is 0.367 since
+  db4e5d9 (zip 6's advisories), so the dbsp job's deny check is green
+  again.
 ---
 Per DESIGN.md § Release. This task makes 0.1.0 ready to ship: the CI publish job, the signed-tag
 flow, provenance, `cargo-semver-checks` armed from here, and the `## 0.1.0` CHANGELOG entry. Running
@@ -72,3 +45,5 @@ flow, provenance, `cargo-semver-checks` armed from here, and the `## 0.1.0` CHAN
 - 2026-10-16T19:34Z handoff by claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
 - 2026-10-20T15:18Z cover docs/DESIGN.md#sp-release @3478ee626df5
 - 2026-10-20T15:22Z cover docs/DESIGN.md#sp-release @3478ee626df5
+- 2026-10-20T15:29Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:29Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)

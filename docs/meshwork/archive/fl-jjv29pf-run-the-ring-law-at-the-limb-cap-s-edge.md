@@ -1,7 +1,7 @@
 ---
 id: fl-jjv29pf
 title: Run the ring law at the limb cap's edge
-status: doing
+status: done
 category: crate/types
 labels: [reproducible-floats]
 discovered-from: fl-cwwnyas
@@ -10,7 +10,6 @@ verify: run cargo test package=float-abel laws_ring_exact_at_the_cap
 docs:
   - docs/DESIGN.md#the-laws-kit-sp-laws-kit
 created: 2026-10-16T19:42Z
-claimed-by: claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 ---
 
 tests/laws_cap.rs runs the closure and group laws at the limb cap's edge on `exact_at_the_cap()`,
@@ -30,3 +29,7 @@ the task's close comment.
 ## log
 - 2026-10-16T19:42Z created
 - 2026-10-20T15:22Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:27Z doing→done — verify exit 0 @ 0a607bb+2
+
+## comments
+- 2026-10-20T15:27Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 done in tests/laws_cap.rs: laws_ring_exact_at_the_cap_holds_by_an_integer, _holds_by_an_exact and _control_fails_on_the_last_bit, on edge_runner() (32 cases). Wall time of the three in the dev profile, warm: 2.98 s (harness 'finished in'), inside the commit gate's budget. The task's four-bit multiplier budget was wrong and the control caught it: under |k| <= 16 check_ring on UnderCap returned Ok(()), because every edge shape is odd, so (a + b) and (a - b) are even and the heap form's odd mantissa is a bit narrower than the sum; the five-bit edge_int() is the ring's budget too, a weight times an odd k >= 17 spanning exactly CAP_BITS, and no pairwise product passes the cap. HEADROOM's comment states that beside the closure budget.
