@@ -1,11 +1,10 @@
 ---
 id: fl-f8brdgt
 title: "CI's smoke job fails at f128de6: the meshwork shim execs a v0.5.3 binary the runner never installs (exit 127)"
-status: doing
+status: done
 category: ci/smoke
 created: 2026-10-20T00:33Z
 verify: contains scripts/smoke.sh CI:-
-claimed-by: claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
 ---
 
 The `ci` workflow's `smoke + regression (stable)` job fails at `f128de6` (run 38957258898,
@@ -26,3 +25,7 @@ commit.
 ## log
 - 2026-10-20T00:33Z created
 - 2026-10-20T14:58Z open→doing — claimed by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:44Z doing→done — verify exit 0 @ 2ac0f3e+1
+
+## comments
+- 2026-10-20T15:44Z [claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)] 2026-10-20 fixed at ef90777 (owner: "not running meshwork calls in ci to avoid the dependency altogether"): smoke.sh skips the store lint under CI, loudly. Green on the runner: ci run 39449087008 at 79cf25b, gate job 118718750192 success in 12m18s, its log reading 'smoke: SKIPPED meshwork lint (CI never installs meshwork; the store is linted at commit time)', 'smoke: OK (tree diff; 239 tests passed)' and 'regression: OK'. Before the fix the same step died in 15 s with exit 127 (run 38957258898). Reproduced locally first: HOME=/nonexistent CI=true ./scripts/smoke.sh exited 126 on the shim's exec, then printed the SKIPPED line after the change. The run's miri job is fl-jphvxrs's and the dbsp job's state on this run is noted there.

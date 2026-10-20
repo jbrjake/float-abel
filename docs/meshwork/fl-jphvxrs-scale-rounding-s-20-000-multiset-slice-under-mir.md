@@ -14,10 +14,15 @@ handoff: |
   is one line plus a watch.
   At 79cf25b on origin, CI run 39449087008 is the first `ci` run since the
   smoke job's meshwork
-  failure was fixed (ef90777) and dbsp's floor moved to 0.367 (db4e5d9);
-  its gate job's conclusion
-  is what fl-f8brdgt closes on, and its miri job is what this task is
-  about. On every `ci` run so far
+  failure was fixed (ef90777) and dbsp's floor moved to 0.367 (db4e5d9):
+  its gate job went green in
+  12m18s (fl-f8brdgt closed on it), its dbsp job died of the runner's
+  disk, which is fl-ss8hygv
+  (free the disk, drop the stale-cache fallback), and its miri job is what
+  this task is about. Do
+  this one first: it is a one-line change, and fl-ss8hygv's CI run then
+  shows both jobs at once. On
+  every `ci` run so far
   the miri job has died at the 60-minute ceiling after
   `rounding::rounding_div_f64_matches_cpython_on_every_tier`
   passed, and the next test in the harness's order is
@@ -69,3 +74,4 @@ and never runs under miri.
 ## log
 - 2026-10-20T15:04Z created
 - 2026-10-20T15:31Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
+- 2026-10-20T15:46Z handoff by claude (4a8ded2c-6eb4-4638-a7f1-ee6da67e86ba)
