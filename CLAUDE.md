@@ -80,8 +80,10 @@ outside `~/Documents`.
   is (owner: "follow your rec on dbsp's CI job").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
-- `cargo publish` runs only with `--dry-run`. A publish, the crates.io name reservation included, is
-  the owner's act.
+- A session runs `cargo publish` only with `--dry-run`. CI publishes from `release.yml` on the
+  owner's `workflow_dispatch` alone, never on a tag push (owner: "make it a ci publish on my manual
+  trigger"); the first publish, the crates.io name reservation included, carries the owner's token,
+  and every later one Trusted Publishing, because crates.io grants OIDC only to a crate that exists.
 - Every `uses:` in a workflow names a commit hash, with the tag it stood for in a trailing comment,
   and `scripts/check-actions-pinned.sh` fails both gates on a tag or a branch, because a tag can be
   moved to code nobody reviewed (owner: "use git hashes to reference dependencies not git labels

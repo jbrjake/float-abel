@@ -788,8 +788,11 @@ each release.
 
 0.1.0 ships once the exact tiers, the rounding proof, the wire format, the laws kit, both adapters,
 the golden hash, fuzzing, the docs, `Binned` and the SIMD kernels are in. CI builds it with `--locked`
-from a signed tag, with provenance, and `cargo-semver-checks` is armed from then on. Publishing is the
-owner's act; so is any announcement.
+from a signed tag, with provenance, and publishes it from `release.yml` on the owner's
+`workflow_dispatch` alone, never on the tag push; `cargo-semver-checks` is armed from then on. The
+first publish carries the owner's crates.io token and every later one Trusted Publishing, because
+crates.io grants OIDC only to a crate that exists. The dispatch is the owner's act; so is any
+announcement.
 
 ## Non-goals
 
