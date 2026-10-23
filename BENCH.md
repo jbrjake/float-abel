@@ -74,28 +74,29 @@ each machine. The baselines are a scalar `f64 +=` into one slot (a dependent cha
 adds, the shape of an aggregate updated one row at a time), the vectorised naive `f64` sum (eight
 independent accumulators, the shape a column engine sums a block in), and, end to end, the engine's
 own `isize` diff, which costs what an `f64` diff would: one word, one hardware add. Every figure
-is at commit 2a82388: `benches/ops.rs` for the one-slot rows, `benches/simd.rs` for the bulk rows
-and `benches/dd_sum.rs` for the dataflow.
+is at commit f24b051: `benches/ops.rs` for the one-slot rows, `benches/simd.rs` for the bulk rows
+and `benches/dd_sum.rs` for the dataflow, all three in one sitting per machine.
 
 | shape | `f64` | `Exact` | `Wide` | `Fixed256` | `Binned<3>` |
 |---|--:|--:|--:|--:|--:|
-| one value at a time into one slot, NEON | 0.58 ns | 4.94 ns, 8.5× | 18.70 ns, 32× | 7.89 ns, 14× | 10.22 ns, 18× |
-| one value at a time into one slot, AVX2 | 0.73 ns | 15.89 ns, 22× | 36.36 ns, 50× | 16.18 ns, 22× | 18.51 ns, 25× |
-| a column summed in bulk, NEON | 0.080 ns | | 1.82 ns, 23× | 1.60 ns, 20× | 2.00 ns, 25× |
-| a column summed in bulk, AVX2 | 0.368 ns | | 2.52 ns, 6.9× | 2.02 ns, 5.5× | 1.68 ns, 4.6× |
-| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, NEON | 43.0 ms (`isize`) | 79.7 ms, 1.85× | | | |
-| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, AVX2 | 181.4 ms (`isize`) | 376.3 ms, 2.07× | | | |
+| one value at a time into one slot, NEON | 0.57 ns | 8.57 ns, 15× | 18.75 ns, 33× | 8.04 ns, 14× | 10.09 ns, 18× |
+| one value at a time into one slot, AVX2 | 0.74 ns | 21.27 ns, 29× | 37.11 ns, 50× | 16.36 ns, 22× | 18.52 ns, 25× |
+| a column summed in bulk, NEON | 0.080 ns | | 1.83 ns, 23× | 1.61 ns, 20× | 2.00 ns, 25× |
+| a column summed in bulk, AVX2 | 0.369 ns | | 2.56 ns, 6.9× | 2.00 ns, 5.4× | 1.68 ns, 4.6× |
+| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, NEON | 41.4 ms (`isize`) | 96.5 ms, 2.33× | | | |
+| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, AVX2 | 175.5 ms (`isize`) | 358.3 ms, 2.04× | | | |
 
-Read it in three parts. Updating an aggregate one row at a time, the engine's shape, costs 8.5×
-the hardware add on NEON and 22× on AVX2 for `Exact`, the engine weight: five nanoseconds a row
-where a float costs half of one. Summing a whole column, the analytics shape, the SIMD kernels
-bring every tier to about two nanoseconds a value, 5–7× the vectorised float sum on AVX2 and
-20–25× on NEON, whose float floor is 4.6× lower than the AVX2 machine's; four to six hundred
-million doubles a second a core, exactly, against three billion (AVX2) to twelve billion (NEON)
-wrongly. Inside differential-dataflow, where the diff's cost is diluted by everything else the
-engine does per update, `Exact` is 1.8–2.2× the native integer diff; the next sections split that
-between the word and its wire form. Reading a total out (`to_f64`, 9.8 ns and 17.8 ns) happens
-once per aggregate, not once per row, and is not in the table. What the tiers buy for that: the
+Read it in three parts. Updating an aggregate one row at a time, the engine's shape, costs 15× the
+hardware add on NEON and 29× on AVX2 for `Exact`, the engine weight: eight and a half nanoseconds a
+row on NEON where a float costs half of one. Summing a whole column, the analytics shape, the SIMD
+kernels bring every tier to about two nanoseconds a value, 5–7× the vectorised float sum on AVX2 and
+20–25× on NEON, whose float floor is 4.6× lower than the AVX2 machine's; 390 to 620 million doubles
+a second a core, exactly, against 2.7 billion (AVX2) to twelve billion (NEON) wrongly. Inside
+differential-dataflow, where the diff's cost is diluted by everything else the engine does per
+update, `Exact` is 1.8–2.3× the native integer diff at eight workers: 2.33× serialized and 2.23×
+typed on NEON, 2.04× and 1.83× on AVX2; the next sections split that between the word and its wire
+form. Reading a total out (`to_f64`, 10.1 ns and 19.3 ns) happens once per aggregate, not once per
+row, and is not in the table. What the tiers buy for that: the
 same bits under any order, worker count or architecture, and exact retraction, where the `f64`
 column in tests/differential.rs leaves residue after inserting and deleting the same rows. The
 other reading that matters, the group size past which a change through the engine beats
