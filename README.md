@@ -1,151 +1,138 @@
 # float-abel
 
-Exact abelian-group sums of `f64`, so an incremental engine can add, retract and re-merge floats and
-land the same bits under any order, worker count or architecture.
+*"Squeezing infinitely many real numbers into a finite number of bits requires an approximate
+representation [....] [C]omputing with 13 digits gives an answer correct to 10 digits. By keeping these extra 3 digits hidden, the calculator presents a simple model to the operator."* —David Goldberg [1]
 
-The crate is under construction and not yet published.
+* [how it works](#how-it-works)
+* [how to use it](#how-to-use-it)
+* [why it exists](#why-it-exists)
 
-## The contract
+## overview
 
-An incremental engine keeps a running answer and applies changes to it: an insert adds a weight, a
-delete adds its negation, and a background merge may add any subset in any order. That only works if
-the weight type is an exact abelian group, and `f64` addition is not one: it is not associative, so
-the same multiset summed in two orders lands two answers, and `a + b − b` need not be `a`. Today an
-engine that wants float weights scales to fixed-point integers and picks a range in advance, or
-re-folds the whole group on every change, or compares its outputs at a tolerance. Feldera, for one,
-refuses to make `SUM` over `DOUBLE` linear and documents why.
-
-`float-abel` holds sums, and products, of IEEE doubles exactly, as a canonical abelian group with a
-ring on top. No floating-point instruction executes in any group operation or read: only `to_bits`,
-shifts and adds with carry. So:
-
-- the same multiset lands the same bits under any order, worker count, merge tree, consolidation
-  timing or architecture; a CI job asserts one SHA-256 over every tier's bytes and reads on seven
-  targets, s390x's big-endian among them;
-- a retraction cancels its insertion exactly, to the one canonical zero, so an engine's `is_zero`
-  deletes the key and nothing is left behind;
-- structural `Eq`, `Ord` and `Hash` are numeric, because every operation canonicalises, which is what
-  an engine's consolidation and deduplication rely on;
-- a read is the correctly rounded double of the exact sum, so every engine divides the same exact
-  numerator once for an `AVG`.
-
-The honest boundary: the group makes **sums and products** exact. Division, normalisation,
-`exp`/`log` and a non-dyadic constant such as ⅓ are not group operations and stay on the read side.
-Nothing here makes arbitrary floating-point arithmetic reproducible. It makes the part an
-incremental engine *accumulates* reproducible, which is the part that breaks.
-
-The other half of the promise is that a sum never fails on its input. `Exact` holds every sum and
-every product of doubles, NaN and ±∞ counted, so a dataflow with it as the diff cannot panic on what
-it is fed short of two named bounds: the limb cap, `EXACT_MAX_LIMBS`, 16 × 2148 bits or about 4.3 KB
-a weight, reached only through sixteen nested `float × float` joins on extreme values and a `const`
-a consumer raises by editing it; and the exponent bound, `EXACT_MAX_EXP`, 2³⁰, reached only through
-about a million nested products of the smallest subnormal. A sum of doubles nears neither. What the
-32-byte word holds without allocating is a sum spanning at most 127 bits from its first set bit to
-its last: two full-mantissa decimals within about 10²² of each other in size, so `1e11 + 1e-11`
-stays in the word at 126 bits and `1e12 + 1e-12` promotes at 132, and a key of *n* such rows narrows
-the allowance by about log₂ *n* bits. Past the word a weight is one allocation, freed by the next
-operation whose result fits again, so a `SUM` over wildly mixed magnitudes is correct on the plain
-idiom and faster on the banded one, which keeps every diff inside the word (§ In an engine). A
-consumer who runs more than one worker and can reach either bound builds with `panic = "abort"`,
-because one worker's panic otherwise leaves the others spinning instead of ending the process.
+float-abel's a Rust crate for adding up `f64`s exactly. As in, `0.1 + 0.2 - 0.2` actually equals `0.1`. Its data is bit-identical no matter the order values arrive in, how many workers split them, or which CPU adds them. It cleanly backs out values:
 
 ```rust
 use float_abel::Exact;
 
-// f64 adds these to 0.6000000000000001; the exact sum, read once, rounds to 0.6.
+// f64 adds 0.1 and 0.2, takes them both back, but doesn't go back to zero:
+assert_eq!(0.1 + 0.2 - 0.1 - 0.2, 2.7755575615628914e-17);
+
+// versus with float-abel:
 let mut total = Exact::ZERO;
-for x in [0.1, 0.2, 0.3] {
-    total += Exact::from(x);
-}
-assert_eq!(total.to_f64(), 0.6);
-
-// A retraction is the negation, and it cancels bit for bit: no residue, no history.
-total -= Exact::from(0.2);
+total += Exact::from(0.1);
+total += Exact::from(0.2);
 total -= Exact::from(0.1);
-assert_eq!(total, Exact::from(0.3));
-total -= Exact::from(0.3);
-assert!(total.is_zero());
-
-// f64 loses the 1.0 between the two large terms; the group does not.
-let swamped: Exact = [1e16, 1.0, -1e16].into_iter().map(Exact::from).sum();
-assert_eq!(swamped.to_f64(), 1.0);
+total -= Exact::from(0.2);
+assert!(total.is_zero()); // true zero
 ```
 
-## Why the usual answer is not a group
+There's no magic involved and no fundamental computer science breakthrough. The gist is, just use more memory to store numbers at a higher resolution: 256 bits at a minimum. The resolution still has a limit, it's just finer, like the way a HiDPI screen still has pixels if you use a magnifying glass. Some of the core principles were demonstrated in Kyle Clouthier's [bitrep](https://github.com/KyleClouthier/bitrep) project, which served as the inspiration for float-abel's `Wide` type.
 
-The reproducible-summation literature's answer to order-dependence is the adaptive binned
-accumulator (ReproBLAS, Demmel and Nguyen): keep K bins whose exponents are pinned relative to an
-**index** chosen from the largest magnitude seen so far. When a larger value arrives, the index rises
-and the lowest bin is dropped. Bits below it are truncated at the same boundary for every input,
-past and future, which is exactly why a one-shot reduction is order-independent. Addition on
-`(index, bins)` is associative and commutative.
+Most of the implementation here is to make it use the least memory possible while running as quickly as it can. The memory cost is balanced by what it lets you do: keep an accurate running sum of f64 values [faster than you could if you recomputed the entire vector](#what-it-costs) each time a new value came in.
 
-But it is **not a group**. Its zero is not unique: `a + (−a)` leaves `(index_a, 0)`, and adding that
-to `(J, b)` gives `(max(index_a, J), trunc(b))`, which is not `(J, b)` when `index_a > J`. There is no
-inverse in the group sense, and the consequence is concrete:
+float-abel's thing, that makes it different than adjacent approaches, is that it's fully retractable and leaves behind no state residue. When you subtract a value in float-abel, it truly goes away. There is no difference in the bits regardless of how you arrived at the value.
 
-- Insert `1e30`, insert `1e-10`, retract `1e30`. The state is `1e-10` truncated to the precision the
-  `1e30` index allowed. At K=3, W=40 that is about `8e5` of granularity, so the surviving `1e-10`
-  reads as **zero**. A batch system that never saw the `1e30` reads `1e-10`. The incremental answer
-  is a function of history, not of the current input.
-- In differential-dataflow the failure is sharper. If `is_zero((index, 0))` is `true`, consolidation
-  *deletes* it, and the other diffs under the key stop being truncated. The answer now depends on
-  *when* consolidation happened to run.
+float-abel's designed for incremental engines, which do just that: maintain a running total and update it as rows both come _and go_...even if events arrive out of order. Floats have always been a challenge for them, because you can't get consistent results across runs without consistent ordering, and you can't guarantee, as seen above, that removing all the numbers you've added will bring you back to zero.
 
-The fixed-anchor variant of the same idea, bins pinned to absolute exponents with no index, is a
-two's-complement fixed-point integer with a declared window. That is a group, and it is `Fixed`
-below. Exact accumulation is trivially a group, and it is `Wide` and `Exact`. The adaptive form ships
-too, as `Binned`, for batch work only, and the type system keeps it out of the engines' weight
-traits: a compile error, not a convention.
+float-abel comes with adapters to make that possible for differential dataflow [2] and DBSP [3], plus tools to help build more.
 
-## The trilemma
+### getting it
 
-Constant size, full `f64` dynamic range, exact abelian group: **pick two.** A constant-size exact
-group over the full range does not exist, by pigeonhole. Every honest design sits at one corner, and
-the crate ships each:
+For now, grab a release tag from here. crates.io will come.
 
-| corner | type | size | domain | ring |
+## how it works
+
+Every f64 is an integer multiple of 2⁻¹⁰⁷⁴ [4]. So float-abel never adds floats. It reads each number's bits, places the integer on that one fixed grid, and adds the integers column by column, carrying the 2s. It's just like how you carry the 10s when you're adding decimals up by columns.
+
+Integer addition is associative (you can chunk a list any way you want and it adds up the same) and commutative (you can shuffle a list any way you want and it adds up the same) and every value has an inverse (you can remove any value by adding its opposite), which makes it what's called an "abelian group". That means float-abel can be used in an incremental engine, which usually excludes floating point numbers.
+
+No floating point instruction runs in any operation, which is why the bits match across architectures. (To validate this, CI checks one SHA-256 over every type's bytes on seven targets, big-endian s390x among them.)
+
+Rounding happens once, when you read the total, to the correctly rounded f64 of the exact sum. An `AVG` divides the exact total once:
+
+```rust
+use float_abel::Exact;
+
+let xs = [0.1, 0.2, 0.3]; // these sum to 0.6, so divided by 3 should be 0.2
+assert_eq!(xs.iter().sum::<f64>() / 3.0, 0.20000000000000004); // but f64's rounding adds error
+let total: Exact = xs.into_iter().map(Exact::from).sum(); // while doing the same with float-abel
+assert_eq!(total.div_f64(3), 0.2); // ...rounds once, correctly
+```
+
+[Every value has exactly one bit pattern](FORMAT.md), so `==`, `Hash` and `is_zero` compare numbers. NaN and ±∞ can't live in a group, since nothing cancels them out, so they're counted instead: a column holding a NaN reads NaN, and retracting the NaN row brings back the sum value exactly.
+
+```rust
+use float_abel::Exact;
+
+let mut total: Exact = [1.5, f64::NAN, 2.0].into_iter().map(Exact::from).sum();
+assert!(total.to_f64().is_nan()); // one NaN spoils the bunch
+total -= Exact::from(f64::NAN); // weed it out
+assert_eq!(total.to_f64(), 3.5); // now we're good
+```
+
+## how to use it
+
+### pick three
+
+* Small
+  * As in, tens of bytes, not hundreds
+* Fixed size
+* The full range of f64s
+  * Every f64 and every sum of f64s
+* Exact
+
+You get any three.
+
+You can't have all four qualities at once, because the range gets so wide: an f64 can be as large as 2¹⁰²³ or as small as 2⁻¹⁰⁷⁴, which works out to 2,098 bits. (More, really. You need a few extra bits for headroom.) A type that's exact over the whole range is either that big all the time, like `Wide`, or small unless a sum needs more space, the way `Exact` works. The others stay small and fixed by giving up the range or the exactness, since sometimes you want that.
+
+| type | small | fixed size | full range | exact |
 |---|---|---|---|---|
-| exact + full range | `Exact` | 32 B, plus one allocation past a 127-bit span | every `f64`, specials counted; every sum and product up to the limb cap | `× Exact` with dyadic special amounts, `× i64`, `× isize` |
-| exact + constant size (wide) | `Wide` | 296 B | every `f64` | `× i64`, `× isize` |
-| exact + constant size (window) | `Fixed<LSB, LIMBS>` | 8·LIMBS B (`Fixed256` is 32) | finite doubles exactly on the 2^LSB grid inside the window; the rest refused at the door, or quantised by declaration | `× i64`, `× isize` |
-| constant size + full range: **lossy, batch-only** | `Binned<K>` | 16·K + 32 B (80 at K=3) | every `f64` | none, and **no group**: `Add` only, no `Neg`, no engine weight traits |
+| `Exact` | **yes**: 32 B most of the time | **no**: the size expands when values can't be expressed in 127 bits | effectively **yes**: reaching its caps by adding f64s would take about 2³²²⁷⁰ additions (there are fewer than 2²⁶⁶ atoms in the universe) | **yes** |
+| `Wide` | **no**: 296 B | **yes** | effectively **yes**: every f64, and 2⁷⁷ additions of the largest one before its headroom runs out (millions of years, at a nanosecond each) | **yes** |
+| `Fixed256` | **yes**: 32 B | **yes** | **no**: only values as small as 2⁻⁴⁴ (about 5.7 × 10⁻¹⁴, in meters far smaller than the width of a hydrogen atom) up to 2⁹⁵ (about 4 × 10²⁸, in meters roughly 45× the width of the observable universe) in size. | **yes** |
+| `Binned<3>` | **yes**: 80 B | **yes** | **yes** | **no** |
 
-`Wide`, `Fixed` and `Binned` are `Copy` plain words with no pointer in them, and never allocate.
-`Exact` is a `repr(C)` 32-byte word in two forms: the compact form holds a finite part of at most
-127 bits with the special counts as `i32`, and a result past that promotes to the heap form, the
-same word over one allocation of limbs, which every operation demotes again as soon as its result
-fits, so one value has one form and `is_compact()` reports it. A same-scale column never promotes;
-a sum of `1e300` and `1e-300`, or a fold of products, does. The caps are named: past the limb cap
-(`EXACT_MAX_LIMBS`, sixteen products' worth of bits) or the exponent bound, `Exact` panics with a
-named invariant, because an engine's `plus_equals` cannot return an error, and the `checked_*`
-methods return the cap as `PastCap` instead with the state as it was. Without the `alloc` feature
-`Exact` is the compact form alone and the width is its cap. A word that can hold a pointer is
-`Clone` and not `Copy`, so `Exact` leaves an engine's `Copy` weight slot and a cast over a mapping;
-`Wide` and `Fixed` are the `Copy` words for that slot, and `Fixed` for a declared window besides,
-each carrying both engines' weight traits behind the same features (§ In an engine).
+Multiplication is a different story. It's not possible to handle every scenario. A product of two f64s can land anywhere from 2⁻²¹⁴⁸ to 2²⁰⁴⁸, twice an f64's range, and a product of products keeps growing, so nothing holds all of them.
 
-`Exact` is the engine weight. `Wide` has the fastest add of any tier and costs bytes, which suits a
-per-key aggregate slot rather than a per-update diff. `Fixed` is for data whose scale the caller
-declares: money, counts, measurements and probabilities above 10⁻¹³ are exact on `Fixed256`'s grid.
-`Binned` folds a tile and converts to a `Wide` in O(K) rather than serving as a weight.
+`Exact` gets closest, because its heap grows to 34,368 bits, about 10,346 digits. That's enough for a chain of about 16 `float × float` products, and it can also handle about a million nested products of the smallest expressible f64. This should be enough for many use-cases.
 
-### NaN and ±∞
+`Wide` and `Fixed256` refuse products they can't express. `Binned` refuses products over `Wide`'s ceiling, and then truncates as designed.
 
-A group cannot hold a sticky NaN, since nothing cancels it. It can hold **counts**. `Exact` and
-`Wide` carry the finite sum plus three signed counts of NaN, +∞ and −∞ inputs, so a retraction
-subtracts, and project once at read time: any NaN reads NaN, both infinities read NaN, one infinity
-reads as its sign, otherwise the finite sum correctly rounded. A column containing NaN sums to NaN, as
-SQL engines answer, and retracting the NaN row restores the finite sum exactly. `Fixed` refuses a
-non-finite input outright, because its contract is exact or refused.
+**`Exact`** is the default because it's probably what you want. It's what the differential dataflow and DBSP adapters use for incrementing sums, and what an incremental `join` query needs to support multiplication. When small, it holds about 38 significant digits against an f64's 16, so ten million values anywhere between 10⁻⁶ (in meters, the length of a bacterium) and 10⁶ (in meters, the distance from NY to Chicago) can be added up using it. If you need more range, that's the only time it moves to the heap, and as soon as it can it drops back down to the small form:
 
-## In an engine
+```rust
+use float_abel::Exact;
 
-Behind the `differential` feature, `Exact` implements differential-dataflow 0.25's weight traits
-(`Semigroup`, `Monoid`, `Abelian`, and `Multiply` by `Exact`, `i64` or `isize` on either side), so a
-collection takes it as a diff the way it takes `isize`. The idiom: `explode` the float column into
-the diff, then `count_total` reads each key's exact total back out. A delete is the row with
-multiplicity `-1`, which `Multiply<isize>` turns into `−1 × Exact`.
+let a = Exact::from(1e11) + Exact::from(1e-11);
+assert!(a.is_compact()); // only spans 126 bits of resolution so it stays small
+let b = Exact::from(1e12) + Exact::from(1e-12);
+assert!(!b.is_compact()); // spans 132 bits so it allocates
+assert!((b - Exact::from(1e12)).is_compact()); // and then shrinks back off the heap automagically
+```
+
+The price of that pointer is that `Exact` is `Clone`, not `Copy`.
+
+**`Wide`** is for situations where you can't have a pointer. Some engines keep each key's aggregate in a slot that must be `Copy`, or write it to disk and read it back by casting the bytes, so pointers are verboten. It's just a plain array of thirty-four 64-bit values forming a 2,176-bit fixed-point number. That gives it about 655 digits, reaching every place a sum of f64s can. It also has three counters for NaN and ±infinities. Every bit pattern is a valid value, it never allocates, and it never refuses an f64. It gives up being small instead.
+
+**`Fixed256`** is `Wide` for when you know your input in advance. It's the same kind of plain `Copy` word in 32 bytes, about a ninth the size of `Wide`. Its range holds what most data is made of exactly: money, counts, measurements, probabilities above 10⁻¹³, etc. The catch is the refusal. A value outside the window is refused with an `OutOfWindow` error, so pick `Fixed256` only when you know every value that will ever come in fits, or declare a floor and round onto the grid first with `Fixed256::quantize`. `Fixed<LSB, LIMBS>` builds other grids and widths as needed.
+
+```rust
+use float_abel::{Fixed256, OutOfWindow};
+
+assert!(Fixed256::try_from(0.1).is_ok()); // 0.1 is on the grid, it's held exactly
+assert_eq!(Fixed256::try_from(1e-20), Err(OutOfWindow::OffGrid)); // too fine: refused, not rounded
+assert!(Fixed256::try_from(Fixed256::quantize(1e-20)).is_ok()); // unless you round it onto the grid
+```
+
+**`Binned<3>`** is for one-shot batch sums, not incremental usage. It's [Demmel and Nguyen's binned summation](#why-binned-summation-isnt-enough): 80 bytes, the same bits under any order or split, and off by at most n × 2⁻¹²⁸ times the largest value ever seen.
+
+### in an engine
+
+#### differential dataflow
+
+Differential dataflow stores a weight for every item in a collection. Normally the weight is an `isize` integer count: inserting a row adds `+1`, deleting it adds `-1`, and a row whose weights add up to zero goes away. The engine doesn't care what the weights mean. All it does is add them, in whatever order and on whichever worker, and it needs them to cancel out exactly when they should. Easy with integers. Not so easy with floats. Because `f64` isn't an abelian group, and integer `isize` is.
+
+float-abel's `Exact` floating point type is an abelian group too. Behind the `differential` feature `Exact` can stand in anywhere an `isize` weight does, and the engine's own bookkeeping can do the adding:
 
 ```rust
 use differential_dataflow::input::Input;
@@ -153,245 +140,387 @@ use differential_dataflow::operators::CountTotal;
 use float_abel::Exact;
 
 timely::execute_directly(|worker| {
-    // A row is (account, amount as bits): a collection's data must be Ord, and f64 is not.
+    // declare the pipeline
     let (mut rows, probe) = worker.dataflow::<u64, _, _>(|scope| {
+        // batch of rows of (u32 account ids, u64 float amount as opaque bits),
+        // each with the standard isize weight: +1 in, -1 out
         let (input, rows) = scope.new_collection::<(u32, u64), isize>();
         let (probe, _totals) = rows
+            // parse each amount out of its row and into the weight
             .explode(|(account, bits)| Some((account, Exact::from(f64::from_bits(bits)))))
+            // then add up each account's weights
             .count_total()
+            // and print output we'll see below
             .inspect(|((account, total), epoch, change)| {
                 println!("epoch {epoch}: account {account} total {} ({change:+})", total.to_f64());
             })
             .probe();
         (input, probe)
     });
+
+    // first epoch, add float data
     for amount in [0.1, 0.2, 0.3] {
         rows.insert((1, f64::to_bits(amount)));
     }
+
+    // close the epoch and wait for it to be processed
     rows.advance_to(1);
     rows.flush();
     worker.step_while(|| probe.less_than(rows.time()));
 
-    // Retract one row: the total is re-read as 0.4, not re-summed from the other two.
+    // second epoch, delete the 0.2
+    // the engine subtracts it from the total rather than re-adding the other two.
     rows.remove((1, f64::to_bits(0.2)));
+
+    // close and process the second epoch
     rows.advance_to(2);
     rows.flush();
     worker.step_while(|| probe.less_than(rows.time()));
 });
 ```
 
-`examples/dd_sum.rs` is the same idiom on three workers with a retraction epoch that nets to
-nothing. The multi-worker integration test covers `join`, `antijoin` with `isize`, `iterate`,
-`reduce`, `threshold`, `distinct` and `semijoin` with `Exact` in the diff. A `join` of two
-`Exact`-weighted collections multiplies the weights, so a `float × float` join folded by
-`count_total`, a depth-3 join chain, and an `iterate` whose weight is multiplied every round all
-hold on the heap form; each is checked against an integer oracle on one worker and three, with
-retractions. The panics left inside a dataflow are the limb cap and the exponent bound, both
-reachable through nested products alone (§ The contract); a consumer who can reach either builds
-with `panic = "abort"`, because one worker's panic otherwise leaves the others spinning.
+`explode` takes each row's amount out of the row and makes it the weight, so the tuple row `(1, 0.2)` with weight `+1` becomes the key `1` with weight `0.2`. Then `count_total` does its thing, counting each key's rows by adding up their weights. When every weight is 1, adding them up gives you a count. When every weight is an amount, it gives you a sum.
 
-That idiom is correct on every input, and on same-scale amounts its diffs never leave the 32-byte
-word. A key whose amounts span magnitudes, `1e12` beside `1e-12`, forms a running diff wider than
-the word's 127 bits; it promotes to the heap form, demotes once the sum fits again, and every
-consolidation step in between adds limbs on the heap. For such keys the banded idiom is the fast
-path for `SUM`. `banded_sum` puts the amount's magnitude band beside the key, so every diff the
-engine consolidates is a sum inside one band of 32 binades and stays compact, and a `reduce` folds
-each key's few band totals into the one total `count_total` would have emitted: the same output,
-the same retractions, and the one value that can promote is emitted as data, never consolidated.
+The amounts go in as their bits, a `u64`, because the engine sorts rows and Rust won't sort an `f64` (NaN isn't less than, greater than, or equal to anything, not even itself). Here `explode` turns the bits back into an f64.
 
-```rust
-use differential_dataflow::input::Input;
-use float_abel::BandedSum;
+Deleting a row sends it in again with weight `-1`, and `explode` multiplies that through, so the 0.2 arrives as `-0.2` and comes straight back out of account 1's total. Nothing gets summed over again.
 
-timely::execute_directly(|worker| {
-    let (mut rows, probe) = worker.dataflow::<u64, _, _>(|scope| {
-        let (input, rows) = scope.new_collection::<(u32, u64), isize>();
-        let (probe, _totals) = rows
-            .banded_sum()
-            .inspect(|((account, total), epoch, change)| {
-                println!("epoch {epoch}: account {account} total {} ({change:+})", total.to_f64());
-            })
-            .probe();
-        (input, probe)
-    });
-    // The pair cancels inside its own band, and account 1 reads 1e-12 exactly.
-    for amount in [1e12, 1e-12, -1e12] {
-        rows.insert((1, f64::to_bits(amount)));
-    }
-    rows.advance_to(1);
-    rows.flush();
-    worker.step_while(|| probe.less_than(rows.time()));
-});
+Here's the output:
+
+```text
+epoch 0: account 1 total 0.6 (+1)
+epoch 1: account 1 total 0.6 (-1)
+epoch 1: account 1 total 0.4 (+1)
 ```
 
-Reach for `banded_sum` when a key's amounts span about 2⁷⁰ or more, or when nothing bounds them.
-Measured on 10⁷ updates (`BENCH.md` § The end-to-end SUM): on same-scale amounts the banded idiom
-costs 6–14% over the plain one, two to four nanoseconds an update at one worker, and on amounts
-spread over 2^±300 it runs 1.6–1.9× faster, allocating nothing where the plain one promotes at
-every consolidation step. It sums, and nothing else: a row's product has a 106-bit mantissa and
-no band narrow enough, so a `join` of two weighted collections stays on the plain idiom, which
-the heap form holds.
+So at epoch 1 the engine withdraws the 0.6 and puts 0.4 in its place.
 
-`Wide` and `Fixed` carry the same differential traits, less `Multiply` by themselves, for the two
-cases `Exact` leaves. An engine whose weight slot must be `Copy`, or that casts a mapping to its
-weight, takes `Wide` as the diff and admits every double with nothing to check. One that wants a
-declared window takes `Fixed<LSB, LIMBS>`, with `Fixed::try_from` inside the `explode` as the
-per-value door check: a value the window cannot hold is refused by name before the engine sees
-it, and nothing downstream depends on what else is in the key, where the compact `Exact` had no
-such check. Neither word multiplies by itself, so a `join` of two collections weighted by one word
-does not compile; a row's product enters through `deposit_product` at the door. The cost is
-bytes: a `Wide` update tuple is 312 bytes against `Exact`'s 48, and on 10⁷ same-scale updates the
-`Wide` diff runs 4.4–5.1× the `Exact` one and 9.5–13.7× `isize` (BENCH.md § The end-to-end SUM).
+There's a more elaborate `examples/dd_sum.rs` that does this with two accounts, and spreads the rows across workers by account, to demonstrate how this is order-independent. Run it on one worker, then on four, and the results are the same:
 
-Behind the `dbsp` feature, `Exact` is a DBSP 0.367 `DBWeight`: a weighted batch takes it, and
-`aggregate_linear` takes it as the accumulator, for a column's sum or for a row's product of two
-columns. That is the shape of Feldera's `CREATE LINEAR AGGREGATE`, the sanctioned route to an
-exact `SUM` over doubles, since the SQL compiler refuses to make `SUM(DOUBLE)` linear by design. `examples/dbsp_uda/` holds that aggregate's three Rust items
-beside its SQL. The feature builds on the toolchain its CI job pins, rustc 1.99.0, because 1.97 and
-1.98 ICE inside dbsp. `Wide` and `Fixed` are `DBWeight`s too, their archived form the word itself,
-so a weighted batch and `aggregate_linear`'s accumulator take either, `Fixed` with its door check
-inside the aggregate's closure; `neg`, `minus` and `differentiate` on a stream they weight do not
-compile, because those bound the weight on a ring neither word has.
+```bash
+$ cargo run --example dd_sum -- -w 1 | sort # then again with -w 4
+epoch 0: account 1 total 0.6 (+1)
+epoch 0: account 2 total 1 (+1)
+epoch 1: account 1 total 0.6 (-1)
+epoch 1: account 2 total 1 (-1)
+```
 
-`Binned` implements none of either engine's weight traits, and a compile-fail test pins that.
+Both runs print exactly that output. With float-abel, epoch 1 retracts every row, both totals cancel to exactly zero, and the engine drops both accounts. There's no crumb left over to keep a dead account alive.
 
-## Checking your own weight
+Contrast with what you'd see with naive f64 usage. Account 1 is `0.1 + 0.2 + 0.3`, which `f64` adds to `0.6000000000000001`. Meanwhile account 2 is `1e16 + 1.0 - 1e16`, which `f64`'s logic thinks add to `0.0`. (That's because `1e16` is past 2⁵³, where [the grid's resolution gap](#why-floats-dont-add-up) is `2.0`, so the `1.0` rounds away.) If you tried to use f64 like this, differential dataflow would wrongly prune account 2 based on that false `0.0`.
 
-Behind the `laws` feature, `float_abel::laws` checks with proptest what an incremental engine asks
-of a weight, against any type that implements `laws::Weight`, yours or ours: associativity and
-commutativity bit for bit under a thousand shuffles of a fold; identity; exact inverse; canonicality
-(structural `Eq` is numeric equality, `Hash` consistent); distributivity of the ring;
-consolidation-timing invariance, the same multiset summed in random partitions with `is_zero`
-pruning between them; and closure, every sum, difference, product and fold the strategy draws
-returns, which is the law a capped type breaks and the one check only as strong as its strategy. A
-check returns proptest's minimal failing case under a reason that names every law it broke, so a
-failure is a value, not a panic.
+#### dbsp
+
+The SQL compiler for DBSP, the engine under Feldera, won't make `SUM(DOUBLE)` linear, but it will let you declare an aggregate of your own as linear and write its accumulator in Rust [9]:
+
+```sql
+CREATE LINEAR AGGREGATE exact_sum(value DOUBLE) RETURNS DOUBLE;
+
+CREATE TABLE ledger(account INT NOT NULL, amount DOUBLE NOT NULL);
+
+CREATE MATERIALIZED VIEW totals AS
+SELECT account, exact_sum(amount) AS total
+FROM ledger
+GROUP BY account;
+```
+
+Behind the `dbsp` feature, `Exact` is a DBSP weight, so the Rust side is three short items: the accumulator type, which is `Exact`; a function that turns one row's f64 into an `Exact`; and one that rounds the finished total back to an f64, once. `examples/dbsp_uda/` has all three beside that SQL, and a `main` that runs them through DBSP's `aggregate_linear` on two workers without Feldera, printing the same totals as `dd_sum`.
+
+`Wide` and `Fixed` implement both engines' weight traits too, for engines whose weight slot has to be `Copy`.
+
+### what it costs
+
+Exactness isn't cheap. float-abel takes 15–30× more time than an imprecise hardware float add per row. If you don't care about exactness, just use f64 like a normal person.
+
+If you're a sicko who needs this stuff, then the real comparison isn't adding single values. It's how float-abel compares against the way you'd get consistent results from f64: adding up the entire list whenever any value gets added.
+
+float-abel's always faster than recompute once you're adding up streams of more than 120k items, and often pays off before then. Even float-abel's order of magnitude decrease in speed is dwarfed by how long a full recompute takes once collections grow that large. With float-abel, you just need to add the new items that come in.
+
+| | M5 Max | Ryzen 7 |
+|---|--:|--:|
+| one add into a running total, `f64` | 0.57 ns | 0.74 ns |
+| one add into a running total, `Exact` | 8.6 ns | 21.3 ns |
+| a column summed in bulk with SIMD, `Wide` | 1.8 ns a value | 2.6 ns a value |
+| a `SUM` over 10⁷ updates in differential dataflow on 8 workers, `Exact` against an `isize` weight | 2.2–2.3× | 1.8–2.0× |
+
+*[Measured](BENCH.md) on an Apple M5 Max (NEON) and an AMD Ryzen 7 5700U (AVX2), at commit f24b051.*
+
+At one change per epoch, float-abel starts to make sense after about 8,400 rows against a plain collection sum, and after 53,000 rows against a vectorized one on the M5. On the Ryzen the numbers are 22,000 and 115,000. If you batch a thousand changes per epoch, the tipover point drops to between 119 and 1,110 rows. The gap grows with collection size. At a million rows, on the M5 one change costs 4 µs incrementally against 77–489 µs to re-sum.
+
+### how it's checked
+
+* The [laws kit](#check-your-own-weight) runs on every type, with the `f64` control required to fail.
+* `to_f64`, `to_f32` and `div_f64` are tested against correctly rounded vectors generated with CPython's `Fraction`, ties and subnormals included.
+* `Fixed256`, `Wide` and `Exact` are validated to agree bit for bit where their domains overlap, and `Wide` is validated against bitrep as a reference implementation. Sums are checked against a `num-bigint` oracle under `cargo-fuzz`.
+* The suite is tested under miri.
+* Output is hash-validated to be bit-identical on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32, riscv64gc and s390x.
+* Every SIMD kernel is validated against scalar loops.
+
+```bash
+cargo test                                             # the test features turn on by themselves
+cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain
+cargo run --example dd_sum -- -w 3                     # SUM on three workers
+```
+
+### check your own weight
+
+Maybe you're writing a weight type of your own, or bringing float-abel to a new engine. Either way, you'll want to know the weight really is an abelian group before an engine relies on it.
+
+Behind the `laws` feature, the property tests float-abel runs on itself will run on any type that implements `laws::Weight`: `Clone`, `Eq`, `Hash`, `Debug`, `+`, `-` and negation, plus `zero()` and `is_zero()`. A property test doesn't merely check a handful of examples you picked. You give it a strategy, a recipe for random values, and it throws case after case of them at each law looking for one that breaks it:
 
 ```rust
 use float_abel::laws::{self, check_abelian_group, proptest::prelude::*};
 use float_abel::Exact;
 
-// The strategy draws the weight's domain: here same-scale doubles, which stay in the compact
-// form; a multiset spread over the whole exponent range runs through the heap form and passes
-// too, at the cost of an allocation per promoted sum.
-let mut runner = laws::runner(64, 0);
-check_abelian_group(&mut runner, (-1.0e6..1.0e6).prop_map(Exact::from)).unwrap();
+let mut runner = laws::runner(64, 0); // 64 random cases from seed 0, so every run is the same run
+let doubles = (-1.0e6..1.0e6).prop_map(Exact::from); // random f64s between ±1,000,000, as Exacts
+check_abelian_group(&mut runner, doubles).unwrap(); // and every law holds
 ```
 
-The kit runs against every tier in CI, and against three negative controls, a naive `f64` wrapper
-that must **fail** associativity and inverse, a compact-only `Exact` that must fail closure past its
-width, and an `Exact` refusing the limb cap's last bit that must fail closure on a strategy at the
-cap's edge; a control that passes means the kit is blind.
+There are five checks, one for each kind of promise an engine relies on:
 
-## Bulk sums
+| check | the law | what the engine does that needs it |
+|---|---|---|
+| `check_abelian_group` | the same bits from 1,000 shuffles of one sum, adding zero changes nothing, and `a + b - b == a` | adds weights in any order and retracts by subtracting |
+| `check_canonical` | `==` and `Hash` mean numeric equality: one number, one bit pattern | matches weights by `==` and `Hash`, and deletes the ones that are zero |
+| `check_ring` | `(a + b) × k == a × k + b × k` | multiplies weights, by a row's count or by each other in a `join`, before or after adding them up |
+| `check_consolidation_invariance` | the same values merged in random batches, zeros thrown out between merges, land the same bits | consolidates whenever it likes |
+| `check_closure` | every sum, difference and product comes back instead of panicking | has no way to take an error back from a weight, so one that hits a cap can only panic |
 
-`Wide`, `Fixed` and `Binned` take a whole column at once through `extend_from_slice(&[f64])` and
-`deposit_products(&[f64], &[f64])`, the dot-product shape. Behind the `simd` feature those run on
-runtime-dispatched NEON and AVX2 kernels: lane-parallel partial accumulators, legal because every tier
-is associative and commutative, merged at the tile's end to the same bits as the scalar reference,
-which the golden hash asserts on every target. The kernels are the only `unsafe` in the crate, and
-with the feature off the crate is `unsafe`-free end to end. Products are not vectorised.
+When a check fails, proptest doesn't just hand you the random mess it tripped on. It distills it, trying smaller and simpler values until it finds the smallest case that still fails. The proptest suite also runs on plain `f64` in a `Naive` wrapper, with values drawn from thousandths between −1 and 1, and requires it to fail. proptest whittles it down to:
 
-## What reproducibility costs
+```text
+broke
+  inverse: Naive(0.001) + Naive(0.898) − Naive(0.898): Naive(0.0010000000000000009) is not Naive(0.001)
+```
 
-The price of the guarantee, measured against the `f64` arithmetic it replaces, on the same-scale
-band, at commit 2a82388 (`BENCH.md` names the machine, the toolchain and the commit for every number):
+Essentially `0.1 + 1.0 - 1.0` from [why floats don't add up](#why-floats-dont-add-up), arrived at empirically.
 
-| shape | `f64` | `Exact` | `Wide` | `Fixed256` | `Binned<3>` |
-|---|--:|--:|--:|--:|--:|
-| one value at a time into one slot, NEON (Apple M5 Max) | 0.58 ns | 4.94 ns, 8.5× | 18.70 ns, 32× | 7.89 ns, 14× | 10.22 ns, 18× |
-| one value at a time into one slot, AVX2 (AMD Ryzen 7 5700U) | 0.73 ns | 15.89 ns, 22× | 36.36 ns, 50× | 16.18 ns, 22× | 18.51 ns, 25× |
-| a column summed in bulk, NEON | 0.080 ns | | 1.82 ns, 23× | 1.60 ns, 20× | 2.00 ns, 25× |
-| a column summed in bulk, AVX2 | 0.368 ns | | 2.52 ns, 6.9× | 2.02 ns, 5.5× | 1.68 ns, 4.6× |
-| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, NEON | 43.0 ms (`isize`) | 79.7 ms, 1.85× | | | |
-| a `SUM` in differential-dataflow, 10⁷ updates, 8 workers, AVX2 | 181.4 ms (`isize`) | 376.3 ms, 2.07× | | | |
+These tools exist to make float-abel as open as possible. You can adapt float-abel to your own engine without needing to fork or contribute to the project. If you're carrying float-abel's value types to another engine, or to another language, you don't even need this crate's code to read them. Every value has exactly one byte encoding, specified in [`FORMAT.md`](FORMAT.md).
 
-Updating an aggregate one row at a time, the engine's shape, costs `Exact` five nanoseconds a row
-where a float costs half of one; a consumer's `+=` on the word compiles to the integer ops in place,
-every operator down to the compact tier being `#[inline]`. Summing a whole column, the SIMD kernels
-bring every tier to about two nanoseconds a value. Inside differential-dataflow, where the diff's
-cost is diluted by everything else the engine does per update, `Exact` runs at about twice the
-native integer diff. Reading a total out (`to_f64`, 9.8 ns and 17.8 ns) happens once per aggregate,
-not once per row.
+### limits
 
-The other number that matters is the group size past which one change through the engine beats
-re-summing the group's floats with no engine at all (`docs/CROSSOVER.md`, `BENCH.md` § The
-crossover): about 10⁴ rows a group on NEON and 2×10⁴ on AVX2 at one change an epoch, where the
-engine's epoch cost dominates and the word's cost is invisible, and a few hundred rows once changes
-are batched by the thousand. Above it the crate wins and the margin grows linearly with the group:
-at a million rows one change is 4 µs through the engine against 77 to 499 µs of re-sum on NEON.
-Below it the re-sum is faster, and the crate is bought for the same bits under any schedule and for
-exact retraction, which the re-sum cannot offer at any size.
+- **Sums and some products, nothing else.** Division, `exp`, `log` and constants like ⅓ aren't group operations, so they happen once, on the exact total, at read time. float-abel makes what an engine accumulates reproducible. It doesn't make arbitrary float code reproducible and [it can't handle an arbitrarily long chain of multiplications](#pick-three).
+- **`Exact` has two named caps.** 34,368 bits of span, and an exponent bound of 2³⁰. Sums of f64s never get near either. Only long chains of nested `float × float` products do. Past a cap, `+=` panics with the cap's name, because an engine's `plus_equals` can't return an error, and the `checked_*` methods return `PastCap` instead. If you run more than one worker and can reach a cap, build with `panic = "abort"`, or one worker's panic leaves the rest spinning.
+- **Ordering is out of scope.** `MIN`, `MAX` and float keys don't round, so they don't need a group.
 
-## Wire format
+If you're dealing with just a few hundred items, you have all your data up front, you don't need clean retraction, or you're only dealing with currency, options like bitrep, ReproBLAS, or fixed-width decimals may suit your needs better.
 
-Each group type has one canonical little-endian encoding, `FORMAT.md`: a version byte that names the
-type (`0x01` `Exact`, `0x02` `Wide`, `0x03` `Fixed`) then the type's `repr(C)` bytes, 33, 297 and
-`1 + 8·LIMBS` in all. `to_bytes` and `from_bytes` are on every feature set, and behind `serde` the
-impls carry the same bytes: `Exact` and `Wide` as one byte string, so bincode 1 frames the 33 with a
-`u64` length and postcard with a varint, and `Fixed` as a tuple of its bytes. A decoder refuses
-anything that is not a canonical value, as a `WireError`, never a panic, because a non-canonical
-value smuggled through a batch would break `Eq`-substitutability in an engine's builder. `Exact`'s
-heap form, behind `alloc`, encodes under its own first byte (`0x04`) as the block the word holds,
-through `encode`, and `from_bytes` reads both forms; the decoder bounds the limb counts by the cap
-before it allocates and refuses a heap body whose value the compact form holds. `Binned` has no
-wire form and crosses a boundary as the `Wide` it converts to. The format freezes at 1.0.
+Those solutions can also be less complex, making them easier to reason about and maintain as dependencies. For example, because bitrep's guarantee is only that floating-point statistics are exact, it can achieve its goal by keeping track of what's been added and removed over time as stored state, in a count that never goes down. The numbers that come out are exact, but the variable storing them holds different bits based on what you've done with it. That prevents true equality between otherwise-exact variables, if they were arrived at in different ways. Because float-abel needs bit-exactness for incremental engines, which doesn't allow state history like that, it has to do more.
 
-## Features
+### features
+
+Theoretically you can use float-abel with no dependencies at all, but you probably want some minor ones. For example, without `alloc`, which is enabled by default, the `Exact` type can't grow to fit all values, and the SIMD kernels are worth `std` when possible, but `no_std` is supported when needed. They're all optional behind features:
 
 | feature | pulls in | provides |
 |---|---|---|
-| `alloc` | — | `Exact`'s heap form: promotion past the width, dyadic special amounts, the limb cap |
-| `std` (default) | `alloc` | `std::error::Error` impls, the bench harness |
-| `serde` | serde 1 | `Serialize`/`Deserialize` in the canonical encoding, validated on decode |
-| `differential` | differential-dataflow 0.25 + `serde` | the differential-dataflow adapter |
-| `dbsp` | dbsp 0.367 + rkyv 0.7 + feldera-size-of + `std` | the DBSP adapter |
-| `laws` | proptest | the laws kit |
-| `simd` | `std` | runtime-dispatched NEON and AVX2 bulk kernels, the `unsafe` beside the heap form's |
-| `arbitrary` | arbitrary 1 | fuzz inputs |
+| `std` (default) | `alloc` | `std::error::Error` impls |
+| `alloc` | | `Exact`'s heap form; without it the 127-bit word is the cap |
+| `serde` | serde 1 | the canonical encoding, validated on decode |
+| `differential` | differential-dataflow 0.25, timely 0.31, `serde` | the differential dataflow adapter and `banded_sum` |
+| `dbsp` | dbsp 0.367, rkyv 0.7, feldera-size-of, `std` | the DBSP adapter |
+| `laws` | proptest, `std` | the laws kit |
+| `simd` | `std` | NEON and AVX2 bulk kernels for `Wide`, `Fixed` and `Binned` |
+| `arbitrary` | arbitrary 1, `std` | fuzz inputs |
 
-The crate is `no_std` with zero required dependencies. MSRV is 1.74 on the default features, asserted
-in CI; `differential` inherits differential-dataflow's 1.86, and `dbsp` builds on 1.99.0 and 1.96.1.
+MSRV is 1.74 on the default features. `differential` needs differential-dataflow's 1.86, and `dbsp` builds on 1.99.0.
 
-## Verification
+## why it exists
 
-The laws kit on every tier with the `f64` control failing; correct rounding of `to_f64`, `to_f32`
-and `div_f64` against vectors generated from CPython's `Fraction`, ties, subnormals and overflow
-included; `Fixed256`, `Wide` and `Exact` agreeing bit for bit on their shared domain, and `Exact`
-against bitrep's sum on random multisets; the decoder's refusals; sums against a `num-bigint`
-oracle under `cargo-fuzz`, nightly, ten minutes a target; the suite under miri; one golden SHA-256
-over every tier's bytes, reads and refusals on x86_64 Linux and Windows, aarch64 macOS and Linux,
-wasm32, riscv64gc and s390x; every SIMD kernel equal to the scalar reference, lane count
-notwithstanding. The design and its reasoning are in [`docs/DESIGN.md`](docs/DESIGN.md).
+### why floats don't add up
 
-## Building
+You'd think `a + b - b == a`. Try `0.1 + 1.0 - 1.0`:
 
-```bash
-cargo test                                             # the self dev-dependency turns the test features on
-cargo test -p float-abel-noalloc                       # Exact with no features: the compact form alone, the width its cap
-cargo +1.99.0 test --features dbsp --test main dbsp_   # dbsp's toolchain; 1.97 and 1.98 ICE inside it
-cargo run --example dd_sum -- -w 3                     # Exact as a differential-dataflow diff: SUM on three workers
-cargo +nightly miri test --test main                   # the suite under miri (sweeps cut to a hundredth; trybuild and timely ignored)
-cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total_time=60   # a fuzz target; nightly + cargo-fuzz
-./scripts/smoke.sh                                     # commit gate
-./scripts/regression.sh                                # push gate
-git config core.hooksPath .githooks                    # run the gates from git
-cargo bench && ./scripts/bench-baseline.sh compare     # every bench row past 1.5× of this machine's bench-baseline.json; advisory
+```rust
+assert_eq!(0.1 + 1.0 - 1.0, 0.10000000000000009);
 ```
 
-Keep `CARGO_TARGET_DIR` outside any Spotlight-indexed or cloud-synced tree. Every object cargo writes
-into a watched directory is queued for indexing or upload, and on macOS that is what makes a warm
-build feel cold. For example:
+A 64-bit float, or f64, has 53 significant bits plus an exponent that says where the binary point goes [4]. Yeah, binary point. Not decimal point. Remember, floats have to do this with raw bits in binary numbers.
 
-```bash
-export CARGO_TARGET_DIR="$HOME/.cache/cargo-target/float-abel"
+The bits stay put and the point floats. That's easiest to see on a toy float that keeps just three significant bits, giving it 4 possible values, because there's a rule that the first digit has to always be 1, so: `100`, `101`, `110`, and `111`.
+
+Those values express different numbers depending on the exponent that gets applied. To store a bigger number, you apply a bigger exponent. But as the exponent increases, the resolution decreases, because it has to cover a wider range of numbers in the same bits.
+
+Between 1 and 2 it can write four numbers, all using the same exponent:
+
+```text
+  binary    1.00   1.01   1.10   1.11
+  decimal   1      1.25   1.5    1.75     from 1 to 2, 0.25 apart
 ```
 
-## Security
+Let's break this down a bit more. How does `100` become `1.00`? The exponent comes out to zero, because it's calculated against a pre-determined bias for this toy float type of `-011` (-3). That bias shifts the range on the number line, centering exponents evenly between negative and positive powers, so it's equally useful for small and large values. It gets added to the exponent provided in the float value, which in this case is `011`, or (3). -3 + 3 = 0. Because we're using binary, the point shifts with powers of 2. 2 to the power of 0, like any number to 0, gives you 1. So the point is located 1 place in. Seriously, all float numbers are this convoluted.
 
-Report a vulnerability through GitHub's private vulnerability reporting on this repository, as
-[`SECURITY.md`](SECURITY.md) says.
+Now, going from `101` to `1.25` is a little more tricky. It's the same exponent for all numbers in this range, so that's why it also becomes `1.01` instead of, say, `101.0` or `10.1`. Then it's just converting the binary fraction to a decimal one. Instead of going down by tenths (1/10th, 1/100th, 1/1000th), they go down by halves (1/2th, 1/4th, 1/8th). So the `.01` is 'zero halves and 1 quarter', decimal `.25`.
 
-## License
+Slide the point one place right by changing the exponent from `011` to `100`, and instead of applying `-3 + 3` we're applying an exponent of `-3 + 4`, or `1`. 2 to the power of 1 is 2, so the binary point is after the second digit. `1.00` becomes `10.0`, etc. This means the same four bit patterns can now express the numbers between 2 and 4:
 
-MIT OR Apache-2.0, at your option.
+```text
+  binary    10.0   10.1   11.0   11.1
+  decimal   2      2.5    3      3.5      from 2 to 4, 0.5 apart
+```
+
+Slide it again with exponent `101`, we're shifting the binary point from 2 to 3. So now `10.0` becomes `100.` and the same bits cover 4 to 8:
+
+```text
+  binary    100.   101.   110.   111.
+  decimal   4      5      6      7        from 4 to 8, 1 apart
+```
+
+Let's look at this all together. So far, we've been looking at it row by row, left to right.
+
+```text
+  binary    1.00   1.01   1.10   1.11
+  decimal   1      1.25   1.5    1.75     from 1 to 2, 0.25 apart
+
+  binary    10.0   10.1   11.0   11.1
+  decimal   2      2.5    3      3.5      from 2 to 4, 0.5 apart
+
+  binary    100.   101.   110.   111.
+  decimal   4      5      6      7        from 4 to 8, 1 apart
+```
+
+Now read down any column top to bottom. The bits never change, only the point moves. Every row gets exactly four numbers, but each row covers twice the ground of the one above it, so its numbers sit twice as far apart. Put them all on one number line and you get a grid that coarsens as it moves away from zero, leaving larger and larger gaps of numbers that can't be expressed:
+
+```text
+  value  1       2       3       4       5       6       7       8
+         ├─┬─┬─┬─┼───┬───┬───┬───┼───────┬───────┬───────┬───────┤
+  gap       0.25        0.5                      1
+```
+
+If you slid it to the right again the gap'd be 2: between 8 and 16 it can express the numbers 8, 10, 12 and 14, with no way to write 9. If you slid it back left instead the gap would keep halving each time, getting finer and finer so that it's finest near zero.
+
+An f64 works the same way, with 53 bits instead of 3 [4]. Every stretch between two powers of two holds 2⁵² evenly spaced f64s, so the gap between neighbors is the stretch's width divided by 2⁵²:
+
+| near | stretch | gap |
+|---|---|---|
+| 0.1 | 2⁻⁴ to 2⁻³ | 2⁻⁵⁶ ≈ 1.4 × 10⁻¹⁷ |
+| 1.0 | 2⁰ to 2¹ | 2⁻⁵² ≈ 2.2 × 10⁻¹⁶ |
+| 2⁵³ ≈ 9.0 × 10¹⁵ | 2⁵³ to 2⁵⁴ | 2 |
+
+So near 0.1 the grid is 16 times finer than near 1.0. At 2⁵³ the gap reaches 2 (it can express much larger numbers than the toy, which reaches this point at 8). Skipping every other number means odd integers stop existing altogether:
+
+```rust
+let big = 9007199254740992.0; // 2⁵³, the value when it starts skipping every other number
+assert_eq!(big + 1.0, big); // So that means the next number up isn't on the grid, it just rounds back down
+assert_eq!(big + 2.0, 9007199254740994.0); // ...but if you add 2.0, voilà! it can express that
+```
+
+And that's really the explanation for all of this:
+
+Every floating point operation computes the _exact_ answer and then _rounds_ it to the nearest point on the grid [1, 4]! That's where `0.1 + 1.0 - 1.0` goes wrong. Write both numbers out in binary with their points lined up:
+
+```text
+         ┌────── 1.0's 53 bits ───────┐
+  1.0  = 1.0000 0000 0000 ... 0000 0000
+  0.1  = 0.0001 1001 1001 ... 1001 1001 1010
+              └────── 0.1's 53 bits ───────┘
+```
+
+Each gets 53 bits. 1.0's bits start at the ones place. 0.1 is a smaller number, and so its bits start four places after the binary point, then run four places past the end of 1.0's bits. Being smaller lets it 'float' the point to be more precise, because it doesn't have to store the leading zeroes as bits. A larger number like 1.0 can't be so precise, because it's got non-zero digits to track as bits before the binary point. This is how that actually shakes out. Large numbers run out of space in the bitfield for really small numbers.
+
+The sum is between 1 and 2, so it has to land on 1.0's grid, and that grid has no room for 0.1's last four bits. Those bits are `1010`, binary for 10, so the exact sum sits ten sixteenths of the way across one step of 1.0's grid:
+
+```text
+               1.0999999999999999                            1.1
+  1.0's grid   ├───────────────────────────────────────────────┤
+  0.1's grid   ├──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┬──┤
+               └───────────── 10 ────────────┴─────── 6 ───────┘
+                                             ↑ 1.0 + 0.1, exactly
+```
+
+It's ten of 0.1's grid steps above the number below and six short of the one above, so it rounds up to the closer grid point 1.1, six steps higher than the truth. (Yes, when it rounds down it's pretty much the scheme from Office Space and Superman III.) Subtracting 1.0 is exact. It just can't bring back what the addition threw out, so the precision error remains at the end:
+
+```rust
+// 0.10000000000000009 is 0.1 plus six of 0.1's steps, 2⁻⁵⁶ each.
+assert_eq!(0.1 + 1.0 - 1.0, 0.1 + 6.0 * 2f64.powi(-56));
+```
+
+That one rounding step is why order matters. It's why float addition is commutative, but not associative:
+
+```rust
+assert_eq!((0.1 + 0.2) + 0.3, 0.6000000000000001);
+assert_eq!(0.1 + (0.2 + 0.3), 0.6);
+```
+
+This matters any time you divide and conquer by chunking work across multiple workers. Split a sum across workers and you've changed its grouping, so a parallel reduction's bits depend on how the work was scheduled [5, 6].
+
+### why that breaks incremental engines
+
+Incremental view maintenance keeps a result current by applying each change rather than recomputing from scratch [7]. Differential dataflow and DBSP rely on basic principles: inserts add values, deletes subtract them, and multiple workers' results get merged back together in arbitrary order. That only works if the values form what's called an abelian group: addition that's associative and commutative, and can be backed out exactly. Integers are an abelian group. 1 + 10 - 10 does equal 1. Floats aren't an abelian group, as we've already seen:
+
+```rust
+// insert 1e100, insert 1.0, delete the 1e100. it should be back to 1.0, right? ...right?
+assert_eq!(1e100 + 1.0 - 1e100, 0.0); // nope. f64 says it's empty.
+```
+
+Incremental engines drop entries at zero, so leftover crumbs keep dead entries alive and false zeros delete live ones. Feldera/DBSP says as much in its docs: its linear aggregates "are actually non-linear when applied to `DOUBLE` or `FLOAT` values" [8], and a float `SUM` in one "will produce incorrect results or runtime crashes" [9].
+
+I ran into this wanting personalized PageRank and graph Laplacians, among other things, maintained incrementally in differential dataflow. Their graph weights are floats. The usual ways around it each give something up:
+
+| approach | same bits in any order | exact retraction | every f64 | fixed size |
+|---|---|---|---|---|
+| plain `f64` | no | no | yes | 8 B |
+| compensated summation [10, 11] | no | no | yes | 16 B |
+| scaled integers (fixed point) | yes | yes | no: the range is picked in advance | yes |
+| binned summation, ReproBLAS [12, 13] | yes | no | yes | yes |
+| a long accumulator [14, 15] | yes | yes | yes | yes, but about 300 B |
+
+Only the last row passes every column, and it's old: Kulisch proposed a fixed-point register wide enough for every product of two f64s [14], and Neal's superaccumulators are a fast software form [15]. float-abel's `Wide` is that row, sized for sums of f64s rather than products. (It's also the approach the bitrep project uses.) `Exact` is the same group in 32 bytes that move to the heap only when a sum needs more than 127 bits.
+
+### why binned summation isn't enough
+
+The standard answer to order-dependent sums is Demmel and Nguyen's binned summation, implemented in ReproBLAS [12, 13]. It's fast, it's constant size, and a one-shot sum comes out the same in any order. It works by keeping a few bins positioned relative to the largest value seen so far, and cutting off everything below the lowest bin at the same place for every input.
+
+That position is the problem. The state remembers the largest value it ever saw, and no retraction can make it forget, so it isn't an abelian group. float-abel ships this method as `Binned`, for batch work, so you can watch it happen:
+
+```rust
+use float_abel::{Binned, Exact};
+
+let f64_sum = |xs: &[f64]| xs.iter().sum::<f64>();
+let binned = |xs: &[f64]| xs.iter().copied().map(Binned::<3>::from).sum::<Binned<3>>().into_wide().to_f64();
+let exact = |xs: &[f64]| xs.iter().copied().map(Exact::from).sum::<Exact>().to_f64();
+
+// Insert 1e100 and 1.0 and retract the 1e100, three different ways
+let (a, b) = ([1e100, 1.0, -1e100], [1e100, -1e100, 1.0]); // same values, different orders
+assert_eq!((f64_sum(&a), f64_sum(&b)), (0.0, 1.0)); // f64: the answer changes with the order
+assert_eq!((binned(&a), binned(&b)), (0.0, 0.0)); // binned: consistently wrong
+assert_eq!((exact(&a), exact(&b)), (1.0, 1.0)); // exact: always right
+```
+
+## references
+
+1. D. Goldberg. What every computer scientist should know about floating-point arithmetic. *ACM
+   Computing Surveys* 23(1):5–48, 1991. [doi:10.1145/103162.103163](https://doi.org/10.1145/103162.103163)
+2. F. McSherry, D. G. Murray, R. Isaacs, M. Isard. Differential dataflow. *CIDR*, 2013.
+   [cidrdb.org](https://www.cidrdb.org/cidr2013/Papers/CIDR13_Paper111.pdf)
+3. M. Budiu, T. Chajed, F. McSherry, L. Ryzhyk, V. Tannen. DBSP: Automatic incremental view
+   maintenance for rich query languages. *PVLDB* 16(7):1601–1614, 2023.
+   [doi:10.14778/3587136.3587137](https://doi.org/10.14778/3587136.3587137)
+4. IEEE Standard for Floating-Point Arithmetic, IEEE Std 754-2019.
+   [doi:10.1109/IEEESTD.2019.8766229](https://doi.org/10.1109/IEEESTD.2019.8766229)
+5. C. Collange, D. Defour, S. Graillat, R. Iakymchuk. Numerical reproducibility for the parallel
+   reduction on multi- and many-core architectures. *Parallel Computing* 49:83–97, 2015.
+   [doi:10.1016/j.parco.2015.09.001](https://doi.org/10.1016/j.parco.2015.09.001)
+6. W. Ahrens, J. Demmel, H. D. Nguyen. Algorithms for efficient reproducible floating point
+   summation. *ACM TOMS* 46(3), 2020. [doi:10.1145/3389360](https://doi.org/10.1145/3389360)
+7. J. A. Blakeley, P.-Å. Larson, F. W. Tompa. Efficiently updating materialized views. *SIGMOD*,
+   61–71, 1986. [doi:10.1145/16894.16861](https://doi.org/10.1145/16894.16861)
+8. Feldera. Aggregate operations. [docs.feldera.com/sql/aggregates](https://docs.feldera.com/sql/aggregates)
+9. Feldera. User-defined functions. [docs.feldera.com/sql/udf](https://docs.feldera.com/sql/udf)
+10. W. Kahan. Further remarks on reducing truncation errors. *CACM* 8(1):40, 1965.
+    [doi:10.1145/363707.363723](https://doi.org/10.1145/363707.363723)
+11. N. J. Higham. *Accuracy and Stability of Numerical Algorithms*, 2nd ed., ch. 4. SIAM, 2002.
+    [doi:10.1137/1.9780898718027](https://doi.org/10.1137/1.9780898718027)
+12. J. Demmel, H. D. Nguyen. Fast reproducible floating-point summation. *ARITH 21*, 163–172,
+    2013. [doi:10.1109/ARITH.2013.9](https://doi.org/10.1109/ARITH.2013.9)
+13. J. Demmel, H. D. Nguyen. Parallel reproducible summation. *IEEE Transactions on Computers*
+    64(7):2060–2070, 2015. [doi:10.1109/TC.2014.2345391](https://doi.org/10.1109/TC.2014.2345391)
+14. U. Kulisch. *Computer Arithmetic and Validity*, 2nd ed. De Gruyter, 2013.
+    [doi:10.1515/9783110301793](https://doi.org/10.1515/9783110301793)
+15. R. M. Neal. Fast exact summation using small and large superaccumulators. arXiv:1505.05571,
+    2015. [arxiv.org/abs/1505.05571](https://arxiv.org/abs/1505.05571)
+
+---
+
+MIT OR Apache-2.0, at your option. Report a vulnerability as [`SECURITY.md`](SECURITY.md) says.
+Developed with Claude.
