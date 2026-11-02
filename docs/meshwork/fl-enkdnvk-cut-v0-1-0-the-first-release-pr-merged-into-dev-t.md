@@ -43,13 +43,24 @@ handoff: |
   would not break release.yml's version check, but they wait.
   
   What remains, in order:
-  1. The suite on #5 goes green (miri is the long pole, ~35 min; the three
-  fuzz targets ten each; dbsp compiles its closure cold). If a job
-  fails: read its log and stop. Fixing on dev means a push, which moves
-  #5, and a `fix` commit moves the count to 0.30.3, after which
+  1. The suite on #5 is green: run 41524208877 concluded success at 21:23Z
+  on all seventeen jobs. #5 is BLOCKED by the main-protection ruleset's
+  pull_request rule alone: required_approving_review_count 1, no bypass
+  actor, one account on the repo, so nobody can merge. fl-494d9cb holds
+  the ruling (0 reviews recommended, or an admin bypass actor); the PUT
+  body for 0 is one parameter off the live ruleset and sits unsent in
+  the session's scratchpad (rebuild it: GET the ruleset, move
+  required_approving_review_count to 0, PUT name, target, enforcement,
+  bypass_actors, conditions, rules). On the owner's word, send it, then
+  `gh pr view 5 --json mergeStateStatus` should read CLEAN. Three
+  sibling findings under fl-b9qtzty: fl-wszw1qg (no required checks on
+  main), fl-wh7r2df (branch-protection reaches no branch), fl-pg35w24
+  (no v* tag ruleset; the release job's tag creation is free today).
+  If a job had to be fixed on dev before the merge: a push moves #5, and
+  a `fix` commit moves the count to 0.30.3, after which
   scripts/release-pr.sh must run again before the merge (release.yml's
-  first step refuses a Cargo.toml that disagrees with the count). Both
-  are the owner's call today, not yours.
+  first step refuses a Cargo.toml that disagrees with the count). The
+  owner's call, not yours.
   2. The owner merges #5 (merge commit; the repo allows no other). Do not
   merge it yourself. The push to main runs release.yml's one job:
   version check, entry read, `cargo package --locked`, sha256, the
@@ -91,7 +102,9 @@ The owner's merges, twice, and the session's watch. The release PR cut-release.y
 - 2026-11-02T20:43Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
 - 2026-11-02T21:02Z handoff by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
 - 2026-11-02T21:21Z handoff by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
+- 2026-11-02T21:30Z handoff by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
 
 ## comments
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the release workflow is .github/workflows/release.yml (from cut-release.yml); the owner's dispatch is `gh workflow run release.yml --ref dev`. The release job now packages and attests the .crate before creating the tag and the GitHub Release, and attaches the .crate and its sha256 in the `gh release create` call, so a failed package leaves no tag behind. The release PR into dev runs no ci (ci.yml triggers on PRs into main alone); the dev→main PR runs the whole suite, fuzz and golden included. The RELEASE_PR_TOKEN or the Actions setting is still what the dispatch needs: `gh secret list` is empty and `can_approve_pull_request_reviews` is false at this writing.
 - 2026-11-02T21:02Z [claude (aa073407-90a0-459f-92ea-439fb58eb49c)] 2026-11-02, from this clone, on the owner's "cut the release pr" and "if there are things still to do i guess do them": fl-rhztsdq landed first, 21f46c1 `fix(release): anchor the include globs to the crate root`, because it changes what the first .crate carries. `cargo package --list --locked` went from 49 files to 47, the two tests/data/bitrep paths gone and the six root files kept; the fix moved the count from 0.30.1 to 0.30.2. The push gate passed the tree at 530c71d (regression: OK, the two unmatched-skip warnings of fl-jdsha55 printed and ignored, as warnings are). `./scripts/release-pr.sh` then committed `chore(release): v0.30.2` as 249fdad (CHANGELOG.md +138 lines, Cargo.toml and Cargo.lock one line each), pushed dev with the hooks skipped and said so, and opened https://github.com/jbrjake/float-abel/pull/5, dev → main, title `chore(release): v0.30.2`, body the 138-line entry opening with `## [0.30.2](…/compare/v0.0.0...v0.30.2) - 2026-11-02`. ci run 41524208877 started on 249fdad: Conventional Commits and the code-changed gate passed, fifteen jobs pending (smoke + regression, MSRV, miri, cargo-deny, dbsp and ui on 1.99, three fuzz, seven golden); the pull request's mergeStateStatus is BLOCKED until they pass. main stays at 3ac2723. This task's verify is green from here on (the 0.30.2 heading in CHANGELOG.md), but the task is done only once the owner merges, release.yml tags and attests, and `gh attestation verify` passes from a clean download, so it stays open.
+- 2026-11-02T21:30Z [claude (aa073407-90a0-459f-92ea-439fb58eb49c)] 2026-11-02T21:23Z: ci run 41524208877 on 249fdad concluded success, all seventeen jobs (miri 20:59 -> 21:23, 24 min; the three fuzz targets, dbsp, the gate, MSRV, cargo-deny and the seven golden legs green). #5 is still BLOCKED: reviewDecision REVIEW_REQUIRED, from the main-protection ruleset's pull_request rule (required_approving_review_count 1, bypass_actors []), which no account on this one-account repo can satisfy, the author's approval never counting. Filed fl-494d9cb (the ruling: 0 reviews, or an admin bypass actor), fl-wszw1qg (no required_status_checks rule on main), fl-wh7r2df (branch-protection's include is the single string 'refs/heads/main dev' and reaches no branch) and fl-pg35w24 (no v* tag ruleset exists). The PUT body for 0 reviews is prepared, one parameter different from the live ruleset, and not sent: a ruleset is the owner's. The owner's word this session stands: no second release today, #5 untouched.
