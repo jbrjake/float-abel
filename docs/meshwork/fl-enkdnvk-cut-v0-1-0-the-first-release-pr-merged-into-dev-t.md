@@ -15,30 +15,41 @@ created: 2026-11-02T15:33Z
 handoff: |
   2026-11-02, the session that cut the release pull request, for the
   session
-  that sees it merged. Read the last comment here (what was cut and why
-  the
-  count is 0.30.2, not 0.30.1) before anything else.
+  that sees it merged. Read the comments here (what was cut, why the count
+  is
+  0.30.2) and fl-fjac8jd's last comment (the probe gate) before anything
+  else.
+  
+  The owner's words this session, in force: "at this point i don't want
+  another release today. the one that's running will be the first release
+  when its fuzz completes. don't update the release pr or make a new pr."
   
   State on origin: dev at 249fdad, `chore(release): v0.30.2`, the release
   commit scripts/release-pr.sh made; main at 3ac2723; pull request #5
   open,
   dev → main, title `chore(release): v0.30.2`, body the entry; ci run
   41524208877 on 249fdad, the whole suite (`gh pr checks 5`; `gh run view
-  41524208877`). No tag past v0.0.0. This clone carries one store-only
-  commit after 249fdad that is NOT pushed, on purpose: a push to dev while
-  #5 is open moves the pull request's head and reruns the suite, miri and
-  the mac leg included. Push it once #5 is merged (`git push origin dev`,
-  the push gate runs). A chore commit leaves the count at 0.30.2, so it
-  would not break the release; it only wastes the suite.
+  41524208877`). No tag past v0.0.0.
   
-  What remains, in order, each the owner's act or your watch:
-  1. The suite on #5 goes green. If a job fails: read its log, fix on dev
-  through the gates, and run `./scripts/release-pr.sh` AGAIN before the
-  owner merges, because a `fix` or `feat` commit moves the count (0.30.3)
-  and release.yml's first step refuses a Cargo.toml that disagrees with
-  it; the script commits the new version and refreshes #5 in place (the
-  self-test's case 2). A chore or docs commit moves nothing and needs no
-  rerun.
+  This clone's dev is three commits past origin/dev, NOT pushed, on
+  purpose:
+  7009a5e (store), 9b7acc3 `ci(probes): run miri and the fuzz targets on
+  the
+  pull request only when no green run covers the code` (fl-fjac8jd, with
+  scripts/probes-due.sh and its self-test in both gates), and the store
+  commit closing fl-fjac8jd. A push to dev while #5 is open moves the pull
+  request's head and reruns its suite, which is what the owner said not to
+  do. All three are chore or ci commits: the count stays 0.30.2, so they
+  would not break release.yml's version check, but they wait.
+  
+  What remains, in order:
+  1. The suite on #5 goes green (miri is the long pole, ~35 min; the three
+  fuzz targets ten each; dbsp compiles its closure cold). If a job
+  fails: read its log and stop. Fixing on dev means a push, which moves
+  #5, and a `fix` commit moves the count to 0.30.3, after which
+  scripts/release-pr.sh must run again before the merge (release.yml's
+  first step refuses a Cargo.toml that disagrees with the count). Both
+  are the owner's call today, not yours.
   2. The owner merges #5 (merge commit; the repo allows no other). Do not
   merge it yourself. The push to main runs release.yml's one job:
   version check, entry read, `cargo package --locked`, sha256, the
@@ -52,16 +63,21 @@ handoff: |
   .sha256, then `gh attestation verify float-abel-0.30.2.crate --repo
   jbrjake/float-abel`. Comment the output here, with the release URL.
   4. `close fl-enkdnvk` (the verify is the 0.30.2 heading in CHANGELOG.md,
-  already green). Then push dev with the store commit. fl-cr71vam
-  unlocks.
-  5. Do not re-offer crates.io; fl-7en8z60 is blocked on the owner's word
-  (owner: "I WILL TELL YOU WHEN I WANT IT"). Do not push to dev more
-  than once per piece of work. Do not add a tool.
+  already green). fl-cr71vam unlocks.
+  5. Then, and only then, `git push origin dev` (the push gate runs, ~4
+  min
+  warm, sandbox off for cargo-deny). That lands the probe gate; its
+  first live run is the next pull request into main, where the changes
+  job's probes step says whether miri and fuzz run and why.
+  6. Do not re-offer crates.io; fl-7en8z60 is blocked on the owner's word
+  (owner: "I WILL TELL YOU WHEN I WANT IT"). Do not add a tool.
   
-  Not done this session, left open on purpose: fl-jdsha55 (the two dead
-  zstd skip rows in deny-dbsp.toml; warnings, not a gate failure), and the
-  CI-cost tasks fl-c8jpmpm, fl-5mywkqp, fl-wpgpd4q, fl-btst4df; none
-  changes the released artifact.
+  Left open on purpose: fl-jdsha55 (the two dead zstd skip rows in
+  deny-dbsp.toml; warnings, not a gate failure), and the CI-cost tasks
+  fl-c8jpmpm, fl-5mywkqp, fl-wpgpd4q, fl-btst4df; none changes the
+  released
+  artifact. The store lint warns that fl-b9qtzty's verify reads
+  fl-4fcbtkx's task file, which is archived; not touched.
 ---
 
 The owner's merges, twice, and the session's watch. The release PR cut-release.yml keeps against dev carries the version the log counts to (owner: "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_"), Cargo.lock and the CHANGELOG entry; no version is typed anywhere by hand. The owner merges it (merge commit); the session opens dev→main (`gh pr create --base main --head dev --title "chore(release): cut the release the log yields"`) before anything else lands on dev; the owner merges it; the release job tags `v<that version>` on the merge commit, creates the GitHub Release with the entry as notes, builds the .crate with --locked, attests it and uploads .crate and .sha256. `gh attestation verify float-abel-<version>.crate --repo jbrjake/float-abel` passes from a clean machine. crates.io stays out until the owner says. Done is the verify (a released version heading in CHANGELOG.md) plus the release URL and the verify command's output in a comment here.
@@ -74,6 +90,7 @@ The owner's merges, twice, and the session's watch. The release PR cut-release.y
 - 2026-11-02T20:06Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
 - 2026-11-02T20:43Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
 - 2026-11-02T21:02Z handoff by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
+- 2026-11-02T21:21Z handoff by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
 
 ## comments
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the release workflow is .github/workflows/release.yml (from cut-release.yml); the owner's dispatch is `gh workflow run release.yml --ref dev`. The release job now packages and attests the .crate before creating the tag and the GitHub Release, and attaches the .crate and its sha256 in the `gh release create` call, so a failed package leaves no tag behind. The release PR into dev runs no ci (ci.yml triggers on PRs into main alone); the dev→main PR runs the whole suite, fuzz and golden included. The RELEASE_PR_TOKEN or the Actions setting is still what the dispatch needs: `gh secret list` is empty and `can_approve_pull_request_reviews` is false at this writing.
