@@ -12,13 +12,20 @@ verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-
 status: open
 created: 2026-11-02T15:14Z
 handoff: |
-  2026-11-02, end of session: the release process is built on the
-  repository's own scripts and waits on the owner's token, dispatch and
-  flip (fl-enkdnvk carries the brief, fl-4fcbtkx the settings). GitHub
-  Actions is not green: cancelled ci runs from today's pushes and
-  cut-release's failures at the PR step; see fl-enkdnvk's handoff. Open
-  here besides: fl-c8jpmpm, fl-5mywkqp, fl-wpgpd4q (ci cost), fl-fs9vhnd
-  (read-only token), fl-hp7md5n (dependabot), fl-9rczhm8, fl-821gnyr.
+  2026-11-02, after fl-ezhk4cz (dev at 4bec2d5): the workflows are three,
+  ci.yml (the suite, nightly
+  on dev only when dev moved outside docs/meshwork/, and on the PR into
+  main), release.yml (the
+  release PR on the owner's dispatch, the tag and GitHub Release on the
+  push to main) and publish.yml
+  (crates.io, dormant). The release process waits on the owner's token or
+  Actions setting, dispatch
+  and flip (fl-enkdnvk carries the brief, fl-4fcbtkx the settings). Open
+  here besides: fl-c8jpmpm
+  (fuzz corpus and cargo-fuzz cache), fl-5mywkqp (dbsp cache save),
+  fl-wpgpd4q (miri hour),
+  fl-hp7md5n (dependabot's PRs, now untested until the nightly),
+  fl-9rczhm8, fl-821gnyr.
 ---
 
 The one tree for getting the project in front of other people (owner, 2026-11-02: "what else do we
@@ -41,3 +48,4 @@ f24b051 on 2026-10-20; twelve nightly fuzz runs and four dependabot PR runs happ
 - 2026-11-02T15:37Z handoff by claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)
 - 2026-11-02T17:26Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 - 2026-11-02T18:05Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T18:36Z handoff by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)

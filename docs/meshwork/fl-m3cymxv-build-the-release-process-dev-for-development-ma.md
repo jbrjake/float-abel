@@ -14,7 +14,7 @@ status: open
 created: 2026-11-02T15:33Z
 covers:
   - ref: docs/DESIGN.md#sp-release
-    sha: d52b0c0dd2d2a5d6570b559791afc324d52c8051c4811f382dd12e56d5913d5b
+    sha: 5e919747f70b93caba5df9bcff686475c0a6c87a5f551f720e6a692636d439e7
 ---
 
 Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how are you not seeing this as a massive gap, especially considering i tell people to use releases in the readme?"; "part of this needs to be moving to a dev branch for dev, main for releases, pr from dev to main to cut one, versions automatically created from conventional commit log tracking, like anyone would expect from a grown-up, mature project other people are going to use"; "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS"; "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_!"; "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED!"
@@ -35,3 +35,7 @@ Verify: the first cut writes a released version heading into CHANGELOG.md.
 - 2026-11-02T15:33Z created
 - 2026-11-02T15:34Z cover docs/DESIGN.md#sp-release @3478ee626df5
 - 2026-11-02T16:38Z cover docs/DESIGN.md#sp-release @d52b0c0dd2d2
+- 2026-11-02T18:34Z cover docs/DESIGN.md#sp-release @5e919747f70b
+
+## comments
+- 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the release is .github/workflows/release.yml (from cut-release.yml) and the crates.io publish .github/workflows/publish.yml (from release.yml); the body's 'cut-release.yml on every push to dev' is two revisions stale: the release PR opens on the owner's dispatch alone. DESIGN.md § Release now says the nightly and the dev→main PR are the two test points and the .crate is built and attested before the tag; the sp-release pin is re-read and repinned with this comment.

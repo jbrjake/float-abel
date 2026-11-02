@@ -1,6 +1,6 @@
 ---
 id: fl-7en8z60
-title: "Run the first crates.io publish by dispatching release.yml with the tag the release cut, then move the crate to Trusted Publishing"
+title: "Run the first crates.io publish by dispatching publish.yml with the tag the release cut, then move the crate to Trusted Publishing"
 category: crate/release
 labels: [reproducible-floats]
 seq: 180
@@ -21,3 +21,6 @@ The owner's act, every step. Held on the owner's word of 2026-10-16, "i don't wa
 ## log
 - 2026-10-20T15:04Z created
 - 2026-10-20T15:05Z open→blocked — owner, 2026-10-16, in session: "i don't want to publish yet"; every step is the owner's act, and DESIGN.md § Release's ship list still lacks the AVX-512 kernel (fl-qv0vh39)
+
+## comments
+- 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the publish workflow is .github/workflows/publish.yml (what was release.yml); release.yml is now the release itself (what was cut-release.yml). Every 'release.yml' in the body's steps reads publish.yml: the dispatch in step 2 is `gh workflow run publish.yml -f tag=<tag> -f auth=token`, and the Trusted Publishing form in step 3 names workflow publish.yml, environment release. Nothing else in the body moves; the hold stands.
