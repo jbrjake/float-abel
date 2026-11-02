@@ -9,8 +9,9 @@ needs: [fl-cnkjdzp, fl-k594v2g]
 docs:
   - docs/DESIGN.md#release-sp-release
 verify: "all(exists release-plz.toml, exists .github/workflows/release-plz.yml)"
-status: open
+status: doing
 created: 2026-11-02T15:33Z
+claimed-by: claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 ---
 
 The ruled shape (fl-cnkjdzp, 2026-11-02). `release-plz.toml`: `git_only = true` (crates.io is outside the release, so the tag, never a registry, says what is released), `features_always_increment_minor = true` ("of course feats bump the minor"), `semver_check = true`, `git_release_enable = true`, `git_tag_enable = true`, `release_always = true` (the default; the `false` mode looks for a `release-plz-*` branch on main's latest commit, and in the dev→main shape that commit is the dev merge), `pr_branch_prefix = "release-plz-"`, and git-cliff's conventional preset tuned to `type(scope): subject`, `BREAKING CHANGE` footers kept. No `publish` key and no registry token anywhere in the workflow.
@@ -23,3 +24,4 @@ CHANGELOG.md's hand-written Unreleased bullets become the body of the first gene
 
 ## log
 - 2026-11-02T15:33Z created
+- 2026-11-02T16:50Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)

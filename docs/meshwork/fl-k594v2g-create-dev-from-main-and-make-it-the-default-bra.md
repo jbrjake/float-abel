@@ -9,8 +9,9 @@ needs: [fl-cnkjdzp]
 docs:
   - CLAUDE.md#commands
 verify: contains CLAUDE.md /git push origin dev/
-status: open
+status: doing
 created: 2026-11-02T15:33Z
+claimed-by: claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 ---
 `git branch dev main && git push origin dev` from the checkout, then the owner's settings: default
 branch `dev`; a ruleset on `main` requiring a pull request, the ci gate, msrv and deny jobs and the
@@ -22,3 +23,4 @@ Rulesets need the repo public or Pro, so this sits behind the flip (fl-4fcbtkx) 
 
 ## log
 - 2026-11-02T15:33Z created
+- 2026-11-02T16:43Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)

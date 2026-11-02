@@ -9,7 +9,7 @@ needs: [fl-cnkjdzp]
 docs:
   - CLAUDE.md#hygiene
 verify: exists scripts/check-commit-message.sh
-status: open
+status: done
 created: 2026-11-02T15:33Z
 ---
 A derived version is only as good as the log it reads. `scripts/check-commit-message.sh` takes a
@@ -21,3 +21,5 @@ first: a fixture of bad subjects the script must reject.
 
 ## log
 - 2026-11-02T15:33Z created
+- 2026-11-02T16:46Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T16:50Z doing→done — verify exit 0 @ eb19888+2
