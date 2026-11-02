@@ -14,6 +14,10 @@ all-features = true
 # it, so the shared-pointer validation flaw is not reachable through this crate's archive. h2 0.3 is
 # actix-http 3's HTTP/2, the server side of feldera-types, which this crate never opens; the h2 0.4
 # beside it is past the fix. proc-macro-error is utoipa-gen's, a proc macro that runs at build time.
+# zstd 0.12 is dbsp's own direct dependency, the one zstd in the graph without an in-range fix; this
+# crate opens no zstd stream. Every row here is a crate that has to move upstream, so both gates run
+# `check -D advisory-not-detected`: the day the crate moves on, the row stops matching and the gate
+# fails until it is deleted (owner: "we need something to auto-trigger to remove the exception").
 [advisories]
 version = 2
 yanked = "deny"
@@ -23,6 +27,7 @@ ignore = [
   { id = "RUSTSEC-2026-0235", reason = "rkyv 0.7.46 is dbsp 0.367.0's storage format (dbsp, feldera-storage and ordered-float are on it), and Exact's archive holds no pointer; fixed upstream only in 0.8" },
   { id = "RUSTSEC-2026-0258", reason = "h2 0.3.27 is actix-http 3.18's, reached through actix-web and feldera-types from dbsp; no HTTP connection is opened by this crate, and the fix is in the 0.4 line hyper is on" },
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.0.4 is utoipa-gen 4.3's, reached through utoipa, feldera-ir and feldera-types from dbsp; a proc macro that runs at build time" },
+  { id = "RUSTSEC-2026-0403", reason = "zstd-safe 6.0.6 is zstd 0.12.4's, dbsp's own direct dependency (zstd ^0.12, every release through 0.375.0); this crate decompresses nothing, and the fix is in the 8.2 line" },
 ]
 
 # deny.toml's three, then the nine the dbsp closure carries, each with the crates that carry it.
