@@ -67,8 +67,9 @@ jobs:
           set -o pipefail  # release-plz's exit status, not tee's
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          release-plz release-pr --git-token "$GITHUB_TOKEN" --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -o json | tee release-pr.json
-          jq -e '.prs' release-pr.json >/dev/null
+          # The JSON lands outside the tree: release-plz refuses a working directory with an untracked file.
+          release-plz release-pr --git-token "$GITHUB_TOKEN" --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -o json | tee "$RUNNER_TEMP/release-pr.json"
+          jq -e '.prs' "$RUNNER_TEMP/release-pr.json" >/dev/null
 
   release:
     name: release on main
@@ -106,8 +107,8 @@ jobs:
           set -o pipefail  # release-plz's exit status, not tee's
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          release-plz release --git-token "$GITHUB_TOKEN" -o json | tee release.json
-          tag=$(jq -r '.releases[0].tag // empty' release.json)
+          release-plz release --git-token "$GITHUB_TOKEN" -o json | tee "$RUNNER_TEMP/release.json"
+          tag=$(jq -r '.releases[0].tag // empty' "$RUNNER_TEMP/release.json")
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
       # The tag was made through the API, so the local clone learns its commit from the API too.
       # The commit is already here: release-plz tags the merged release PR's last commit or main's
