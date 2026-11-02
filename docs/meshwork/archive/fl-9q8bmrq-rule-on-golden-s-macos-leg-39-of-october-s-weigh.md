@@ -8,7 +8,7 @@ parent: fl-b9qtzty
 docs:
   - docs/DESIGN.md#bit-identical-across-architectures
 verify: contains docs/meshwork/fl-9q8bmrq-rule-on-golden-s-macos-leg-39-of-october-s-weigh.md /2026-[0-9][0-9]-[0-9][0-9] owner ruled on the macOS leg/
-status: open
+status: done
 created: 2026-11-02T15:14Z
 ---
 Owner, 2026-11-02, on the billing: "WHY ARE WE USING MACOS ... IF IT COSTS 10X MORE". Fuzzing is
@@ -32,3 +32,7 @@ regardless. The verify's sentence names the pick.
 
 ## log
 - 2026-11-02T15:14Z created
+- 2026-11-02T15:21Z open→done — verify exit 0 @ 3b82387+2
+
+## comments
+- 2026-11-02T15:21Z [claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)] 2026-11-02 owner ruled on the macOS leg, in session: "keep the mac leg". golden.yml's aarch64 macOS target stays as it is on every event; the blessing platform keeps its own check, and public standard runners bill nothing. Recorded in CLAUDE.md § Standing decisions.
