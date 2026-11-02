@@ -1,7 +1,7 @@
 ---
 id: fl-rhztsdq
 title: "Anchor Cargo.toml's include globs to the root: README.md and LICENSE-MIT match at any depth, so the .crate carries tests/data/bitrep/README.md and tests/data/bitrep/LICENSE-MIT"
-status: open
+status: done
 category: crate/release
 labels: [reproducible-floats]
 parent: fl-m3cymxv
@@ -16,3 +16,5 @@ Found 2026-11-02 reading `cargo package --list --locked` for the owner (49 files
 
 ## log
 - 2026-11-02T20:49Z created
+- 2026-11-02T20:56Z open→doing — claimed by claude (aa073407-90a0-459f-92ea-439fb58eb49c)
+- 2026-11-02T20:57Z doing→done — verify exit 0 @ 21f46c1+1
