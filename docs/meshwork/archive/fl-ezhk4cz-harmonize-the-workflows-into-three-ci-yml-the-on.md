@@ -1,7 +1,7 @@
 ---
 id: fl-ezhk4cz
 title: "Harmonize the workflows into three: ci.yml, the one suite, nightly on dev only when it moved and on the PR into main; release.yml, the release; publish.yml, the crates.io publish"
-status: doing
+status: done
 category: crate/release
 labels: [reproducible-floats]
 parent: fl-b9qtzty
@@ -11,7 +11,6 @@ docs:
   - docs/DESIGN.md#release-sp-release
 seq: 10
 created: 2026-11-02T18:24Z
-claimed-by: claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
 ---
 
 Owner, 2026-11-02, in session: "we need a simple, best-practice ci/release process. i've given very
@@ -61,6 +60,8 @@ if dev did not move outside the store, skips with the `changes` job's line in it
 ## log
 - 2026-11-02T18:24Z created
 - 2026-11-02T18:25Z open→doing — claimed by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
+- 2026-11-02T19:15Z doing→done — verify exit 0 @ dca52bd+1
 
 ## comments
 - 2026-11-02T18:36Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02 built at 4bec2d5 on dev, pushed through the regression gate (regression: OK; bfa0173..4bec2d5). The push started no workflow of ours, as designed. Proven locally: ruby -ryaml parses ci.yml, release.yml and publish.yml; check-actions-pinned.sh passes; the changes job's diff is quiet across the store-only 84a4936..1887f18 and not across 1887f18..0e81d36; its gh run list query returns empty for ci.yml's schedule and f24b051 for the old fuzz.yml's, the sha the store recorded for October's idle main. GitHub now lists exactly ci, release and publish (plus Dependabot Updates); fuzz, golden and cut-release are gone from the registry. The proof run is the dispatch 41502146344 on dev at 4bec2d5, https://github.com/jbrjake/float-abel/actions/runs/41502146344; its conclusion goes in the next comment. The nightly's skip path cannot be dispatched (the changes job reads the event name) and is proven by the first two nights: 03:17 UTC 2026-11-03 runs, and 2026-11-04 skips if dev did not move outside docs/meshwork/.
+- 2026-11-02T19:15Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02 proof: dispatch 41502146344 on dev at 4bec2d5, conclusion=success on attempt 2. Attempt 1 ended red on one job, golden aarch64 macOS, cancelled after 15 min with GitHub's annotation 'The job was not acquired by Runner of type hosted even after multiple attempts' under a 'capacity constraints ... macOS arm64' notice; the other 16 jobs were green; `gh run rerun --failed` re-ran that job alone and it passed in 21 s. Per job: changes <1, gate 6, msrv <1, deny 1, dbsp 5, miri 34, golden Linux/Windows/macOS/aarch64 ≤2 each, wasm32 2, riscv64gc 1, s390x 2, fuzz 11 ×3; the commits job skipped (not a pull request). About 100 billed minutes with warm caches (Linux ×1, Windows ×2, macOS ×10). The changes job's log line: 'ci: a workflow_dispatch runs the suite'. The schedule path's first firing is 03:17 UTC 2026-11-03.
