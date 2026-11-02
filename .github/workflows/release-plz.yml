@@ -6,9 +6,9 @@
 # provenance with GitHub artifact attestations (Sigstore, bound to this repository, this workflow
 # and the commit) and attaches the .crate, its sha256 and the attestation to the release. git-only:
 # the tag says what is released, never a registry, because crates.io is outside the release until
-# the owner says (CLAUDE.md § Standing decisions). The tools come through taiki-e/install-action,
-# whose manifest pins a sha256 per platform for each version named, so the binaries are pinned by
-# hash like the actions are.
+# the owner says (CLAUDE.md § Standing decisions). The binaries are pinned by hash like the actions
+# are: release-plz by its tarball's sha256 in this file, cargo-semver-checks through
+# taiki-e/install-action, whose manifest pins a sha256 per platform for the version named.
 name: release-plz
 
 on:
@@ -44,7 +44,22 @@ jobs:
           cargo --version && rustc --version
       - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
-          tool: release-plz@0.4.2,cargo-semver-checks@0.51.0
+          tool: cargo-semver-checks@0.51.0
+      # release-plz by its tarball's sha256. install-action's manifest stops at 0.4.2, whose musl
+      # build fails parsing CHANGELOG.md's header ("stack limit reached") where 0.4.2 gnu and both
+      # 0.4.3 builds pass, so the binary is pinned by hash directly: the hash was taken on two
+      # machines from the release asset.
+      - name: Install release-plz 0.4.3 by hash
+        env:
+          URL: https://github.com/release-plz/release-plz/releases/download/release-plz-v0.4.3/release-plz-x86_64-unknown-linux-gnu.tar.gz
+          SHA256: f4b0cc404cd9a58cd1b33f49e439bba65186773f63e323ea47f3ea57e557a3d3
+        run: |
+          curl -sSL --retry 3 -o "$RUNNER_TEMP/release-plz.tar.gz" "$URL"
+          echo "$SHA256  $RUNNER_TEMP/release-plz.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/release-plz.tar.gz" -C "$RUNNER_TEMP/bin" release-plz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/release-plz" --version
       # The release PR's base is the repository's default branch, which release-plz offers no flag
       # for, so a dev whose repository still defaults to main would get a release PR against main.
       - name: The default branch is dev
@@ -94,9 +109,17 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
           cargo --version && rustc --version
-      - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
-        with:
-          tool: release-plz@0.4.2
+      - name: Install release-plz 0.4.3 by hash
+        env:
+          URL: https://github.com/release-plz/release-plz/releases/download/release-plz-v0.4.3/release-plz-x86_64-unknown-linux-gnu.tar.gz
+          SHA256: f4b0cc404cd9a58cd1b33f49e439bba65186773f63e323ea47f3ea57e557a3d3
+        run: |
+          curl -sSL --retry 3 -o "$RUNNER_TEMP/release-plz.tar.gz" "$URL"
+          echo "$SHA256  $RUNNER_TEMP/release-plz.tar.gz" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/release-plz.tar.gz" -C "$RUNNER_TEMP/bin" release-plz
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/release-plz" --version
       # Tags vX.Y.Z and publishes the GitHub Release when the version has no tag; an empty
       # `releases` means main moved without a version change and the steps below are skipped.
       - name: release-plz release
