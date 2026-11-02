@@ -18,6 +18,8 @@ cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total
 ./scripts/regression.sh                                # push gate (pre-push hook)
 git config core.hooksPath .githooks                    # run the gates from git
 ./scripts/bench-baseline.sh compare                    # after a cargo bench: every row past 1.5× of this machine's bench-baseline.json; `write` re-records it
+git push origin dev                                    # where work lands; main takes only the dev→main PR that cuts a release
+gh pr create --base main --head dev --title "chore(release): cut the release the log yields"   # once release-plz's release PR has merged into dev; the owner merges both
 ```
 
 A `run` verify dies at 300 s, so warm `target/` before `meshwork close`. Keep `CARGO_TARGET_DIR`
