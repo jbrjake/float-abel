@@ -22,7 +22,7 @@ check_subject() {
   # The pattern lives in a variable: bash 3.2 (macOS) mis-parses an inline `=~` pattern with
   # parentheses, and a quoted one would match literally. The tail is checked apart from the regex
   # so that `.` never has to match a multibyte character under a C locale.
-  local re="^(${types})(\\([a-z0-9][a-z0-9/_.-]*\\))?!?: [a-z0-9]"
+  local re="^(${types})(\\([a-z0-9][a-z0-9/_.,-]*\\))?!?: [a-z0-9]"
   [[ $s =~ $re ]] || return 1
   [[ $s != *. ]] || return 1
   return 0
@@ -44,6 +44,7 @@ self_test() {
     'docs(release): record the ruling: release-plz on dev→main'
     'build(deps): bump actions/checkout from 4 to 5'
     'refactor(exact/heap): split the block'
+    'refactor(wide,fixed): move the operator impls into ops submodules'
     'bench: add the crossover rows'
     'perf(simd): fold two limbs per lane'
     'ci(release): run ci on dev'
