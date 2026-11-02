@@ -71,3 +71,6 @@ The ci miri job's suite step is throughput-bound on the runner's cores: identica
 - 2026-10-20T20:16Z created
 - 2026-10-20T20:17Z handoff by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
 - 2026-10-20T20:18Z handoff by claude (30b8d01c-d5ec-456d-a066-16edcae1c161)
+
+## comments
+- 2026-11-02T15:51Z [claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)] 2026-11-02 data point: ci run 41472015430 on main@682db04 (lockfile changed, so every cache was cold) ran the miri job in 21m14s, 15:29:15Z → 15:50:29Z, against the 38m55s and 49m26s this task records for identical test code on 2026-10-20. The suite under miri did not change between those runs (only Cargo.lock, deny-dbsp.toml, two workflows' deny arguments and docs did), so the spread is the runner, not the tests, which is this task's thesis: the thread count has to be read off the job before any per-test cut is judged.
