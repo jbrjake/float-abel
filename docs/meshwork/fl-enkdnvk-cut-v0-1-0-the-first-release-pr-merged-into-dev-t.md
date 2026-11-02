@@ -5,7 +5,7 @@ category: crate/release
 labels: [reproducible-floats]
 seq: 19
 parent: fl-m3cymxv
-needs: [fl-kpk3gd6, fl-bct35bq, fl-4fcbtkx]
+needs: [fl-kpk3gd6, fl-bct35bq, fl-4fcbtkx, fl-d609gg2]
 relates: [fl-7en8z60, fl-fm78m8d]
 docs:
   - README.md#getting-it
