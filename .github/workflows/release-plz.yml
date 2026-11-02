@@ -45,6 +45,17 @@ jobs:
       - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
         with:
           tool: release-plz@0.4.2,cargo-semver-checks@0.51.0
+      # The release PR's base is the repository's default branch, which release-plz offers no flag
+      # for, so a dev whose repository still defaults to main would get a release PR against main.
+      - name: The default branch is dev
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          default=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch')
+          if [ "$default" != "dev" ]; then
+            echo "release-plz: the default branch is $default, not dev; the release PR would target it. Set dev as the default branch (Settings → General) and push again." >&2
+            exit 1
+          fi
       # release-plz commits through the GraphQL API, so the commit is GitHub-signed; the identity
       # below is for the temporary local repository it diffs in. A PR opened with GITHUB_TOKEN runs
       # no workflows, so the release PR gets ci once the owner stores a GitHub App or fine-grained
