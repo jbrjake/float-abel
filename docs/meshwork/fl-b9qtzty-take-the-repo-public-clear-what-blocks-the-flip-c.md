@@ -12,12 +12,29 @@ verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-
 status: open
 created: 2026-11-02T15:14Z
 handoff: |
-  2026-11-02: the release process is built and proven to the owner's acts
-  (fl-enkdnvk carries the brief; fl-4fcbtkx carries the settings list, the
-  token first, then the flip). Still open under this umbrella: the ci cost
-  tasks (fl-c8jpmpm, fl-cqmcs7c, fl-5mywkqp, fl-wpgpd4q), the read-only
-  token (fl-fs9vhnd), the dependabot merges (fl-hp7md5n), the bitrep
-  oracle claim (fl-9rczhm8) and the CLAUDE.md trim (fl-821gnyr).
+  2026-11-02, dev at the commit this handoff was committed in: the repo
+  is public (owner: "i just made the repo public btw"; fl-4fcbtkx closed
+  on it), with a 'branch-protection' ruleset forbidding deletion and
+  force-push on every branch. The workflows are three, ci.yml (the suite,
+  nightly on dev only when dev moved outside docs/meshwork/, and on the
+  PR into main), release.yml (one job, the tag and GitHub Release with
+  the attested .crate on the push to main) and publish.yml (crates.io,
+  dormant). The release is one pull request, dev into main, cut from a
+  clone by `scripts/release-pr.sh` under the developer's own gh login
+  (fl-ebbxwd2, fl-xq4fp0j; owner: "OF COURSE FIX IT!"; "i want it to be
+  a single PR, dev to main."), so it needs no secret and no Actions
+  toggle; `--dry-run` printed 0.30.1 and its entry this session. The
+  three release scripts' self-tests run in both gates (fl-jkb64s3). Every
+  action sits at its current upstream pin; the pins' first run is the
+  next nightly, now on public runners. The release waits on the owner's
+  word for `./scripts/release-pr.sh` and one merge (fl-enkdnvk carries
+  the brief; fl-4fcbtkx's last comment the settings the flip made
+  settable: rulesets on main and v* tags, SHA pinning required, fork-PR
+  approval, code security, topics). Open here besides: fl-c8jpmpm (fuzz
+  corpus and cargo-fuzz cache), fl-5mywkqp (dbsp cache save; cache
+  v6.1.0 logs a policy write denial as a warning, so read the nightly's
+  dbsp post-cache step first), fl-wpgpd4q (miri hour), fl-9rczhm8,
+  fl-821gnyr, fl-jdsha55, fl-cr71vam.
 ---
 
 The one tree for getting the project in front of other people (owner, 2026-11-02: "what else do we
@@ -39,3 +56,8 @@ f24b051 on 2026-10-20; twelve nightly fuzz runs and four dependabot PR runs happ
 - 2026-11-02T15:14Z created
 - 2026-11-02T15:37Z handoff by claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)
 - 2026-11-02T17:26Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T18:05Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T18:36Z handoff by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
+- 2026-11-02T19:29Z handoff by claude (55cb23a1-b965-4570-9fea-74159b1286bc)
+- 2026-11-02T20:06Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
+- 2026-11-02T20:43Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)

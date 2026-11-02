@@ -1,26 +1,93 @@
-# The functional gate, in CI. The gate job runs the same scripts the git hooks run, so local and
-# remote green have one definition, less the task store's lint, which smoke.sh skips under CI
-# because no job installs meshwork. The other jobs cover what a local run may skip: the MSRV build
-# on exactly the default features, cargo-deny, and on the one toolchain dbsp builds on, the dbsp
-# feature and the compile-fail wording. Benchmarks and the golden hash have their own workflows.
+# The test suite: every check the project makes of its code, in one workflow, at two points.
+#
+#   nightly on dev        the default branch, and only when a commit since the last nightly reached
+#                         anything outside docs/meshwork/ (owner: "testing to occur nightly, ONLY when
+#                         there have been code changes since the last run")
+#   the pull request      into main, the dev→main merge that cuts a release (owner: "then, yes, again
+#                         on the PR")
+#   a dispatch            the whole suite on the ref named, on demand
+#
+# A push runs nothing (owner: "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE TEST!"): the push gate,
+# scripts/regression.sh, ran on the developer's machine. A pull request into dev, dependabot's or the
+# release PR, runs nothing either; its merge is a push to dev and the next nightly tests it.
+#
+# The gate job runs the two scripts the git hooks run, so local and remote green have one definition,
+# less the task store's lint, which smoke.sh skips under CI because no job installs meshwork. The other
+# jobs cover what a local run may skip: the MSRV build on exactly the default features, cargo-deny,
+# the dbsp feature and the compile-fail wording on the one toolchain dbsp builds on, the suite under
+# miri, the golden hash on seven targets, and ten minutes of each fuzz target. Benchmarks never run
+# here: a speed target is measured into BENCH.md, never gated.
 name: ci
 
 on:
-  push:
-    branches: [main, dev]
+  schedule:
+    - cron: "17 3 * * *" # 03:17 UTC, on the default branch
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Read-only everywhere; the one job that reads the run list grants itself that alone.
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  # Nightly, the question is whether dev moved since the last nightly in anything the suite reads. The
+  # last completed scheduled run on this branch that ended in success or failure names the commit it
+  # ran at: a night that skipped ends in success at the commit it declined, so the chain never loses a
+  # link, and a cancelled run tested nothing and is passed over. A diff from there to this commit that
+  # stays inside docs/meshwork/, the task store, which smoke.sh skips under CI, is no code change, and
+  # every other job is skipped. A pull request or a dispatch always runs. gh and git are the runner's
+  # own: no action, no marker cache to evict.
+  changes:
+    name: code changed since the last nightly
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read # gh run list
+    outputs:
+      run: ${{ steps.since.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: since
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "ci: a $GITHUB_EVENT_NAME runs the suite"
+            exit 0
+          fi
+          last=$(gh run list --workflow ci.yml --event schedule --branch "$GITHUB_REF_NAME" --status completed --limit 20 --json headSha,conclusion \
+            --jq '[.[] | select(.conclusion == "success" or .conclusion == "failure")][0].headSha // empty')
+          if [ -z "$last" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "ci: no earlier nightly on $GITHUB_REF_NAME; the suite runs"
+            exit 0
+          fi
+          if ! git fetch -q --depth=1 origin "$last"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "ci: the last nightly's commit $last is not reachable from $GITHUB_REF_NAME; the suite runs"
+            exit 0
+          fi
+          if git diff --quiet "$last" "$GITHUB_SHA" -- . ':!docs/meshwork'; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "ci: nothing outside docs/meshwork/ changed since the last nightly at ${last:0:12}; the suite is skipped"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "ci: changed since the last nightly at ${last:0:12}:"
+            git --no-pager diff --stat "$last" "$GITHUB_SHA" -- . ':!docs/meshwork'
+          fi
+
   # The version is derived from the log (DESIGN.md § Release), so every commit a PR brings and the
-  # PR's own title have to be Conventional Commits release-plz can read. The same script is the
+  # PR's own title have to be Conventional Commits the version count can read. The same script is the
   # commit-msg hook; the shas and the title reach the shell through env, never by interpolation.
   commits:
     name: Conventional Commits on the PR
@@ -28,7 +95,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Every commit and the title
@@ -42,16 +109,18 @@ jobs:
 
   gate:
     name: smoke + regression (stable)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install the toolchain
         run: |
           rustup toolchain install stable --profile minimal --component rustfmt,clippy
           rustup default stable
           cargo --version && rustc --version
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -64,10 +133,12 @@ jobs:
 
   msrv:
     name: MSRV 1.74 on the default features
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install rustc 1.74.0
         run: |
           rustup toolchain install 1.74.0 --profile minimal
@@ -82,10 +153,12 @@ jobs:
   # crate that earned it.
   deny:
     name: cargo-deny
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           command: check
@@ -101,10 +174,12 @@ jobs:
   # gate job, on a moving stable without rust-src, only runs the pass cases.
   dbsp:
     name: dbsp feature and compile-fail wording on rustc 1.99.0
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The dbsp closure is some five hundred crates, and the hosted runner's root disk shares its
       # headroom with the image's preinstalled tools, so the trees this job never reads go first:
       # the Android SDK, the .NET SDKs, GHCup's Haskell and the CodeQL bundle, at the paths the
@@ -122,7 +197,7 @@ jobs:
           cargo --version && rustc --version
       # No restore-keys: a lockfile change builds from a clean target, not on top of the previous
       # closure's artifacts, which a restored near-miss would leave on the disk beside the new ones.
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -153,17 +228,19 @@ jobs:
   # through `Exact::from_bytes`, which the suite covers.
   miri:
     name: cargo miri test (nightly)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install nightly with miri
         run: |
           rustup toolchain install nightly --profile minimal --component miri,rust-src
           rustup default nightly
           cargo miri setup
           cargo --version && rustc --version && cargo miri --version
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry/index
@@ -174,3 +251,161 @@ jobs:
       - run: cargo miri test --locked --lib
       - run: cargo miri test --locked -p float-abel-noalloc
       - run: cargo miri test --locked --test main
+
+  # The architecture claim, DESIGN.md § Bit-identical across architectures: tests/golden/ hashes every
+  # tier's bytes and reads on fixed inputs, and the hash must equal tests/data/golden.sha256 on all
+  # seven targets. The committed hash is the claim: a mismatch on any target is a finding to run
+  # down, never a reason to re-bless. The macOS leg runs whenever the suite does, whatever it bills,
+  # because the committed hash is blessed on that platform (CLAUDE.md § Standing decisions).
+  golden:
+    name: golden ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: x86_64 Linux, os: ubuntu-latest }
+          - { name: x86_64 Windows, os: windows-latest }
+          - { name: aarch64 macOS, os: macos-latest }
+          - { name: aarch64 Linux, os: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          cargo --version && rustc --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: golden-${{ matrix.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: golden-${{ matrix.os }}-
+      - run: cargo test --locked -p float-abel-golden
+
+  # 32-bit pointers, no hardware u128, a software SHA-256: the test binary runs under wasmtime.
+  golden-wasm32:
+    name: golden wasm32 (wasmtime)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WASMTIME_VERSION: v49.0.2
+      # sha256 of wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz: the release API's asset digest
+      # (`gh api repos/bytecodealliance/wasmtime/releases/tags/${WASMTIME_VERSION}`). Bump both.
+      WASMTIME_SHA256: a4d6e9e3a5a60f527cf7793d674c48930c80c2e8977995b8a275cad3254b9322
+      CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the toolchain and the target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add wasm32-wasip1
+          cargo --version && rustc --version
+      # Download to a file and check its digest before anything unpacks: a replaced release asset
+      # fails here instead of running on the runner.
+      - name: Install wasmtime
+        run: |
+          tarball="${RUNNER_TEMP}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          curl -sSfL -o "$tarball" "https://github.com/bytecodealliance/wasmtime/releases/download/${WASMTIME_VERSION}/wasmtime-${WASMTIME_VERSION}-x86_64-linux.tar.xz"
+          echo "${WASMTIME_SHA256}  ${tarball}" | sha256sum -c -
+          tar xJf "$tarball" -C "$RUNNER_TEMP"
+          echo "${RUNNER_TEMP}/wasmtime-${WASMTIME_VERSION}-x86_64-linux" >> "$GITHUB_PATH"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: golden-wasm32-${{ hashFiles('Cargo.lock') }}
+          restore-keys: golden-wasm32-
+      - run: wasmtime --version
+      - run: cargo test --locked -p float-abel-golden --target wasm32-wasip1
+
+  # riscv64gc and big-endian s390x under QEMU: cross builds in its pinned Docker image and runs the
+  # test binary through the image's qemu-user. s390x is what catches a byte-order slip.
+  golden-emulated:
+    name: golden ${{ matrix.target }} (QEMU via cross)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [riscv64gc-unknown-linux-gnu, s390x-unknown-linux-gnu]
+    env:
+      CROSS_VERSION: v0.2.5
+      # sha256 of cross-x86_64-unknown-linux-gnu.tar.gz, computed from the download: the release
+      # predates the API's asset digest. The binary inside reports `cross 0.2.5`. Bump both.
+      CROSS_SHA256: 642375d1bcf3bd88272c32ba90e999f3d983050adf45e66bd2d3887e8e838bad
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the toolchain and the target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+          cargo --version && rustc --version
+      # Download to a file and check its digest before anything unpacks, as the wasm32 job does.
+      - name: Install cross
+        run: |
+          tarball="${RUNNER_TEMP}/cross-${CROSS_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfL -o "$tarball" "https://github.com/cross-rs/cross/releases/download/${CROSS_VERSION}/cross-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${CROSS_SHA256}  ${tarball}" | sha256sum -c -
+          tar xzf "$tarball" -C ~/.cargo/bin
+          cross --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            target
+          key: golden-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: golden-${{ matrix.target }}-
+      - run: cross test --locked -p float-abel-golden --target ${{ matrix.target }}
+
+  # The fuzz targets, DESIGN.md § Hardening: cargo-fuzz runs each for ten minutes. A crash is an
+  # artifact to download and commit as a regression test under tests/, never a reason to loosen the
+  # target.
+  fuzz:
+    name: fuzz ${{ matrix.target }} (10 min)
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [decode_robustness, sum_vs_oracle, sub_roundtrip]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install nightly and cargo-fuzz
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src
+          rustup default nightly
+          cargo install cargo-fuzz@0.13.2 --locked
+          cargo --version && rustc --version && cargo fuzz --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            fuzz/target
+          key: fuzz-${{ hashFiles('fuzz/Cargo.lock') }}
+          restore-keys: fuzz-
+      - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=600
+      - name: Keep the crash
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.target }}-artifacts
+          path: fuzz/artifacts
+          if-no-files-found: ignore

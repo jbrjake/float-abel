@@ -713,8 +713,8 @@ converts to. The transcript is `tests/golden/`, its own workspace member,
 because the main test target links engine dependencies wasm32 cannot run. It is asserted equal to
 `tests/data/golden.sha256` on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32 (wasmtime),
 and, through QEMU via `cross`, riscv64gc and s390x. s390x is big-endian, which is what catches a
-byte-order slip in `from_bytes`. The committed hash is the claim, and the workflow asserts it on every
-push.
+byte-order slip in `from_bytes`. The committed hash is the claim, and `ci` asserts it whenever the
+suite runs: nightly when `dev` moved, and on the pull request into `main`.
 
 ## Verification
 
@@ -726,7 +726,7 @@ push.
 | decode | canonical round-trip; non-canonical bytes refused; a refusal names the first rule FORMAT.md gives; serde agrees with `from_bytes` | unit tests, `cargo-fuzz` nightly (`decode_robustness`) |
 | sums | `Wide`'s limbs and counts equal a `num-bigint` sum of the multiset bit for bit, inserts and retracts alike; every read equals it rounded in independent integer arithmetic; `Fixed256` accepts exactly its window and holds the same integer; `Exact` agrees wherever the width holds the running sum; `Binned` lands the truncated sum; `a + b − b == a` on every tier over any two canonical `Exact` words and any two multisets | `cargo-fuzz` nightly (`sum_vs_oracle`, `sub_roundtrip`), ten minutes a target |
 | UB | the lib's unit tests, the no-feature build and the suite under the interpreter, with the statistical sweeps at a hundredth, the cap-edge oracle cross on six of its eleven shapes, trybuild, the timely topics and the laws kit out, and every bulk entry on the portable kernel | `cargo miri test` in CI |
-| architecture | one SHA-256 over every tier's bytes, reads and refusals on the vectors and 10⁴ seeded multisets, on 7 targets | the golden-hash workflow |
+| architecture | one SHA-256 over every tier's bytes, reads and refusals on the vectors and 10⁴ seeded multisets, on 7 targets | `ci`'s golden jobs |
 | SIMD | every kernel equals the scalar reference bit for bit on the vectors and 10⁴ seeded multisets (specials and subnormals included); lane-count independence at 2, 4 and 8 partials | the golden hash covers every kernel |
 | batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; equal to the sum of the inputs truncated below the window, and so within `n·2^(−64(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |
@@ -787,19 +787,29 @@ each release.
 ## Release {#sp-release}
 
 `dev` is where work lands and the default branch; `main` holds releases and accepts only a pull
-request from `dev`, merged as a merge commit. release-plz reads the conventional-commit log since the
-last release tag and keeps a release PR open against `dev` carrying the version and the CHANGELOG
-entry that log yields: a `feat` bumps the minor, a `fix` the patch, a breaking change the minor below
-1.0 and the major from 1.0 on, and `cargo-semver-checks` raises the bump a missed `!` would have. The
-base it counts from is `v0.0.0` on the commit that laid the crate down, never built; no version is
-typed by hand. Merging the release PR fixes the version, and merging `dev` into `main` cuts the
-release: release-plz tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes, and
-the release workflow builds the `.crate` from the tag with `cargo package --locked`, attests its
-provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
-the commit) and attaches the `.crate`, its sha256 and the attestation to the release, which a reader
-checks with `gh attestation verify`. A ruleset keeps `v*` tags from being moved or deleted. Both
-merges are the owner's acts; so is any announcement. crates.io is outside the release; the owner
-says when it joins.
+request from `dev`, merged as a merge commit. The version is counted from 0.0.0 over every commit
+since the first, in order, by Conventional Commits' own mapping: a breaking change (`!` after the
+type, or a `BREAKING CHANGE:` footer) adds one to the major and zeroes the rest, else a `feat` adds
+one to the minor and zeroes the patch, else a `fix` adds one to the patch, and every other type
+leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. A push to
+`dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing.
+Nightly, `ci` runs the whole suite on `dev` when a commit since the last nightly reached anything
+outside the task store, and skips the night otherwise. The release is one pull request, `dev` into
+`main`. `scripts/release-pr.sh`, run from a clone on `dev` under the developer's own gh login,
+writes the count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
+CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`, commits the three files onto `dev` as
+`chore(release): vX.Y.Z`, pushes, and opens that pull request with the entry as its body, or
+refreshes the open one; no runner holds write access to the repository for it, because a commit and
+a pull request carry no identity a runner could add, where the attestation below does. The pull
+request runs the whole suite, and merging it cuts the release: the workflow refuses a Cargo.toml that
+disagrees with the count, builds the `.crate` from that commit with `cargo package --locked`, attests
+its provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
+the commit), then tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes and the
+`.crate`, its sha256 and the attestation attached, which a reader checks with `gh attestation
+verify`. The build runs on git, cargo and gh
+and the two GitHub-owned actions alone, because the crate's posture of no dependency it does not need
+is the build's too. A ruleset keeps `v*` tags from being moved or deleted. The merge is the
+owner's act; so is any announcement. crates.io is outside the release; the owner says when it joins.
 
 ## Non-goals
 

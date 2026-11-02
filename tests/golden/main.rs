@@ -1,6 +1,6 @@
 //! The architecture claim, DESIGN.md § Bit-identical across architectures: one SHA-256 over every
 //! tier's canonical bytes and reads on fixed inputs, equal to tests/data/golden.sha256 on every
-//! target .github/workflows/golden.yml runs. The inputs are the rounding and conformance vector
+//! target ci.yml's golden jobs run. The inputs are the rounding and conformance vector
 //! sets and 10⁴ seeded random multisets from the stream frozen in stream.rs. Each multiset goes
 //! through every tier: `Wide` with its group ops, its reads and its view as a `Binned`; a `Binned`
 //! fold with its bins and the `Wide` it converts to, since `Binned` has no wire form; `Fixed256`

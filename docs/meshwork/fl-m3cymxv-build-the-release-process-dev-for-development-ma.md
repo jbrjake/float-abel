@@ -14,44 +14,30 @@ status: open
 created: 2026-11-02T15:33Z
 covers:
   - ref: docs/DESIGN.md#sp-release
-    sha: d52b0c0dd2d2a5d6570b559791afc324d52c8051c4811f382dd12e56d5913d5b
+    sha: 3cb6c64138078bd1bc71557ce93de7dd5e9bcbd3f10f82a59d6306fa1adb40e4
 ---
 
-Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how
-are you not seeing this as a massive gap, especially considering i tell people to use releases in
-the readme?" and "part of this needs to be moving to a dev branch for dev, main for releases, pr
-from dev to main to cut one, versions automatically created from conventional commit log tracking,
-like anyone would expect from a grown-up, mature project other people are going to use"; and on the
-number: "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS".
+Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how are you not seeing this as a massive gap, especially considering i tell people to use releases in the readme?"; "part of this needs to be moving to a dev branch for dev, main for releases, pr from dev to main to cut one, versions automatically created from conventional commit log tracking, like anyone would expect from a grown-up, mature project other people are going to use"; "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS"; "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_!"; "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED!"; on the release PR, "why do we need a workflow for this? why can't it be something done from a clone using gh?"; "OF COURSE FIX IT!"; "i want it to be a single PR, dev to main."
 
-The gap as it stands: README.md § getting it says "For now, grab a release tag from here. crates.io
-will come." The repo has no tag and no GitHub Release. release.yml creates a release only as the
-last step of a crates.io publish on the owner's dispatch, which the owner has held ("i don't want to
-publish yet", fl-7en8z60), so the README's install path is reachable by no task. Cargo.toml is at
-0.0.0 and CHANGELOG.md has a hand-written Unreleased section.
+The shape as built (fl-05nqrwd, fl-ezhk4cz, fl-ebbxwd2, fl-xq4fp0j), DESIGN.md § Release the spec:
 
-The shape, for the ruling task's readback (the children build it once ratified):
+- Branches. `dev` is where work lands and the default branch; `main` holds releases and accepts only the dev→main PR, merged as a merge commit.
+- The version. Counted from 0.0.0 over every commit since the first, in order: breaking +major (and zero the rest), else feat +minor (and zero the patch), else fix +patch; other types leave it alone; merges skipped. `scripts/version-from-log.sh`, fixtures first. Nobody types a number.
+- The one pull request. `scripts/release-pr.sh`, from a clone on dev, clean and at origin/dev, under the developer's own gh login: `scripts/prepare-release.sh` writes the count into Cargo.toml and Cargo.lock and the entry for the commits since the last `v*` tag (grouped by type by `scripts/changelog-entry.sh`) under CHANGELOG.md's `## [Unreleased]` line; the three files are committed onto dev as `chore(release): vX.Y.Z` and pushed; the pull request dev→main is opened with the entry as its body, or refreshed when open. `--dry-run` prints the version, the diff and the entry, puts the files back and pushes nothing. The release commit and its push skip the hooks, since the tree is the one the gate passed at origin/dev plus a version line, a lockfile record and a changelog entry, and the PR runs the suite. No runner holds write access to the repository for this: a commit and a pull request carry no identity a runner could add. The owner merges it.
+- The release. On the dev→main merge release.yml's one job refuses a Cargo.toml that disagrees with the count, and when the version has no tag: `cargo package --locked`, sha256, actions/attest-build-provenance, then `gh release create vX.Y.Z --target <merge commit>` with the entry as notes and the .crate and its sha256 attached. The attestation carries the workflow's identity, which is why that step is the runner's. Readers verify with `gh attestation verify`.
+- Dependencies. None beyond git, cargo and gh, on the developer's machine and on the runner, and the two GitHub-owned actions already pinned (checkout, attest-build-provenance); the scripts are the repository's, each with a `--self-test` that both gates run (fl-jkb64s3).
+- crates.io. Outside the release until the owner says; publish.yml's dispatch stays dormant.
+- Commit discipline. `scripts/check-commit-message.sh` in the commit-msg hook, both gates and ci's commits job, because the count reads the subjects.
 
-- Branches. `dev` is where sessions push and PRs land; `main` holds only releases and accepts only
-  a PR from `dev`. `dev` becomes the default branch so forks and PRs target it.
-- Version and changelog from the log. release-plz (the Rust ecosystem's release-please: reads
-  conventional commits since the last tag, bumps Cargo.toml, writes CHANGELOG.md with git-cliff,
-  and runs cargo-semver-checks to decide the bump) opens and keeps current a release PR against
-  `dev`. Merging it into `dev` fixes the version; the `dev`→`main` PR is then the release: on the
-  merge, `release-plz release` tags it on `main` and creates the GitHub Release with the changelog
-  as its notes. `main` never carries a commit `dev` lacks. No version is ever typed by hand.
-- The artifact. On `release: published`, a job runs `cargo package --locked`, attests the `.crate`
-  with actions/attest-build-provenance (Sigstore, bound to the workflow run; needs the repo public)
-  and uploads the `.crate`, its sha256 and the attestation to the release. A reader verifies with
-  `gh attestation verify float-abel-<version>.crate --repo jbrjake/float-abel`, and README says so.
-- crates.io. Out of release-plz (`publish = false`); the owner's dispatch of release.yml stays the
-  publish route per CLAUDE.md § Standing decisions, unless the owner moves it into the release.
-- Commit discipline. The version is derived from commit messages, so the commit gate checks the
-  Conventional Commits form and ci checks the PR title.
-
-Verify: the first cut release writes a released version heading into CHANGELOG.md.
+Verify: the first cut writes a released version heading into CHANGELOG.md.
 
 ## log
 - 2026-11-02T15:33Z created
 - 2026-11-02T15:34Z cover docs/DESIGN.md#sp-release @3478ee626df5
 - 2026-11-02T16:38Z cover docs/DESIGN.md#sp-release @d52b0c0dd2d2
+- 2026-11-02T18:34Z cover docs/DESIGN.md#sp-release @5e919747f70b
+- 2026-11-02T19:59Z cover docs/DESIGN.md#sp-release @0c55c448f94b
+- 2026-11-02T20:41Z cover docs/DESIGN.md#sp-release @3cb6c6413807
+
+## comments
+- 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the release is .github/workflows/release.yml (from cut-release.yml) and the crates.io publish .github/workflows/publish.yml (from release.yml); the body's 'cut-release.yml on every push to dev' is two revisions stale: the release PR opens on the owner's dispatch alone. DESIGN.md § Release now says the nightly and the dev→main PR are the two test points and the .crate is built and attested before the tag; the sp-release pin is re-read and repinned with this comment.
