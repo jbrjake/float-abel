@@ -64,6 +64,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
         run: |
+          set -o pipefail  # release-plz's exit status, not tee's
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           release-plz release-pr --git-token "$GITHUB_TOKEN" --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" -o json | tee release-pr.json
@@ -76,6 +77,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write      # the tag, the GitHub Release and its assets
+      pull-requests: read  # release-plz reads the PRs the released commit came from, for the notes
       id-token: write      # the attestation's Sigstore signing
       attestations: write  # the provenance attestation
     concurrency:
@@ -101,6 +103,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
         run: |
+          set -o pipefail  # release-plz's exit status, not tee's
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           release-plz release --git-token "$GITHUB_TOKEN" -o json | tee release.json
