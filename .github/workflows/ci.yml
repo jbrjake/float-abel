@@ -5,9 +5,12 @@
 # feature and the compile-fail wording. Benchmarks and the golden hash have their own workflows.
 name: ci
 
+# A push to dev is just a push (owner: "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE TEST!"): the push
+# gate ran on the developer's machine, and the runner's hour belongs to the pull request that cuts a
+# release and to the release itself on main.
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

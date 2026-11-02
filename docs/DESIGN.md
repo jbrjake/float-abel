@@ -791,10 +791,12 @@ request from `dev`, merged as a merge commit. The version is counted from 0.0.0 
 since the first, in order, by Conventional Commits' own mapping: a breaking change (`!` after the
 type, or a `BREAKING CHANGE:` footer) adds one to the major and zeroes the rest, else a `feat` adds
 one to the minor and zeroes the patch, else a `fix` adds one to the patch, and every other type
-leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. On every
-push to `dev` the release workflow keeps a release PR open against `dev` that writes the count into
-Cargo.toml and Cargo.lock and the entry for the commits since the last tag into CHANGELOG.md, grouped
-by type by `scripts/changelog-entry.sh`. Merging it fixes the version, and merging `dev` into `main`
+leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. A push to
+`dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing. On
+the owner's dispatch the release workflow opens or refreshes a release PR against `dev` that writes
+the count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
+CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`; the pull request runs every ci job.
+Merging it fixes the version, and merging `dev` into `main`
 cuts the release: the workflow refuses a Cargo.toml that disagrees with the count, tags `vX.Y.Z` and
 publishes the GitHub Release with the entry as its notes, builds the `.crate` from that commit with
 `cargo package --locked`, attests its provenance with GitHub artifact attestations (Sigstore, bound

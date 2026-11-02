@@ -1,7 +1,8 @@
 # Cuts releases from the conventional-commit log, counted from 0.0.0 over every commit since the
-# first (DESIGN.md § Release; scripts/version-from-log.sh). On a push to dev, the release PR against
-# dev is opened or refreshed with the count written into Cargo.toml and Cargo.lock and the entry for
-# the commits since the last tag written into CHANGELOG.md (scripts/prepare-release.sh). On a push to
+# first (DESIGN.md § Release; scripts/version-from-log.sh). On the owner's dispatch, run on dev, the
+# release PR against dev is opened or refreshed with the count written into Cargo.toml and Cargo.lock
+# and the entry for the commits since the last tag written into CHANGELOG.md
+# (scripts/prepare-release.sh); a push to dev is just a push and starts nothing here. On a push to
 # main, the dev→main merge, the job refuses a Cargo.toml that disagrees with the count and, when the
 # version has no tag yet, creates the tag and the GitHub Release with the entry as its notes, builds
 # the .crate from that commit with --locked, attests its provenance with GitHub artifact attestations
@@ -13,7 +14,8 @@ name: cut-release
 
 on:
   push:
-    branches: [dev, main]
+    branches: [main]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -23,7 +25,7 @@ env:
 jobs:
   release-pr:
     name: release PR against dev
-    if: github.ref == 'refs/heads/dev'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -82,7 +84,7 @@ jobs:
 
   release:
     name: release on main
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
