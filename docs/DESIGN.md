@@ -794,10 +794,12 @@ one to the minor and zeroes the patch, else a `fix` adds one to the patch, and e
 leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. A push to
 `dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing.
 Nightly, `ci` runs the whole suite on `dev` when a commit since the last nightly reached anything
-outside the task store, and skips the night otherwise. On the owner's dispatch the release workflow
-opens or refreshes a release PR against `dev` that writes the count into Cargo.toml and Cargo.lock
-and the entry for the commits since the last tag into CHANGELOG.md, grouped by type by
-`scripts/changelog-entry.sh`. Merging it fixes the version. The pull request from `dev` into `main`
+outside the task store, and skips the night otherwise. `scripts/release-pr.sh`, run from a clone
+under the developer's own gh login, opens or refreshes a release PR against `dev` that writes the
+count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
+CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`; no runner holds write access to the
+repository for it, because a commit and a pull request carry no identity a runner could add, where
+the attestation below does. Merging it fixes the version. The pull request from `dev` into `main`
 runs the whole suite again, and merging it cuts the release: the workflow refuses a Cargo.toml that
 disagrees with the count, builds the `.crate` from that commit with `cargo package --locked`, attests
 its provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and

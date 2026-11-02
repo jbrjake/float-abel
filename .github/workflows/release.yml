@@ -1,9 +1,9 @@
 # The release, cut from the conventional-commit log counted from 0.0.0 over every commit since the
-# first (DESIGN.md § Release; scripts/version-from-log.sh), in two steps, both the owner's acts.
+# first (DESIGN.md § Release; scripts/version-from-log.sh). The release PR against dev is not this
+# workflow's: scripts/release-pr.sh cuts it from a clone under the developer's own gh login, because
+# a commit and a pull request carry no identity a runner could add, and no runner holds write access
+# to the repository for them. The attestation does carry the runner's identity, so that step is here.
 #
-#   a dispatch on dev     opens or refreshes the release PR against dev, with the count written into
-#                         Cargo.toml and Cargo.lock and the entry for the commits since the last tag
-#                         written into CHANGELOG.md (scripts/prepare-release.sh)
 #   the push to main      the dev→main merge: refuses a Cargo.toml that disagrees with the count and,
 #                         when the version has no tag yet, builds the .crate from that commit with
 #                         --locked, attests its provenance with GitHub artifact attestations, then
@@ -20,7 +20,6 @@ name: release
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions: {}
 
@@ -28,69 +27,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  release-pr:
-    name: release PR against dev
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write       # the release/next branch
-      pull-requests: write  # the release PR
-    concurrency:
-      group: release-pr
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0  # every commit since the first, and the tags
-          persist-credentials: false
-      - name: Install the toolchain
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-          cargo --version && rustc --version
-      - name: Prepare the release the log counts to
-        id: prepare
-        run: |
-          set -o pipefail
-          version=$(./scripts/prepare-release.sh)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if git diff --quiet -- Cargo.toml Cargo.lock CHANGELOG.md; then
-            echo "pending=false" >> "$GITHUB_OUTPUT"
-            echo "release: $version is in place; no release PR to open"
-          else
-            echo "pending=true" >> "$GITHUB_OUTPUT"
-            git --no-pager diff --stat -- Cargo.toml Cargo.lock CHANGELOG.md
-          fi
-      # The release PR's commit is the workflow's. GITHUB_TOKEN can open a pull request only when the
-      # repository lets Actions create them (Settings → Actions → General); RELEASE_PR_TOKEN, a
-      # fine-grained PAT or GitHub App token with contents and pull-requests read/write, is the other
-      # route. The token reaches git through the push URL alone. The PR targets dev, so no ci runs on
-      # it: its merge is a push to dev, tested by the next nightly and by the dev→main pull request.
-      - name: Open or refresh the release PR
-        if: steps.prepare.outputs.pending == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
-          VERSION: ${{ steps.prepare.outputs.version }}
-        run: |
-          set -o pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -q -B release/next
-          git add Cargo.toml Cargo.lock CHANGELOG.md
-          git commit -q -m "chore(release): v$VERSION"
-          git push --force --quiet "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" release/next
-          awk -v v="$VERSION" 'index($0, "## [" v "]") == 1 { p = 1; print; next } /^## \[/ { p = 0 } p { print }' CHANGELOG.md > "$RUNNER_TEMP/entry.md"
-          pr=$(gh pr list --head release/next --base dev --state open --json number --jq '.[0].number // empty')
-          if [ -n "$pr" ]; then
-            gh pr edit "$pr" --title "chore(release): v$VERSION" --body-file "$RUNNER_TEMP/entry.md"
-          else
-            gh pr create --base dev --head release/next --title "chore(release): v$VERSION" --body-file "$RUNNER_TEMP/entry.md"
-          fi
-
   release:
     name: release on main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
