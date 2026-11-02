@@ -19,7 +19,8 @@ cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total
 git config core.hooksPath .githooks                    # run the gates from git
 ./scripts/bench-baseline.sh compare                    # after a cargo bench: every row past 1.5× of this machine's bench-baseline.json; `write` re-records it
 git push origin dev                                    # where work lands; a push runs no ci (the push gate ran here); main takes only the dev→main PR
-gh workflow run cut-release.yml --ref dev              # the owner's dispatch: opens or refreshes the release PR against dev at the version the log counts to
+gh workflow run ci.yml --ref dev                       # the whole suite on demand; nightly it runs by itself, only when dev moved outside docs/meshwork/
+gh workflow run release.yml --ref dev                  # the owner's dispatch: opens or refreshes the release PR against dev at the version the log counts to
 gh pr create --base main --head dev --title "chore(release): cut the release the log yields"   # once the release PR has merged into dev; the owner merges both
 ./scripts/version-from-log.sh                          # the version the log counts to at HEAD; prepare-release.sh writes it and the CHANGELOG entry
 ```
@@ -96,7 +97,7 @@ outside `~/Documents`.
   the `.crate` with a GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*`
   tags (owner chose "Attestation + tag ruleset"). crates.io is outside the release until the owner
   says (owner: "I WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
-- A session runs `cargo publish` only with `--dry-run`. `release.yml` publishes on the owner's
+- A session runs `cargo publish` only with `--dry-run`. `publish.yml` publishes on the owner's
   `workflow_dispatch` alone, never on a tag push (owner: "make it a ci publish on my manual
   trigger"), and nothing in the release runs it; the first publish, the crates.io name reservation
   included, carries the owner's token, and every later one Trusted Publishing, because crates.io
@@ -107,9 +108,14 @@ outside `~/Documents`.
   that can be manipulated"; "security is absolutely critical here").
 - Dependabot refreshes those hashes by PR, one `github-actions` entry in `.github/dependabot.yml`
   on a weekly schedule, and nothing merges on its own (owner: "yes have dependabot open prs that
-  update the pinned hashes"). golden.yml's tarball digests are not actions and move by hand.
-- golden.yml's `aarch64 macOS` leg runs on every event, whatever it bills, because the committed
-  hash is blessed on that platform (owner: "keep the mac leg").
+  update the pinned hashes"). The golden jobs' tarball digests are not actions and move by hand.
+- `ci.yml` is the one test suite, run nightly on `dev` only when a commit since the last nightly
+  reached anything outside `docs/meshwork/`, and again on the pull request into `main`; a push runs
+  nothing (owner: "testing to occur nightly, ONLY when there have been code changes since the last
+  run. a middle path. then, yes, again on the PR"; "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE
+  TEST!"). `release.yml` cuts the release and `publish.yml` publishes; there is no fourth.
+- The golden `aarch64 macOS` job runs whenever the suite runs, whatever it bills, because the
+  committed hash is blessed on that platform (owner: "keep the mac leg").
 
 ## Boundaries
 

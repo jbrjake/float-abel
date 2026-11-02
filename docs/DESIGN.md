@@ -713,8 +713,8 @@ converts to. The transcript is `tests/golden/`, its own workspace member,
 because the main test target links engine dependencies wasm32 cannot run. It is asserted equal to
 `tests/data/golden.sha256` on x86_64 Linux and Windows, aarch64 macOS and Linux, wasm32 (wasmtime),
 and, through QEMU via `cross`, riscv64gc and s390x. s390x is big-endian, which is what catches a
-byte-order slip in `from_bytes`. The committed hash is the claim, and the workflow asserts it on every
-push.
+byte-order slip in `from_bytes`. The committed hash is the claim, and `ci` asserts it whenever the
+suite runs: nightly when `dev` moved, and on the pull request into `main`.
 
 ## Verification
 
@@ -726,7 +726,7 @@ push.
 | decode | canonical round-trip; non-canonical bytes refused; a refusal names the first rule FORMAT.md gives; serde agrees with `from_bytes` | unit tests, `cargo-fuzz` nightly (`decode_robustness`) |
 | sums | `Wide`'s limbs and counts equal a `num-bigint` sum of the multiset bit for bit, inserts and retracts alike; every read equals it rounded in independent integer arithmetic; `Fixed256` accepts exactly its window and holds the same integer; `Exact` agrees wherever the width holds the running sum; `Binned` lands the truncated sum; `a + b − b == a` on every tier over any two canonical `Exact` words and any two multisets | `cargo-fuzz` nightly (`sum_vs_oracle`, `sub_roundtrip`), ten minutes a target |
 | UB | the lib's unit tests, the no-feature build and the suite under the interpreter, with the statistical sweeps at a hundredth, the cap-edge oracle cross on six of its eleven shapes, trybuild, the timely topics and the laws kit out, and every bulk entry on the portable kernel | `cargo miri test` in CI |
-| architecture | one SHA-256 over every tier's bytes, reads and refusals on the vectors and 10⁴ seeded multisets, on 7 targets | the golden-hash workflow |
+| architecture | one SHA-256 over every tier's bytes, reads and refusals on the vectors and 10⁴ seeded multisets, on 7 targets | `ci`'s golden jobs |
 | SIMD | every kernel equals the scalar reference bit for bit on the vectors and 10⁴ seeded multisets (specials and subnormals included); lane-count independence at 2, 4 and 8 partials | the golden hash covers every kernel |
 | batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; equal to the sum of the inputs truncated below the window, and so within `n·2^(−64(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |
@@ -792,16 +792,18 @@ since the first, in order, by Conventional Commits' own mapping: a breaking chan
 type, or a `BREAKING CHANGE:` footer) adds one to the major and zeroes the rest, else a `feat` adds
 one to the minor and zeroes the patch, else a `fix` adds one to the patch, and every other type
 leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. A push to
-`dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing. On
-the owner's dispatch the release workflow opens or refreshes a release PR against `dev` that writes
-the count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
-CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`; the pull request runs every ci job.
-Merging it fixes the version, and merging `dev` into `main`
-cuts the release: the workflow refuses a Cargo.toml that disagrees with the count, tags `vX.Y.Z` and
-publishes the GitHub Release with the entry as its notes, builds the `.crate` from that commit with
-`cargo package --locked`, attests its provenance with GitHub artifact attestations (Sigstore, bound
-to this repository, the workflow and the commit) and attaches the `.crate`, its sha256 and the
-attestation, which a reader checks with `gh attestation verify`. The build runs on git, cargo and gh
+`dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing.
+Nightly, `ci` runs the whole suite on `dev` when a commit since the last nightly reached anything
+outside the task store, and skips the night otherwise. On the owner's dispatch the release workflow
+opens or refreshes a release PR against `dev` that writes the count into Cargo.toml and Cargo.lock
+and the entry for the commits since the last tag into CHANGELOG.md, grouped by type by
+`scripts/changelog-entry.sh`. Merging it fixes the version. The pull request from `dev` into `main`
+runs the whole suite again, and merging it cuts the release: the workflow refuses a Cargo.toml that
+disagrees with the count, builds the `.crate` from that commit with `cargo package --locked`, attests
+its provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
+the commit), then tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes and the
+`.crate`, its sha256 and the attestation attached, which a reader checks with `gh attestation
+verify`. The build runs on git, cargo and gh
 and the two GitHub-owned actions alone, because the crate's posture of no dependency it does not need
 is the build's too. A ruleset keeps `v*` tags from being moved or deleted. Both merges are the
 owner's acts; so is any announcement. crates.io is outside the release; the owner says when it joins.

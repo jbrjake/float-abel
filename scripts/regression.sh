@@ -31,7 +31,7 @@ cargo clippy --quiet --lib -- -D warnings
 cargo clippy --quiet --workspace --all-targets -- -D warnings
 # The fuzz package stands outside the workspace (fuzz/Cargo.toml), so the lint above never sees
 # it. Stable builds everything in it but the sanitizer, so its targets are linted and its oracle's
-# tests run here; the targets themselves run in .github/workflows/fuzz.yml, nightly.
+# tests run here; the targets themselves run in ci.yml's fuzz jobs, ten minutes each.
 cargo clippy --quiet --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
 cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null
 
@@ -55,8 +55,8 @@ rm -f "$ui_log"
 cargo test --quiet --release --test main every_build >/dev/null
 # The no-feature build, which only a separate member reaches; see tests/noalloc/Cargo.toml.
 cargo test --quiet -p float-abel-noalloc >/dev/null
-# The architecture claim on this machine, tests/golden/; .github/workflows/golden.yml asserts it on
-# the other six targets.
+# The architecture claim on this machine, tests/golden/; ci.yml's golden jobs assert it on the other
+# six targets.
 cargo test --quiet -p float-abel-golden >/dev/null
 
 if rustup run "$MSRV" cargo --version >/dev/null 2>&1; then
