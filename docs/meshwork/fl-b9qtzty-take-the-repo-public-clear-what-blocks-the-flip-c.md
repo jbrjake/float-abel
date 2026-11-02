@@ -12,44 +12,12 @@ verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-
 status: open
 created: 2026-11-02T15:14Z
 handoff: |
-  Next session, in this order; the owner's standing word (2026-11-02) is
-  one or two leaves a session,
-  then pause.
-  
-  1. ci run 41472015430 on main@682db04 (the advisories push). If green,
-  `close fl-r0s86hg` (its
-  verify is already green; the run was the last done-criterion). If the
-  dbsp job is red, read its
-  deny step first: the lock has ctutils 0.4.7 and actix-http 3.20.0,
-  deny-dbsp.toml one new row
-  (RUSTSEC-2026-0403), and both gates run `-D advisory-not-detected`.
-  2. fl-cnkjdzp, the ruling on the release process: needs the owner in
-  session. The readback is
-  fl-m3cymxv's body (release-plz, release PR against dev, the dev→main
-  merge cuts the release,
-  attested .crate on `release: published`, crates.io on the owner's
-  dispatch, no version ever
-  typed). Three questions in the task. Write the owner's words, dated, as
-  the comment the verify
-  reads, and rewrite DESIGN.md § Release to the ruled shape. Everything
-  under fl-m3cymxv waits on
-  it.
-  3. Leaves that need no ruling, pick one or two: fl-c8jpmpm (fuzz
-  schedule; full brief in its
-  handoff), fl-cqmcs7c (gate miri/dbsp/golden on a Rust-reaching diff),
-  fl-5mywkqp (restore/save
-  split so red jobs still cache), fl-fs9vhnd (top-level `permissions:
-  contents: read`).
-  4. The owner's acts, surfaced not done: the flip and its seven settings
-  (fl-4fcbtkx's 2026-11-02
-  comment), `@dependabot rebase` and the four merges (fl-hp7md5n, once ci
-  is green on main).
-  
-  Facts to carry: the account is on GitHub Free, so rulesets, environments
-  and attestation all wait
-  on the flip; caches evict after seven idle days and save only from green
-  jobs; the miri job is
-  41–57 minutes of interpretation and the long pole of every run.
+  2026-11-02: the release process is built and proven to the owner's acts
+  (fl-enkdnvk carries the brief; fl-4fcbtkx carries the settings list, the
+  token first, then the flip). Still open under this umbrella: the ci cost
+  tasks (fl-c8jpmpm, fl-cqmcs7c, fl-5mywkqp, fl-wpgpd4q), the read-only
+  token (fl-fs9vhnd), the dependabot merges (fl-hp7md5n), the bitrep
+  oracle claim (fl-9rczhm8) and the CLAUDE.md trim (fl-821gnyr).
 ---
 
 The one tree for getting the project in front of other people (owner, 2026-11-02: "what else do we
@@ -70,3 +38,4 @@ f24b051 on 2026-10-20; twelve nightly fuzz runs and four dependabot PR runs happ
 ## log
 - 2026-11-02T15:14Z created
 - 2026-11-02T15:37Z handoff by claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)
+- 2026-11-02T17:26Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)

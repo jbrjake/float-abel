@@ -26,3 +26,6 @@ the owner's act on the repo; the verify reads the old checkout hash gone from ci
 
 ## log
 - 2026-11-02T15:14Z created
+
+## comments
+- 2026-11-02T17:21Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02 dependabot re-targeted its four PRs at dev when dev became the default branch (#1–#4 now base dev). ci's new commits job checks each PR's commit subjects and title against scripts/check-commit-message.sh, which wants a lowercase subject: #1 and #4 say 'bump' and pass, #2 and #3 carry dependabot's older 'Bump' and will fail that job until dependabot recreates them (a '@dependabot recreate' comment, or the weekly run after closing them) or the owner merges them by hand. Merging needs the owner's token: the PRs are dependabot's, and the merge is a write to dev.
