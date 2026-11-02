@@ -5,12 +5,13 @@ category: crate/release
 labels: [reproducible-floats]
 seq: 175
 discovered-from: fl-k3g1511
-needs: [fl-5qbt792]
+needs: [fl-5qbt792, fl-cnkjdzp]
 docs:
   - docs/DESIGN.md#release-sp-release
 verify: contains .github/workflows/release.yml verify-tag
 status: open
 created: 2026-10-20T15:04Z
+parent: fl-m3cymxv
 ---
 DESIGN.md § Release: "CI builds it with `--locked` from a signed tag". The owner's checkout signs
 nothing today: `gpg.format`, `user.signingkey`, `tag.gpgsign` and `commit.gpgsign` are unset and

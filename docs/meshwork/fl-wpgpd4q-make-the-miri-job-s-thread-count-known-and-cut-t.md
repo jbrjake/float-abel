@@ -62,6 +62,7 @@ handoff: |
   #3 cache 6.1.0) still
   carry red `ci` runs from before the smoke fix and need a rebase onto
   main to re-run.
+parent: fl-b9qtzty
 ---
 
 The ci miri job's suite step is throughput-bound on the runner's cores: identical test code took 38m55s (run 39471909369) and 49m26s (run 39463529492), and cutting the cap-edge cross by two thirds (fl-sq2sv0n, run 39483989145) left the step at 40m52s on a slower box. The step's wall is the suite's total work over the harness's thread count, and that count is unknown: the job never prints it (the repo is private, so the hosted runner may be the two-core size). First make the number known: print `nproc` in the miri job's install step, so every later log carries it. Then cut the next two heavy tests under miri with their own counts, as tests/simd.rs's `MULTISETS` does rather than `rounds()`: `exact_heap_ring_a_dot_product_of_mixed_pairs_matches_the_oracle_both_ways` runs 1000 pairs under miri at 110 s here (rounds(100_000)); `wide_folds_are_order_independent` 2000 draws at 80 s, where the "2000 draws with no special; reseed" assertion pins the count to the seed, so a smaller miri count needs its own seed check. Single-threaded here the suite is 1312 s (profile on fl-sq2sv0n); the step ends under 30 minutes on the runner only once the total is nearer 800 s. The other lever is the owner's: `timeout-minutes: 90` on the miri job costs billed Actions minutes on a private repo and nothing else, and a ceiling the suite can only just clear is a flaky job; ask before changing it.

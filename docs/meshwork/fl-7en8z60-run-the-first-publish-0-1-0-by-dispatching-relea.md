@@ -1,6 +1,6 @@
 ---
 id: fl-7en8z60
-title: "Run the first publish, 0.1.0, by dispatching release.yml with a crates.io token, then move the crate to Trusted Publishing"
+title: "Run the first crates.io publish by dispatching release.yml with the tag the release cut, then move the crate to Trusted Publishing"
 category: crate/release
 labels: [reproducible-floats]
 seq: 180
@@ -9,26 +9,28 @@ needs: [fl-5qbt792]
 relates: [fl-x2k7fbb, fl-fm78m8d]
 docs:
   - docs/DESIGN.md#release-sp-release
-verify: contains docs/meshwork/fl-7en8z60-run-the-first-publish-0-1-0-by-dispatching-relea.md /2026-[0-9][0-9]-[0-9][0-9] owner published 0.1.0/
+verify: contains docs/meshwork/fl-7en8z60-run-the-first-publish-0-1-0-by-dispatching-relea.md /2026-[0-9][0-9]-[0-9][0-9] owner published [0-9]+\.[0-9]+\.[0-9]+/
 status: blocked
 created: 2026-10-20T15:04Z
 blocked-reason: "owner, 2026-10-16, in session: \"i don't want to publish yet\"; every step is the owner's act, and DESIGN.md § Release's ship list still lacks the AVX-512 kernel (fl-qv0vh39)"
+parent: fl-m3cymxv
 ---
+
 The owner's act, every step. Held on the owner's word of 2026-10-16, "i don't want to publish
-yet", and DESIGN.md § Release's list of what 0.1.0 ships with (the SIMD kernels are still short
-the AVX-512 one, fl-qv0vh39).
+yet". The version and the tag are the release process's (fl-m3cymxv): the tag exists on `main`
+before this task starts, cut by release-plz at the version the conventional-commit log yields, and
+nothing here types a number.
 
 1. On crates.io, a new API token scoped to publish-new and publish-update, crate `float-abel`;
    set it as the repository secret `CARGO_REGISTRY_TOKEN`. The first publish is the name
    reservation.
-2. `version = "0.1.0"` in `Cargo.toml` and `Cargo.lock`, committed; tag `v0.1.0`, signed if
-   release-sig has landed; push the tag.
-3. Dispatch `release.yml` with `tag=v0.1.0`, `auth=token`; watch the run green and the crate on
-   crates.io with its attestation on the GitHub release.
-4. On crates.io, Settings → Trusted Publishing → GitHub: owner `jbrjake`, repository
+2. Dispatch `release.yml` with `tag=<the release's tag>`, `auth=token`; watch the run green and the
+   crate on crates.io, its `.crate` byte-identical to the one the GitHub Release carries with its
+   attestation.
+3. On crates.io, Settings → Trusted Publishing → GitHub: owner `jbrjake`, repository
    `float-abel`, workflow `release.yml`, environment `release`. Then delete the token on
    crates.io and the secret in the repository, so no long-lived credential survives.
-5. Write the line this task's verify looks for, dated.
+4. Write the line this task's verify looks for, dated, with the version.
 
 ## log
 - 2026-10-20T15:04Z created

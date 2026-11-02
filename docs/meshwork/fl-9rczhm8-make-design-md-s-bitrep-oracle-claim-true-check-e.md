@@ -8,6 +8,7 @@ docs:
   - docs/DESIGN.md#verification
 seq: 85
 created: 2026-10-24T16:33Z
+parent: fl-b9qtzty
 ---
 
 DESIGN.md § Verification's cross-tier row claims `Exact::to_f64 == bitrep::SumF64::value` on
