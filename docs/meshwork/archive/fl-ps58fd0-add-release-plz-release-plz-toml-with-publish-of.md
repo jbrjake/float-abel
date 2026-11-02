@@ -9,9 +9,8 @@ needs: [fl-cnkjdzp, fl-k594v2g]
 docs:
   - docs/DESIGN.md#release-sp-release
 verify: "all(exists release-plz.toml, exists .github/workflows/release-plz.yml)"
-status: doing
+status: done
 created: 2026-11-02T15:33Z
-claimed-by: claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 ---
 
 The ruled shape (fl-cnkjdzp, 2026-11-02). `release-plz.toml`: `git_only = true` (crates.io is outside the release, so the tag, never a registry, says what is released), `features_always_increment_minor = true` ("of course feats bump the minor"), `semver_check = true`, `git_release_enable = true`, `git_tag_enable = true`, `release_always = true` (the default; the `false` mode looks for a `release-plz-*` branch on main's latest commit, and in the dev→main shape that commit is the dev merge), `pr_branch_prefix = "release-plz-"`, and git-cliff's conventional preset tuned to `type(scope): subject`, `BREAKING CHANGE` footers kept. No `publish` key and no registry token anywhere in the workflow.
@@ -25,3 +24,19 @@ CHANGELOG.md's hand-written Unreleased bullets become the body of the first gene
 ## log
 - 2026-11-02T15:33Z created
 - 2026-11-02T16:50Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T17:00Z doing→done — verify exit 0 @ 45f82c1+1
+
+## comments
+- 2026-11-02T16:58Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02 dry run of the ruled config, release-plz 0.4.3 locally (`cargo install release-plz --locked`), in a scratch worktree at eb19888 plus release-plz.toml and the rewritten CHANGELOG.md, with the annotated tag v0.0.0 on d2f29de in the shared refs:
+  
+      INFO Latest release of package float-abel: tag `v0.0.0` (version 0.0.0)
+      INFO determining next version for float-abel 0.0.0
+      WARN cargo-semver-checks not installed, skipping semver check.
+      INFO float-abel: next version is 0.1.0
+      * `float-abel`: 0.0.0 -> 0.1.0
+  
+  Cargo.toml and Cargo.lock moved to 0.1.0 and CHANGELOG.md gained `## [0.1.0](…/compare/v0.0.0...v0.1.0) - 2026-11-02` under the `## [Unreleased]` marker, with 28 Added, 7 Fixed, 1 Performance, 2 Changed and the docs rows grouped by type, chore(meshwork) rows skipped. Nobody typed the number: it is 0.0.0 plus the log's bump under `features_always_increment_minor = true`.
+  
+  Two things the run taught: (1) a workspace-wide `git_tag_name = "v{{ version }}"` made release-plz resolve v0.0.0 for float-abel-noalloc too and fail ("cannot find package float-abel-noalloc in workspace" at the tag's commit), because the git-only tag lookup runs over every workspace package before `release = false` is read, so the two test crates carry `git_only = false` as well, which routes them to the registry path where a publish = false package is skipped outright; (2) the compose puts the first entry directly under the Unreleased line, so the body template opens with a blank line.
+  
+  The workflow installs release-plz 0.4.2 and cargo-semver-checks 0.51.0 through taiki-e/install-action at 1919c4a95903d2c33e4a221102edca87309fc14b (v2.89.0), whose manifests at that commit carry both versions with a sha256 per platform, rather than release-plz's composite action, which fetches its binary from a GitHub release by version through cargo-binstall; so the binaries are pinned by hash like the actions (owner, 2026-11-02: "ALL github action dependencies must be pinned to a known-good hash, NOT a tag"). git_only predates 0.4.2 (the 0.3.166 notes already fix git-only behaviour).

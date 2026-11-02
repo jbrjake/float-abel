@@ -10,7 +10,7 @@ docs:
   - README.md#getting-it
   - docs/DESIGN.md#release-sp-release
 verify: "all(contains .github/workflows/release-plz.yml attest-build-provenance, contains README.md /gh attestation verify/)"
-status: open
+status: done
 created: 2026-11-02T15:33Z
 ---
 release.yml today packages, attests and uploads only inside the crates.io publish job. Split: a
@@ -25,3 +25,7 @@ from here" becomes a sentence that is true.
 
 ## log
 - 2026-11-02T15:33Z created
+- 2026-11-02T17:00Z open→done — verify exit 0 @ 45f82c1+3
+
+## comments
+- 2026-11-02T17:00Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02 built into release-plz.yml's release job rather than a release: published workflow, so it runs whether or not the owner has stored a token (a Release made with GITHUB_TOKEN fires no release event): after release-plz release, the job resolves the tag's commit through the API, checks it out, asserts the tag names Cargo.toml's version, cargo package --locked, sha256, actions/attest-build-provenance at 4d101475 (v4.2.2), gh release upload of the .crate and its .sha256 with --clobber. README § getting it now says gh attestation verify and the git tag dependency form. Unproven end to end until the flip: attestations are public-repo-only on a Free plan, so the first dev→main merge after the flip is the proof (fl-enkdnvk).
