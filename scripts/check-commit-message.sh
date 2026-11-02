@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The Conventional Commits gate. The version and the changelog are derived from the log (DESIGN.md
-# § Release), so a subject release-plz cannot read is a wrong version later, not a style nit.
+# § Release), so a subject the version count cannot read is a wrong version later, not a style nit.
 #
 #   check-commit-message.sh <file>          the commit-msg hook: the message git is about to record
 #   check-commit-message.sh --range <A..B>  every non-merge subject in the range (a PR's commits)
@@ -41,7 +41,7 @@ self_test() {
     'chore(meshwork): close the task on the green job'
     'feat!: drop the f32 path'
     'feat(exact)!: widen the compact word'
-    'docs(release): record the ruling: release-plz on dev→main'
+    'docs(release): record the ruling: the version counted from the first commit'
     'build(deps): bump actions/checkout from 4 to 5'
     'refactor(exact/heap): split the block'
     'refactor(wide,fixed): move the operator impls into ops submodules'

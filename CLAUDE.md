@@ -19,7 +19,8 @@ cargo fuzz run sum_vs_oracle --target-dir "$CARGO_TARGET_DIR/fuzz" -- -max_total
 git config core.hooksPath .githooks                    # run the gates from git
 ./scripts/bench-baseline.sh compare                    # after a cargo bench: every row past 1.5× of this machine's bench-baseline.json; `write` re-records it
 git push origin dev                                    # where work lands; main takes only the dev→main PR that cuts a release
-gh pr create --base main --head dev --title "chore(release): cut the release the log yields"   # once release-plz's release PR has merged into dev; the owner merges both
+gh pr create --base main --head dev --title "chore(release): cut the release the log yields"   # once the release PR has merged into dev; the owner merges both
+./scripts/version-from-log.sh                          # the version the log counts to at HEAD; prepare-release.sh writes it and the CHANGELOG entry
 ```
 
 A `run` verify dies at 300 s, so warm `target/` before `meshwork close`. Keep `CARGO_TARGET_DIR`
@@ -85,14 +86,15 @@ outside `~/Documents`.
   something to auto-trigger to remove the exception when dbsp updates zstd").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
-- Releases are cut by release-plz on the `dev`→`main` merge, version and changelog derived from the
-  conventional-commit log since the last tag, with `v0.0.0` on the first manifest commit as the
-  never-built base (owner: "the base initial value WE NEVER USE is 0.0.0 that IMMEDIATELY GETS THE
-  CONVENTIONAL COMMITS ADDED TO IT EVEN FOR THE FIRST BUILD!"); a `feat` bumps the minor below 1.0
-  too (owner: "of course feats bump the minor"); every GitHub Release carries the `.crate` with a
-  GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*` tags (owner chose
-  "Attestation + tag ruleset"). crates.io is outside the release until the owner says (owner: "I
-  WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
+- Releases are cut on the `dev`→`main` merge at the version counted from 0.0.0 over every commit
+  since the first, breaking +major, `feat` +minor, `fix` +patch, by `scripts/version-from-log.sh`
+  (owner: "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_"; "of course feats
+  bump the minor"); the changelog entry is `scripts/changelog-entry.sh`'s, and the release workflow
+  runs on git, cargo, gh and the two GitHub-owned actions alone (owner: "THIS IS A MINIMALIST
+  PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED"). Every GitHub Release carries
+  the `.crate` with a GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*`
+  tags (owner chose "Attestation + tag ruleset"). crates.io is outside the release until the owner
+  says (owner: "I WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
 - A session runs `cargo publish` only with `--dry-run`. `release.yml` publishes on the owner's
   `workflow_dispatch` alone, never on a tag push (owner: "make it a ci publish on my manual
   trigger"), and nothing in the release runs it; the first publish, the crates.io name reservation

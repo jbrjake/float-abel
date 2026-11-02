@@ -7,8 +7,8 @@
 # owner configures it on the crate (owner jbrjake, repository float-abel, workflow release.yml,
 # environment release). The .crate is built with --locked, attested with
 # actions/attest-build-provenance, which needs the repository public, and uploaded onto the GitHub
-# release release-plz made for the tag (release-plz.yml). This workflow is outside the release
-# process until the owner brings crates.io in.
+# Release cut-release.yml made for the tag. This workflow is outside the release process until the
+# owner brings crates.io in.
 name: release
 
 on:

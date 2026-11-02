@@ -787,19 +787,22 @@ each release.
 ## Release {#sp-release}
 
 `dev` is where work lands and the default branch; `main` holds releases and accepts only a pull
-request from `dev`, merged as a merge commit. release-plz reads the conventional-commit log since the
-last release tag and keeps a release PR open against `dev` carrying the version and the CHANGELOG
-entry that log yields: a `feat` bumps the minor, a `fix` the patch, a breaking change the minor below
-1.0 and the major from 1.0 on, and `cargo-semver-checks` raises the bump a missed `!` would have. The
-base it counts from is `v0.0.0` on the commit that laid the crate down, never built; no version is
-typed by hand. Merging the release PR fixes the version, and merging `dev` into `main` cuts the
-release: release-plz tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes, and
-the release workflow builds the `.crate` from the tag with `cargo package --locked`, attests its
-provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
-the commit) and attaches the `.crate`, its sha256 and the attestation to the release, which a reader
-checks with `gh attestation verify`. A ruleset keeps `v*` tags from being moved or deleted. Both
-merges are the owner's acts; so is any announcement. crates.io is outside the release; the owner
-says when it joins.
+request from `dev`, merged as a merge commit. The version is counted from 0.0.0 over every commit
+since the first, in order, by Conventional Commits' own mapping: a breaking change (`!` after the
+type, or a `BREAKING CHANGE:` footer) adds one to the major and zeroes the rest, else a `feat` adds
+one to the minor and zeroes the patch, else a `fix` adds one to the patch, and every other type
+leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. On every
+push to `dev` the release workflow keeps a release PR open against `dev` that writes the count into
+Cargo.toml and Cargo.lock and the entry for the commits since the last tag into CHANGELOG.md, grouped
+by type by `scripts/changelog-entry.sh`. Merging it fixes the version, and merging `dev` into `main`
+cuts the release: the workflow refuses a Cargo.toml that disagrees with the count, tags `vX.Y.Z` and
+publishes the GitHub Release with the entry as its notes, builds the `.crate` from that commit with
+`cargo package --locked`, attests its provenance with GitHub artifact attestations (Sigstore, bound
+to this repository, the workflow and the commit) and attaches the `.crate`, its sha256 and the
+attestation, which a reader checks with `gh attestation verify`. The build runs on git, cargo and gh
+and the two GitHub-owned actions alone, because the crate's posture of no dependency it does not need
+is the build's too. A ruleset keeps `v*` tags from being moved or deleted. Both merges are the
+owner's acts; so is any announcement. crates.io is outside the release; the owner says when it joins.
 
 ## Non-goals
 

@@ -20,7 +20,7 @@ env:
 
 jobs:
   # The version is derived from the log (DESIGN.md § Release), so every commit a PR brings and the
-  # PR's own title have to be Conventional Commits release-plz can read. The same script is the
+  # PR's own title have to be Conventional Commits the version count can read. The same script is the
   # commit-msg hook; the shas and the title reach the shell through env, never by interpolation.
   commits:
     name: Conventional Commits on the PR
