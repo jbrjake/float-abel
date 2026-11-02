@@ -1,7 +1,7 @@
 ---
 id: fl-05nqrwd
 title: "Count the version from 0.0.0 over every commit since the first (breaking +major, feat +minor, fix +patch) in a script with fixtures, and drive the release PR and the release from it in place of release-plz"
-status: doing
+status: done
 category: crate/release
 labels: [reproducible-floats]
 parent: fl-m3cymxv
@@ -11,7 +11,6 @@ docs:
   - CLAUDE.md#standing-decisions
 seq: 15
 created: 2026-11-02T17:38Z
-claimed-by: claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 ---
 
 Owner, 2026-11-02, in session, on the release process as built with release-plz (one bump per release, 0.1.0 on today's log): "THERE IS ABSOLUTELY NO WAY THAT OUR VERSION IS 0.1.0! I HAVE TOLD YOU THIS OVER AND OVER! YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_! I CAN'T BELIEVE YOU SPENT ALL THIS TIME WITHOUT TELLING ME YOU WERE IGNORING THE VERY THING I INSISTED YOU DO!"
@@ -23,6 +22,9 @@ Build, red first: `scripts/version-from-log.sh` with a `--self-test` over fixtur
 ## log
 - 2026-11-02T17:38Z created
 - 2026-11-02T17:38Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T17:55Z doing→done — verify exit 0 @ 84a4936+1
 
 ## comments
 - 2026-11-02T17:43Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02, mid-build, owner, in session: "STOP ADDING ALL THESE DEPENDENCIES! I NEVER TOLD YOU TO START INTRODUCING UNTRUSTED DEPENDENCIES INTO OUR BUILD PROCESS! WTF IS GIT-CLIFF? WE NEVER TALKED ABOUT THIS!" and "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED! READ. THE. ROOM! DID YOU EVEN READ YOUR OWN README? DO YOU EVEN UNDERSTAND THE PROJECT YOU'RE WORKING ON? STOP. VIOLATING. ITS. SPIRIT!" So: no git-cliff, no release-plz, no taiki-e/install-action, no cargo-semver-checks in the release workflow. The release runs on git, cargo and gh on the runner, actions/checkout and actions/attest-build-provenance (both already pinned here), and the repo's own scripts: version-from-log.sh (the count), changelog-entry.sh (the entry, grouped by type), prepare-release.sh (Cargo.toml, Cargo.lock, CHANGELOG.md). The local release-plz install was removed (cargo uninstall) and the scratch binaries deleted.
+- 2026-11-02T17:54Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02 runner findings: run 41495208355 on dev at a72dc9d reached prepare-release.sh and failed in `cargo update --workspace --offline` with 'no matching package named arbitrary found, location searched: crates.io index', because a fresh runner has no index cached where this machine does; 84a4936 drops --offline (the index is read, nothing downloaded; the local dry run moves one lockfile line, float-abel's version). The count at f00a030 is 0.30.0 (the feat that landed the process) and at 84a4936 0.30.1 (its fix): the rule working. From this push on only dev is pushed; main moves by the dev→main PR, so the release job's refusal path runs for the first time at the first merge.
+- 2026-11-02T17:55Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02 run 41495586562 on dev at 84a4936: prepare-release.sh wrote 0.0.0 -> 0.30.1 on the runner (CHANGELOG.md +128 lines, Cargo.lock and Cargo.toml one line each), the commit 'chore(release): v0.30.1' is on origin as release/next, and the job ended at 'GitHub Actions is not permitted to create or approve pull requests' from gh pr create: the token's, the owner's act (fl-4fcbtkx item 1). Done per the body: self-tests green, the local count 0.30.1 at this tree, the dev job green through prepare and ending at the token's 403; the release job's refusal path first runs at the first dev→main merge, since main is no longer pushed.
