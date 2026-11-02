@@ -14,7 +14,7 @@ status: open
 created: 2026-11-02T15:33Z
 covers:
   - ref: docs/DESIGN.md#sp-release
-    sha: 3478ee626df5140b33eec38f959ee91cf3e5745abfb611a5e9d4941b60eec782
+    sha: d52b0c0dd2d2a5d6570b559791afc324d52c8051c4811f382dd12e56d5913d5b
 ---
 
 Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how
@@ -54,3 +54,4 @@ Verify: the first cut release writes a released version heading into CHANGELOG.m
 ## log
 - 2026-11-02T15:33Z created
 - 2026-11-02T15:34Z cover docs/DESIGN.md#sp-release @3478ee626df5
+- 2026-11-02T16:38Z cover docs/DESIGN.md#sp-release @d52b0c0dd2d2

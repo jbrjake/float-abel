@@ -9,7 +9,7 @@ needs: [fl-5qbt792, fl-cnkjdzp]
 docs:
   - docs/DESIGN.md#release-sp-release
 verify: contains .github/workflows/release.yml verify-tag
-status: open
+status: dropped
 created: 2026-10-20T15:04Z
 parent: fl-m3cymxv
 ---
@@ -28,3 +28,4 @@ unsigned one fail it.
 
 ## log
 - 2026-10-20T15:04Z created
+- 2026-11-02T16:39Z open→dropped — owner, 2026-11-02, in session, chose "Attestation + tag ruleset" over a signed tag: the workflow makes the tag through the GitHub API, the commit under it is GitHub-signed, and the .crate carries the Sigstore attestation; no key in CI

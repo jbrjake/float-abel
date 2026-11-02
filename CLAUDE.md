@@ -83,10 +83,19 @@ outside `~/Documents`.
   something to auto-trigger to remove the exception when dbsp updates zstd").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
-- A session runs `cargo publish` only with `--dry-run`. CI publishes from `release.yml` on the
-  owner's `workflow_dispatch` alone, never on a tag push (owner: "make it a ci publish on my manual
-  trigger"); the first publish, the crates.io name reservation included, carries the owner's token,
-  and every later one Trusted Publishing, because crates.io grants OIDC only to a crate that exists.
+- Releases are cut by release-plz on the `dev`→`main` merge, version and changelog derived from the
+  conventional-commit log since the last tag, with `v0.0.0` on the first manifest commit as the
+  never-built base (owner: "the base initial value WE NEVER USE is 0.0.0 that IMMEDIATELY GETS THE
+  CONVENTIONAL COMMITS ADDED TO IT EVEN FOR THE FIRST BUILD!"); a `feat` bumps the minor below 1.0
+  too (owner: "of course feats bump the minor"); every GitHub Release carries the `.crate` with a
+  GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*` tags (owner chose
+  "Attestation + tag ruleset"). crates.io is outside the release until the owner says (owner: "I
+  WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
+- A session runs `cargo publish` only with `--dry-run`. `release.yml` publishes on the owner's
+  `workflow_dispatch` alone, never on a tag push (owner: "make it a ci publish on my manual
+  trigger"), and nothing in the release runs it; the first publish, the crates.io name reservation
+  included, carries the owner's token, and every later one Trusted Publishing, because crates.io
+  grants OIDC only to a crate that exists.
 - Every `uses:` in a workflow names a commit hash, with the tag it stood for in a trailing comment,
   and `scripts/check-actions-pinned.sh` fails both gates on a tag or a branch, because a tag can be
   moved to code nobody reviewed (owner: "use git hashes to reference dependencies not git labels

@@ -786,13 +786,20 @@ each release.
 
 ## Release {#sp-release}
 
-0.1.0 ships once the exact tiers, the rounding proof, the wire format, the laws kit, both adapters,
-the golden hash, fuzzing, the docs, `Binned` and the SIMD kernels are in. CI builds it with `--locked`
-from a signed tag, with provenance, and publishes it from `release.yml` on the owner's
-`workflow_dispatch` alone, never on the tag push; `cargo-semver-checks` is armed from then on. The
-first publish carries the owner's crates.io token and every later one Trusted Publishing, because
-crates.io grants OIDC only to a crate that exists. The dispatch is the owner's act; so is any
-announcement.
+`dev` is where work lands and the default branch; `main` holds releases and accepts only a pull
+request from `dev`, merged as a merge commit. release-plz reads the conventional-commit log since the
+last release tag and keeps a release PR open against `dev` carrying the version and the CHANGELOG
+entry that log yields: a `feat` bumps the minor, a `fix` the patch, a breaking change the minor below
+1.0 and the major from 1.0 on, and `cargo-semver-checks` raises the bump a missed `!` would have. The
+base it counts from is `v0.0.0` on the commit that laid the crate down, never built; no version is
+typed by hand. Merging the release PR fixes the version, and merging `dev` into `main` cuts the
+release: release-plz tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes, and
+the release workflow builds the `.crate` from the tag with `cargo package --locked`, attests its
+provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
+the commit) and attaches the `.crate`, its sha256 and the attestation to the release, which a reader
+checks with `gh attestation verify`. A ruleset keeps `v*` tags from being moved or deleted. Both
+merges are the owner's acts; so is any announcement. crates.io is outside the release; the owner
+says when it joins.
 
 ## Non-goals
 

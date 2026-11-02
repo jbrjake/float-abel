@@ -9,7 +9,7 @@ needs: [fl-ps58fd0]
 docs:
   - README.md#getting-it
   - docs/DESIGN.md#release-sp-release
-verify: "all(contains .github/workflows/release.yml /types: \\[published\\]/, contains README.md /gh attestation verify/)"
+verify: "all(contains .github/workflows/release-plz.yml attest-build-provenance, contains README.md /gh attestation verify/)"
 status: open
 created: 2026-11-02T15:33Z
 ---
