@@ -77,10 +77,11 @@ else
 fi
 
 # deny.toml is the crate's posture over every feature but dbsp; deny-dbsp.toml states what dbsp's
-# own closure carries. Both must hold.
+# own closure carries. Both must hold, and an ignored advisory that no longer matches any crate in
+# the graph is an error, not a warning, so an ignore cannot outlive the crate that earned it.
 if command -v cargo-deny >/dev/null 2>&1; then
-  cargo deny --log-level warn check
-  cargo deny --config deny-dbsp.toml --log-level warn check
+  cargo deny --log-level warn check -D advisory-not-detected
+  cargo deny --config deny-dbsp.toml --log-level warn check -D advisory-not-detected
 else
   echo "regression: SKIPPED cargo-deny (not installed; CI runs it)" >&2
 fi

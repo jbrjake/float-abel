@@ -56,7 +56,9 @@ jobs:
       - run: cargo build --locked --no-default-features
 
   # The action's default arguments are `--all-features`, which would override deny.toml's graph
-  # (every feature but dbsp), so the config is named instead.
+  # (every feature but dbsp), so the config is named instead. An ignored advisory that matches
+  # nothing in the graph is an error, as in scripts/regression.sh, so an ignore cannot outlive the
+  # crate that earned it.
   deny:
     name: cargo-deny
     runs-on: ubuntu-latest
@@ -67,6 +69,7 @@ jobs:
         with:
           command: check
           arguments: --config deny.toml
+          command-arguments: -D advisory-not-detected
 
   # dbsp declares rust-version 1.96.1 and builds there and on 1.99.0; rustc 1.97 and 1.98 ICE
   # inside it, so this job pins rather than tracking stable. The gate job's clippy never sees the
@@ -116,6 +119,7 @@ jobs:
         with:
           command: check
           arguments: --config deny-dbsp.toml
+          command-arguments: -D advisory-not-detected
 
   # Undefined behaviour under the interpreter, DESIGN.md § Hardening: the lib's unit tests, the
   # no-feature build and the integration suite. Under `cfg(miri)` the statistical sweeps run a
