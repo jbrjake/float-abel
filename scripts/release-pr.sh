@@ -72,6 +72,9 @@ self_test() (
   set -euo pipefail
   local here tmp status=0
   here=$(cd "$(dirname "$0")" && pwd)
+  # The commit gate runs this from a git hook, which exports GIT_INDEX_FILE, GIT_DIR and more; a
+  # fixture repository that inherited them would read and write the enclosing one's index.
+  while IFS='=' read -r v _; do unset "$v"; done < <(env | grep -o '^GIT_[A-Za-z0-9_]*=')
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example.invalid

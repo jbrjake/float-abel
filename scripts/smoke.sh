@@ -17,11 +17,12 @@ else
   scope="tree"
 fi
 
-rust=0 store=0 fuzz=0 actions=0
+rust=0 store=0 fuzz=0 actions=0 scripts=0
 for f in "${files[@]}"; do
   case "$f" in
     fuzz/*) rust=1 fuzz=1 ;;
-    *.rs|Cargo.toml|Cargo.lock|scripts/*|.githooks/*|.cargo/*|deny.toml) rust=1 ;;
+    scripts/*) rust=1 scripts=1 ;;
+    *.rs|Cargo.toml|Cargo.lock|.githooks/*|.cargo/*|deny.toml) rust=1 ;;
     docs/meshwork/*) store=1 ;;
     .github/workflows/*) actions=1 ;;
   esac
@@ -60,6 +61,14 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 ./scripts/check-test-topics.sh
+# The release scripts' fixtures, when a script is in the diff: the version the release carries, the
+# entry it ships and the pull request that cuts it. release-pr.sh's builds a git repository and runs
+# cargo, so the push gate runs all three on every push and this gate only when they could have moved.
+if [ "$scripts" -eq 1 ]; then
+  ./scripts/version-from-log.sh --self-test
+  ./scripts/changelog-entry.sh --self-test
+  ./scripts/release-pr.sh --self-test
+fi
 cargo fmt --all -- --check
 
 # The fuzz package is outside the workspace, so the root test below never reaches its oracle.

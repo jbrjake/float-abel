@@ -21,6 +21,11 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
+# The release scripts' fixtures: the count, the entry and the pull request that cuts the release.
+./scripts/version-from-log.sh --self-test
+./scripts/changelog-entry.sh --self-test
+./scripts/release-pr.sh --self-test
+
 cargo fmt --all -- --check
 cargo fmt --manifest-path fuzz/Cargo.toml -- --check
 
