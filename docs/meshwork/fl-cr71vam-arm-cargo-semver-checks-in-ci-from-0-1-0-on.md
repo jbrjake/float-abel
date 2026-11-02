@@ -14,7 +14,7 @@ parent: fl-m3cymxv
 needs: [fl-enkdnvk]
 ---
 
-DESIGN.md § Release: cargo-semver-checks runs on every release PR. The release-plz half is done: release-plz.toml has semver_check = true and release-plz.yml installs cargo-semver-checks 0.51.0 beside it, so the version a release PR proposes already reflects a detected break. The gate half is a ci.yml job on pull requests that runs cargo semver-checks check-release against the last release tag as the baseline (--baseline-rev, the tag release-plz made; crates.io is outside the release, so never the registry), on the features docs.rs builds (package.metadata.docs.rs), so a breaking change fails the gate rather than only raising the next version. Before the first release there is no tag to baseline on and the job would be noise; it lands right after the first cut (fl-enkdnvk). Hash-pin the action (obi1kenobi/cargo-semver-checks-action) or install the tool through taiki-e/install-action as release-plz.yml does.
+DESIGN.md § Release once said cargo-semver-checks is armed from the first release on. The version is now a count over the commits (fl-05nqrwd), so a semver check cannot change a number; what it can do is fail a PR whose commits claim no break while the API broke. That is a new tool in the build (cargo-semver-checks, and an action or a hash-pinned tarball to install it), and the owner ruled the build carries no dependency it does not need ("THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED"), so this is the owner's call before anything is built: a ci job on pull requests running cargo semver-checks check-release against the last release tag as the baseline, or nothing. Ask, do not build.
 
 ## log
 - 2026-10-20T15:04Z created

@@ -17,39 +17,19 @@ covers:
     sha: d52b0c0dd2d2a5d6570b559791afc324d52c8051c4811f382dd12e56d5913d5b
 ---
 
-Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how
-are you not seeing this as a massive gap, especially considering i tell people to use releases in
-the readme?" and "part of this needs to be moving to a dev branch for dev, main for releases, pr
-from dev to main to cut one, versions automatically created from conventional commit log tracking,
-like anyone would expect from a grown-up, mature project other people are going to use"; and on the
-number: "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS".
+Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how are you not seeing this as a massive gap, especially considering i tell people to use releases in the readme?"; "part of this needs to be moving to a dev branch for dev, main for releases, pr from dev to main to cut one, versions automatically created from conventional commit log tracking, like anyone would expect from a grown-up, mature project other people are going to use"; "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS"; "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_!"; "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED!"
 
-The gap as it stands: README.md § getting it says "For now, grab a release tag from here. crates.io
-will come." The repo has no tag and no GitHub Release. release.yml creates a release only as the
-last step of a crates.io publish on the owner's dispatch, which the owner has held ("i don't want to
-publish yet", fl-7en8z60), so the README's install path is reachable by no task. Cargo.toml is at
-0.0.0 and CHANGELOG.md has a hand-written Unreleased section.
+The shape as built (fl-05nqrwd), DESIGN.md § Release the spec:
 
-The shape, for the ruling task's readback (the children build it once ratified):
+- Branches. `dev` is where work lands and the default branch; `main` holds releases and accepts only the dev→main PR, merged as a merge commit.
+- The version. Counted from 0.0.0 over every commit since the first, in order: breaking +major (and zero the rest), else feat +minor (and zero the patch), else fix +patch; other types leave it alone; merges skipped. `scripts/version-from-log.sh`, fixtures first. Nobody types a number.
+- The release PR. `cut-release.yml` on every push to dev runs `scripts/prepare-release.sh`: the count into Cargo.toml and Cargo.lock, the entry for the commits since the last `v*` tag (grouped by type by `scripts/changelog-entry.sh`) under CHANGELOG.md's `## [Unreleased]` line, committed as `chore(release): vX.Y.Z` on `release/next` and opened or refreshed as a PR against dev. The owner merges it.
+- The release. On the dev→main merge the workflow refuses a Cargo.toml that disagrees with the count, and when the version has no tag: `gh release create vX.Y.Z --target <merge commit>` with the entry as notes, `cargo package --locked`, sha256, actions/attest-build-provenance, `gh release upload`. Readers verify with `gh attestation verify`.
+- Dependencies. None beyond git, cargo and gh on the runner and the two GitHub-owned actions already pinned (checkout, attest-build-provenance); the scripts are the repository's.
+- crates.io. Outside the release until the owner says; release.yml's dispatch publish stays dormant.
+- Commit discipline. `scripts/check-commit-message.sh` in the commit-msg hook, both gates and ci's commits job, because the count reads the subjects.
 
-- Branches. `dev` is where sessions push and PRs land; `main` holds only releases and accepts only
-  a PR from `dev`. `dev` becomes the default branch so forks and PRs target it.
-- Version and changelog from the log. release-plz (the Rust ecosystem's release-please: reads
-  conventional commits since the last tag, bumps Cargo.toml, writes CHANGELOG.md with git-cliff,
-  and runs cargo-semver-checks to decide the bump) opens and keeps current a release PR against
-  `dev`. Merging it into `dev` fixes the version; the `dev`→`main` PR is then the release: on the
-  merge, `release-plz release` tags it on `main` and creates the GitHub Release with the changelog
-  as its notes. `main` never carries a commit `dev` lacks. No version is ever typed by hand.
-- The artifact. On `release: published`, a job runs `cargo package --locked`, attests the `.crate`
-  with actions/attest-build-provenance (Sigstore, bound to the workflow run; needs the repo public)
-  and uploads the `.crate`, its sha256 and the attestation to the release. A reader verifies with
-  `gh attestation verify float-abel-<version>.crate --repo jbrjake/float-abel`, and README says so.
-- crates.io. Out of release-plz (`publish = false`); the owner's dispatch of release.yml stays the
-  publish route per CLAUDE.md § Standing decisions, unless the owner moves it into the release.
-- Commit discipline. The version is derived from commit messages, so the commit gate checks the
-  Conventional Commits form and ci checks the PR title.
-
-Verify: the first cut release writes a released version heading into CHANGELOG.md.
+Verify: the first cut writes a released version heading into CHANGELOG.md.
 
 ## log
 - 2026-11-02T15:33Z created
