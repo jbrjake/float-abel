@@ -96,7 +96,9 @@ outside `~/Documents`.
   request, `dev`→`main`, cut from a clone by `scripts/release-pr.sh` under the developer's own gh
   login, never by a runner, because a commit and a pull request carry no identity a runner could add
   (owner: "why can't it be something done from a clone using gh?"; "i want it to be a single PR,
-  dev to main."). Every GitHub Release carries
+  dev to main."). The ruleset on `main` requires that pull request, merged as a merge commit, and
+  no approving review, because the repository has one account and an author's own approval never
+  counts (owner set the count to 0). Every GitHub Release carries
   the `.crate` with a GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*`
   tags (owner chose "Attestation + tag ruleset"). crates.io is outside the release until the owner
   says (owner: "I WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
