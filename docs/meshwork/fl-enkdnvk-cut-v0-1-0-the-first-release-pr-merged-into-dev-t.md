@@ -13,50 +13,49 @@ verify: contains CHANGELOG.md /^## \[?[0-9]+\.[0-9]+\.[0-9]+/
 status: open
 created: 2026-11-02T15:33Z
 handoff: |
-  2026-11-02, session de9bd423. The release process is built on the
-  repository's own scripts, with no release tool or third-party action
-  (owner: "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO
-  DEPENDENCIES IT DOESN'T NEED"), and proven locally; the runner proof of
-  the new workflow is the push after f00a030.
+  2026-11-02, end of session de9bd423, for a fresh session. Read
+  fl-4fcbtkx's settings list and the owner's words below before anything
+  else.
   
-  Built: scripts/version-from-log.sh (the count from 0.0.0 over every
-  commit since the first; --self-test over 19 sequences; 0.30.0 at
-  f00a030), scripts/changelog-entry.sh (the entry grouped by type,
-  --self-test against an expected block), scripts/prepare-release.sh
-  (Cargo.toml, Cargo.lock via cargo update --workspace --offline, the
-  entry under CHANGELOG.md's Unreleased line; idempotent; proven in a
-  scratch worktree: 0.0.0 -> 0.29.3 at 3ac2723 and cargo build --locked
-  --offline green after), .github/workflows/cut-release.yml (release-pr
-  job on dev, release job on main), scripts/check-commit-message.sh in the
-  commit-msg hook, both gates and ci's commits job, ci on dev, the
-  annotated tag v0.0.0 on d2f29de as the changelog range's base,
-  CLAUDE.md, DESIGN.md § Release, README § getting it, CHANGELOG.md's
-  header. Default branch is dev.
+  State on origin: dev at the commit this handoff was committed in (see
+  git log), main at 3ac2723 (the last main push; main now moves only by
+  the dev→main PR), default branch dev, tag v0.0.0 on d2f29de, branch
+  release/next at e1949b5 carrying "chore(release): v0.30.1" (stale once
+  dev moves; the dispatch rebuilds it). The log counts to 0.30.1 plus
+  whatever landed after 84a4936 (`./scripts/version-from-log.sh`).
   
-  The sequence to cut the first release, once the owner has done
-  fl-4fcbtkx's items 1 and 2 (RELEASE_PR_TOKEN or the Actions-may-open-PRs
-  setting; flip public): (a) push to dev or re-run the dev cut-release
-  job: the release PR "chore(release): v<count>" opens against dev from
-  release/next with Cargo.toml, Cargo.lock and the CHANGELOG entry; the
-  owner merges it with the merge button. (b) Right away, before anything
-  else lands on dev: gh pr create --base main --head dev --title
-  "chore(release): cut the release the log yields"; the owner merges it
-  with the merge button. (c) The release job on main checks Cargo.toml
-  against the count, tags v<count> on the merge commit, publishes the
-  GitHub Release with the entry as notes, builds float-abel-<count>.crate
-  with --locked, attests it and uploads .crate and .sha256. (d) From a
-  clean machine: gh attestation verify float-abel-<count>.crate --repo
-  jbrjake/float-abel; paste the output and the release URL as a comment
-  here.
+  The process (DESIGN.md § Release, all three scripts with green
+  self-tests): a push to dev runs no ci (owner: "A PUSH IS NOT SUPPOSED TO
+  BE AN INTENSIVE TEST! A PUSH IS JUST A PUSH!"); `gh workflow run
+  cut-release.yml --ref dev` on the owner's word opens or refreshes the
+  release PR against dev (Cargo.toml, Cargo.lock, CHANGELOG.md entry); the
+  PR runs every ci job (gate, msrv, deny, dbsp, miri, commits); the owner
+  merges it, then the dev→main PR; the push to main runs cut-release's
+  release job (tag, GitHub Release, .crate, attestation, upload) and ci.
+  No tool beyond git, cargo, gh and the two GitHub-owned actions (owner:
+  "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES
+  IT DOESN'T NEED").
   
-  Watch for: every feat on dev moves the count (the next feat after the
-  release PR opens re-renders the PR at the new number, which is the rule
-  working); the attest step fails on a private repo, so the flip comes
-  before (b); the main ruleset's required checks must name jobs that run
-  on a PR from dev; dependabot PRs #2 and #3 fail the commits job on their
-  'Bump' titles (fl-hp7md5n); a Cargo.toml on main that disagrees with the
-  count fails the release job with the instruction to merge the release PR
-  first.
+  GitHub Actions is not green and the owner knows it: today's ci runs on
+  dev were cancelled by successive pushes (cancel-in-progress) or were
+  still running when the session ended (41495939738 dev, 41491375969 main;
+  the session could not cancel them, the owner was given the command);
+  cut-release failed three times at the PR step for want of
+  RELEASE_PR_TOKEN or the Actions-may-create-PRs setting; four release-plz
+  runs are a deleted workflow's history. Nothing of the release job (tag,
+  attest, upload) has run yet, and the repo is private, so the attestation
+  step is unproven.
+  
+  What proves the process, in order, each the owner's act or word: (1)
+  RELEASE_PR_TOKEN (GitHub App, Contents + Pull requests read/write) or
+  the Actions setting; (2) `gh workflow run cut-release.yml --ref dev`:
+  the release PR opens, ci runs on it, the owner reads the number and the
+  entry; (3) flip public; (4) merge the release PR, open and merge
+  dev→main, watch the release job, `gh attestation verify
+  float-abel-<v>.crate --repo jbrjake/float-abel`; comment the output
+  here. Do not push to dev more than once per piece of work; do not add a
+  tool; do not re-offer crates.io (owner: "I WILL TELL YOU WHEN I WANT
+  IT").
 ---
 
 The owner's merges, twice, and the session's watch. The release PR cut-release.yml keeps against dev carries the version the log counts to (owner: "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_"), Cargo.lock and the CHANGELOG entry; no version is typed anywhere by hand. The owner merges it (merge commit); the session opens dev→main (`gh pr create --base main --head dev --title "chore(release): cut the release the log yields"`) before anything else lands on dev; the owner merges it; the release job tags `v<that version>` on the merge commit, creates the GitHub Release with the entry as notes, builds the .crate with --locked, attests it and uploads .crate and .sha256. `gh attestation verify float-abel-<version>.crate --repo jbrjake/float-abel` passes from a clean machine. crates.io stays out until the owner says. Done is the verify (a released version heading in CHANGELOG.md) plus the release URL and the verify command's output in a comment here.
@@ -65,3 +64,4 @@ The owner's merges, twice, and the session's watch. The release PR cut-release.y
 - 2026-11-02T15:33Z created
 - 2026-11-02T17:26Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
 - 2026-11-02T17:51Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T18:05Z handoff by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)

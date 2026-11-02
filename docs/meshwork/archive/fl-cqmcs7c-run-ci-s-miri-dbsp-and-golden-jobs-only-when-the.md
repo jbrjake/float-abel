@@ -8,7 +8,7 @@ parent: fl-b9qtzty
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
 verify: "all(contains .github/workflows/ci.yml needs.changes.outputs.rust, contains .github/workflows/golden.yml needs.changes.outputs.rust)"
-status: open
+status: dropped
 created: 2026-11-02T15:14Z
 ---
 Owner, 2026-11-02: "WHY IS CI TAKING SO LONG". The miri job is the long pole at 41 to 57 minutes
@@ -33,3 +33,5 @@ list until the flip's ruleset exists (fl-4fcbtkx's checklist, item 5).
 
 ## log
 - 2026-11-02T15:14Z created
+- 2026-11-02T18:02Z open→doing — claimed by claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)
+- 2026-11-02T18:05Z doing→dropped — owner, 2026-11-02, in session: "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE TEST! A PUSH IS JUST A PUSH!" ci no longer runs on a push to dev at all (only on pull requests and main), so there is no push-time filtering left to build
