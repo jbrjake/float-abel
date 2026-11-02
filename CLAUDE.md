@@ -77,7 +77,10 @@ outside `~/Documents`.
   exact pin, then "Bump dbsp to 0.367" past zip 6's advisories, the floor moving with the caret
   kept). Its closure is checked by `deny-dbsp.toml` in the dbsp CI job and the push gate
   while `deny.toml` checks every other feature, so the crate's own posture stays as strict as it
-  is (owner: "follow your rec on dbsp's CI job").
+  is (owner: "follow your rec on dbsp's CI job"). An advisory on a crate dbsp itself pins with no
+  in-range fix is ignored by id with dbsp named, and both gates run `check -D
+  advisory-not-detected`, so the ignore fails the gate the day the crate moves on (owner: "we need
+  something to auto-trigger to remove the exception when dbsp updates zstd").
 - Speed targets are measured into `BENCH.md`, never gated, because a missed target is a design
   question, not a broken build.
 - A session runs `cargo publish` only with `--dry-run`. CI publishes from `release.yml` on the
@@ -91,6 +94,8 @@ outside `~/Documents`.
 - Dependabot refreshes those hashes by PR, one `github-actions` entry in `.github/dependabot.yml`
   on a weekly schedule, and nothing merges on its own (owner: "yes have dependabot open prs that
   update the pinned hashes"). golden.yml's tarball digests are not actions and move by hand.
+- golden.yml's `aarch64 macOS` leg runs on every event, whatever it bills, because the committed
+  hash is blessed on that platform (owner: "keep the mac leg").
 
 ## Boundaries
 
