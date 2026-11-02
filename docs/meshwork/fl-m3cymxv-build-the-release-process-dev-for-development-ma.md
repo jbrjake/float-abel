@@ -14,19 +14,19 @@ status: open
 created: 2026-11-02T15:33Z
 covers:
   - ref: docs/DESIGN.md#sp-release
-    sha: 5e919747f70b93caba5df9bcff686475c0a6c87a5f551f720e6a692636d439e7
+    sha: 0c55c448f94b5c39ea847579837143f7f97184d02c0de50dd07dd2fc876e8cc7
 ---
 
-Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how are you not seeing this as a massive gap, especially considering i tell people to use releases in the readme?"; "part of this needs to be moving to a dev branch for dev, main for releases, pr from dev to main to cut one, versions automatically created from conventional commit log tracking, like anyone would expect from a grown-up, mature project other people are going to use"; "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS"; "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_!"; "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED!"
+Owner, 2026-11-02: "i don't understand why we don't have attested release builds available. how are you not seeing this as a massive gap, especially considering i tell people to use releases in the readme?"; "part of this needs to be moving to a dev branch for dev, main for releases, pr from dev to main to cut one, versions automatically created from conventional commit log tracking, like anyone would expect from a grown-up, mature project other people are going to use"; "IT'S NOT V0.1.0 IT'S WHAT THE CONVENTIONAL COMMITS SAY IT IS"; "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_!"; "THIS IS A MINIMALIST PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED!"; on the release PR, "why do we need a workflow for this? why can't it be something done from a clone using gh?"; "OF COURSE FIX IT!"
 
-The shape as built (fl-05nqrwd), DESIGN.md § Release the spec:
+The shape as built (fl-05nqrwd, fl-ezhk4cz, fl-ebbxwd2), DESIGN.md § Release the spec:
 
 - Branches. `dev` is where work lands and the default branch; `main` holds releases and accepts only the dev→main PR, merged as a merge commit.
 - The version. Counted from 0.0.0 over every commit since the first, in order: breaking +major (and zero the rest), else feat +minor (and zero the patch), else fix +patch; other types leave it alone; merges skipped. `scripts/version-from-log.sh`, fixtures first. Nobody types a number.
-- The release PR. `cut-release.yml` on every push to dev runs `scripts/prepare-release.sh`: the count into Cargo.toml and Cargo.lock, the entry for the commits since the last `v*` tag (grouped by type by `scripts/changelog-entry.sh`) under CHANGELOG.md's `## [Unreleased]` line, committed as `chore(release): vX.Y.Z` on `release/next` and opened or refreshed as a PR against dev. The owner merges it.
-- The release. On the dev→main merge the workflow refuses a Cargo.toml that disagrees with the count, and when the version has no tag: `gh release create vX.Y.Z --target <merge commit>` with the entry as notes, `cargo package --locked`, sha256, actions/attest-build-provenance, `gh release upload`. Readers verify with `gh attestation verify`.
-- Dependencies. None beyond git, cargo and gh on the runner and the two GitHub-owned actions already pinned (checkout, attest-build-provenance); the scripts are the repository's.
-- crates.io. Outside the release until the owner says; release.yml's dispatch publish stays dormant.
+- The release PR. `scripts/release-pr.sh`, from a clone under the developer's own gh login: in a temporary worktree at origin/dev, `scripts/prepare-release.sh` writes the count into Cargo.toml and Cargo.lock and the entry for the commits since the last `v*` tag (grouped by type by `scripts/changelog-entry.sh`) under CHANGELOG.md's `## [Unreleased]` line; the three files are committed as `chore(release): vX.Y.Z`, pushed as `release/next` and opened or refreshed as a PR against dev with the entry as its body. `--dry-run` prints the version, the diff and the entry and pushes nothing. No runner holds write access to the repository for this: a commit and a pull request carry no identity a runner could add. The owner merges it.
+- The release. On the dev→main merge release.yml's one job refuses a Cargo.toml that disagrees with the count, and when the version has no tag: `cargo package --locked`, sha256, actions/attest-build-provenance, then `gh release create vX.Y.Z --target <merge commit>` with the entry as notes and the .crate and its sha256 attached. The attestation carries the workflow's identity, which is why that step is the runner's. Readers verify with `gh attestation verify`.
+- Dependencies. None beyond git, cargo and gh, on the developer's machine and on the runner, and the two GitHub-owned actions already pinned (checkout, attest-build-provenance); the scripts are the repository's, each with a `--self-test` that both gates run (fl-jkb64s3).
+- crates.io. Outside the release until the owner says; publish.yml's dispatch stays dormant.
 - Commit discipline. `scripts/check-commit-message.sh` in the commit-msg hook, both gates and ci's commits job, because the count reads the subjects.
 
 Verify: the first cut writes a released version heading into CHANGELOG.md.
@@ -36,6 +36,7 @@ Verify: the first cut writes a released version heading into CHANGELOG.md.
 - 2026-11-02T15:34Z cover docs/DESIGN.md#sp-release @3478ee626df5
 - 2026-11-02T16:38Z cover docs/DESIGN.md#sp-release @d52b0c0dd2d2
 - 2026-11-02T18:34Z cover docs/DESIGN.md#sp-release @5e919747f70b
+- 2026-11-02T19:59Z cover docs/DESIGN.md#sp-release @0c55c448f94b
 
 ## comments
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the release is .github/workflows/release.yml (from cut-release.yml) and the crates.io publish .github/workflows/publish.yml (from release.yml); the body's 'cut-release.yml on every push to dev' is two revisions stale: the release PR opens on the owner's dispatch alone. DESIGN.md § Release now says the nightly and the dev→main PR are the two test points and the .crate is built and attested before the tag; the sp-release pin is re-read and repinned with this comment.
