@@ -28,6 +28,9 @@ for f in "${files[@]}"; do
 done
 
 ./scripts/check-file-length.sh "${files[@]}"
+# The commit message itself is checked by .githooks/commit-msg, which runs after this gate; the
+# fixtures run here so a change to the checker is caught before the hook relies on it.
+./scripts/check-commit-message.sh --self-test
 
 if [ "$actions" -eq 1 ]; then
   ./scripts/check-actions-pinned.sh "${files[@]}"

@@ -14,6 +14,7 @@ MSRV=1.74.0
 ./scripts/check-file-length.sh
 ./scripts/check-test-topics.sh
 ./scripts/check-actions-pinned.sh
+./scripts/check-commit-message.sh --self-test
 
 if ! command -v cargo >/dev/null 2>&1; then
   echo "regression: FAILED (no cargo on PATH)" >&2
