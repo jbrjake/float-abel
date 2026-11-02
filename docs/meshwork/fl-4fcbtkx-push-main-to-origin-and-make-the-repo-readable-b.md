@@ -13,6 +13,7 @@ created: 2026-10-16T16:51Z
 verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-readable-b.md /2026-[0-9][0-9]-[0-9][0-9] owner pushed main to origin/
 blocked-reason: "step 2, the repo's readability for leras's runner (flip public or add to the ORESEUR_TOKEN PAT), is a GitHub setting on the owner's account; main is on origin at b14d830"
 claimed-by: claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
+parent: fl-b9qtzty
 ---
 
 Answers leras#le-yxhtwgw, whose body names both steps as owner actions on this repo. leras ships

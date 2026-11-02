@@ -11,6 +11,7 @@ docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 10
 created: 2026-11-02T15:05Z
+parent: fl-b9qtzty
 ---
 
 Four advisories published after f24b051 fail `cargo deny --config deny-dbsp.toml check` on main's
