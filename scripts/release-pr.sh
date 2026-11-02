@@ -1,70 +1,91 @@
 #!/usr/bin/env bash
-# The release PR, cut from a clone (DESIGN.md § Release). In a temporary worktree at origin/dev,
-# scripts/prepare-release.sh writes the version the log counts to into Cargo.toml and Cargo.lock and
-# the entry for the commits since the last tag into CHANGELOG.md; the three files are committed as
-# `chore(release): vX.Y.Z`, pushed as release/next, and opened or refreshed as a pull request against
-# dev with the entry as its body, under the developer's own gh login. The checkout this runs from is
-# never touched: no branch is made or moved in it. No runner holds write access to the repository for
-# this step, because a commit and a pull request carry no identity a runner could add; the .crate's
-# attestation does, and that step is the release workflow's. With dev already carrying the version,
-# nothing is pushed and the script says so.
+# The release pull request, one, dev into main (DESIGN.md § Release; owner: "i want it to be a
+# single PR, dev to main."). From a clone on dev, clean and at origin/dev, under the developer's own
+# gh login: scripts/prepare-release.sh writes the version the log counts to into Cargo.toml and
+# Cargo.lock and the entry for the commits since the last tag into CHANGELOG.md; the three files are
+# committed on dev as `chore(release): vX.Y.Z` and pushed (a push to dev is just a push); then the
+# pull request from dev into main is opened, or refreshed when one is open, with the entry as its
+# body. Merging it is the release. No runner holds write access to the repository for any of this: a
+# commit and a pull request carry no identity a runner could add; the .crate's attestation does, and
+# that step is the release workflow's. With dev already carrying the version the commit is skipped
+# and the pull request still opened or refreshed; with the version tagged, there is nothing to do.
 #
-#   release-pr.sh              cut or refresh the release PR against dev
-#   release-pr.sh --dry-run    everything but the push and the pull request: the version, the diff
-#                              and the entry, to read first
-#   release-pr.sh --self-test  the fixture: against a bare origin, with gh stubbed through $GH, the
-#                              PR opens, then refreshes, then has nothing to do, then a dry run
-#                              pushes nothing
+# The release commit and its push skip the hooks. The tree is what the push gate passed at
+# origin/dev, and the three files differ from it by a version line, the lockfile's own-package
+# record and a changelog entry, none of which the gate reads; the pull request runs the whole suite.
+#
+#   release-pr.sh              commit the release onto dev, push, open or refresh the dev→main PR
+#   release-pr.sh --dry-run    the version, the diff and the entry, with the three files put back
+#                              and nothing pushed or opened
+#   release-pr.sh --self-test  the fixture: against a bare origin with gh stubbed through $GH, the
+#                              PR opens, then refreshes without a second commit, then has nothing to
+#                              do once tagged; a dry run moves nothing; a dirty tree, another branch
+#                              and a dev behind origin are refused
 set -euo pipefail
 
 GH=${GH:-gh}
+FILES=(Cargo.toml Cargo.lock CHANGELOG.md)
+
+refuse() { echo "release-pr: $*" >&2; exit 1; }
 
 cut() {
   local dry=$1
-  local root tmp tree version entry pr
-  root=$(git rev-parse --show-toplevel)
-  tmp=$(mktemp -d)
-  tree=$tmp/tree
-  entry=$tmp/entry.md
-  # shellcheck disable=SC2064  # $root and $tree are fixed now; the trap wants their values
-  trap "git -C '$root' worktree remove --force '$tree' >/dev/null 2>&1 || true; rm -rf '$tmp'" EXIT
-
-  git -C "$root" fetch --quiet --tags origin dev
-  git -C "$root" worktree add --quiet --detach "$tree" origin/dev
-  cd "$tree"
+  local branch version tag entry pr before
+  cd "$(git rev-parse --show-toplevel)"
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  [ "$branch" = dev ] || refuse "on branch $branch; the release is cut from dev"
+  [ -z "$(git status --porcelain)" ] || refuse "the tree is not clean; commit or stash first"
+  git fetch --quiet --tags origin dev
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/dev)" ] || refuse "dev is not at origin/dev; pull or push first"
+  before=$(git rev-parse --short HEAD)
 
   version=$(./scripts/prepare-release.sh)
-  if git diff --quiet -- Cargo.toml Cargo.lock CHANGELOG.md; then
-    echo "release-pr: $version is in place on dev; no release PR to open" >&2
+  tag=v$version
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    echo "release-pr: $tag is already released; nothing to do" >&2
     return 0
   fi
-  git --no-pager diff --stat -- Cargo.toml Cargo.lock CHANGELOG.md >&2
-
-  # The commit is the three generated files on a detached head; the hooks are the developer's gates
-  # for hand-written changes and do not run here. The dev→main pull request runs the whole suite.
-  git add Cargo.toml Cargo.lock CHANGELOG.md
-  git commit --quiet --no-verify -m "chore(release): v$version"
+  entry=$(mktemp)
+  # shellcheck disable=SC2064  # $entry is fixed now; the trap wants its value
+  trap "rm -f '$entry'" EXIT
   awk -v v="$version" 'index($0, "## [" v "]") == 1 { p = 1; print; next } /^## \[/ { p = 0 } p { print }' CHANGELOG.md > "$entry"
   if [ ! -s "$entry" ]; then
-    echo "release-pr: CHANGELOG.md carries no entry for $version" >&2
-    return 1
+    git checkout --quiet -- "${FILES[@]}"
+    refuse "CHANGELOG.md carries no entry for $version"
+  fi
+
+  local pending=0
+  git diff --quiet -- "${FILES[@]}" || pending=1
+  if [ "$pending" = 1 ]; then
+    git --no-pager diff --stat -- "${FILES[@]}" >&2
+  else
+    echo "release-pr: $version is in place on dev" >&2
   fi
 
   if [ "$dry" = 1 ]; then
-    echo "release-pr: dry run; would push release/next and open or refresh the pull request 'chore(release): v$version' against dev with this body:" >&2
+    if [ "$pending" = 1 ]; then
+      echo "release-pr: dry run; would commit 'chore(release): $tag' onto dev, push it, and open or refresh the pull request dev → main with this body:" >&2
+    else
+      echo "release-pr: dry run; would open or refresh the pull request dev → main with this body:" >&2
+    fi
     cat "$entry" >&2
+    git checkout --quiet -- "${FILES[@]}"
     return 0
   fi
 
-  git push --quiet --force origin HEAD:refs/heads/release/next
-  cd "$root"
-  pr=$("$GH" pr list --head release/next --base dev --state open --json number --jq '.[0].number // empty')
+  if [ "$pending" = 1 ]; then
+    git add "${FILES[@]}"
+    git commit --quiet --no-verify -m "chore(release): $tag"
+    git push --quiet --no-verify origin dev
+    echo "release-pr: committed and pushed 'chore(release): $tag' onto dev ($before -> $(git rev-parse --short HEAD)); the hooks were skipped, since the gate passed this tree at $before and the pull request runs the suite" >&2
+  fi
+  pr=$("$GH" pr list --base main --head dev --state open --json number --jq '.[0].number // empty')
   if [ -n "$pr" ]; then
-    "$GH" pr edit "$pr" --title "chore(release): v$version" --body-file "$entry"
-    echo "release-pr: refreshed the release PR #$pr at v$version" >&2
+    "$GH" pr edit "$pr" --title "chore(release): $tag" --body-file "$entry"
+    echo "release-pr: refreshed the pull request #$pr, dev → main, at $tag" >&2
   else
-    "$GH" pr create --base dev --head release/next --title "chore(release): v$version" --body-file "$entry"
-    echo "release-pr: opened the release PR at v$version" >&2
+    "$GH" pr create --base main --head dev --title "chore(release): $tag" --body-file "$entry"
+    echo "release-pr: opened the pull request dev → main at $tag" >&2
   fi
 }
 
@@ -82,9 +103,10 @@ self_test() (
   export GH="$tmp/gh" GH_LOG="$tmp/gh.log" GH_PR="$tmp/gh.pr"
 
   fail() { echo "self-test: $*" >&2; status=1; }
+  calls() { wc -l < "$GH_LOG" | tr -d ' '; }
 
   # The stub records every call and answers `pr list` with the number in $GH_PR, when there is one.
-  # A body file is copied beside the log, since the real one dies with the script's temp dir.
+  # A body file is copied beside the log, since the real one dies with the script.
   cat > "$GH" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GH_LOG"
@@ -95,6 +117,7 @@ esac
 exit 0
 STUB
   chmod +x "$GH"
+  : > "$GH_LOG"
 
   git init --quiet --bare "$tmp/origin.git"
   git init --quiet "$tmp/clone"
@@ -109,49 +132,66 @@ STUB
   cargo generate-lockfile --quiet --offline
   git add -A && git commit --quiet -m "build: lay the crate down"
   git tag v0.0.0
+  git branch main
   echo a > a && git add a && git commit --quiet -m "feat: add the sum"
   echo b > b && git add b && git commit --quiet -m "fix: refuse a bad byte"
-  git push --quiet origin dev --tags
+  git push --quiet origin dev main --tags
 
-  # 1. A first run opens the PR at the version the log counts to, with the three files on release/next
-  #    and the entry as the body, and leaves the clone's tree and branches alone.
+  # 1. The first run commits the version the log counts to onto dev, pushes it, and opens the one
+  #    pull request, dev into main, with the entry as its body.
   ./scripts/release-pr.sh 2>/dev/null
-  git fetch --quiet origin release/next
-  [ "$(git log -1 --format=%s origin/release/next)" = "chore(release): v0.1.1" ] || fail "release/next carries '$(git log -1 --format=%s origin/release/next)', not the v0.1.1 commit"
-  [ "$(git diff --name-only origin/dev origin/release/next | tr '\n' ' ')" = "CHANGELOG.md Cargo.lock Cargo.toml " ] || fail "release/next changes $(git diff --name-only origin/dev origin/release/next | tr '\n' ' ')"
-  grep -q '^pr create --base dev --head release/next --title chore(release): v0.1.1 --body-file ' "$GH_LOG" || fail "no pr create in the gh log: $(cat "$GH_LOG")"
+  [ "$(git log -1 --format=%s)" = "chore(release): v0.1.1" ] || fail "dev carries '$(git log -1 --format=%s)', not the v0.1.1 commit"
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/dev)" ] || fail "dev was not pushed"
+  [ "$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')" = "CHANGELOG.md Cargo.lock Cargo.toml " ] || fail "the release commit changes $(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
+  grep -q '^pr create --base main --head dev --title chore(release): v0.1.1 --body-file ' "$GH_LOG" || fail "no pr create in the gh log: $(cat "$GH_LOG")"
   head -1 "$GH_LOG.body" | grep -q '^## \[0.1.1\]' || fail "the body does not open with the 0.1.1 entry: $(head -1 "$GH_LOG.body")"
   grep -q 'refuse a bad byte' "$GH_LOG.body" || fail "the body lacks the fix line"
-  [ -z "$(git status --porcelain)" ] || fail "the clone's tree moved: $(git status --porcelain)"
-  [ -z "$(git branch --list release/next)" ] || fail "a local release/next branch was made"
-  [ -z "$(git worktree list | sed 1d)" ] || fail "a worktree was left behind: $(git worktree list)"
+  [ -z "$(git status --porcelain)" ] || fail "the tree is not clean after the run: $(git status --porcelain)"
 
-  # 2. With the PR open, a second run refreshes it rather than opening another.
+  # 2. With the PR open and the version in place, a second run refreshes it and commits nothing.
   echo 7 > "$GH_PR"
+  local head; head=$(git rev-parse HEAD)
   ./scripts/release-pr.sh 2>/dev/null
   grep -q '^pr edit 7 --title chore(release): v0.1.1 --body-file ' "$GH_LOG" || fail "no pr edit 7 in the gh log: $(cat "$GH_LOG")"
-  grep -c '^pr create' "$GH_LOG" | grep -qx 1 || fail "a second pr create was made"
+  [ "$(grep -c '^pr create' "$GH_LOG")" = 1 ] || fail "a second pr create was made"
+  [ "$(git rev-parse HEAD)" = "$head" ] || fail "the refresh made a commit"
 
-  # 3. Once dev carries the version, there is nothing to do: no push, no gh call.
-  git merge --quiet --no-ff -m "Merge pull request #7 from fixture/release/next" origin/release/next
-  git push --quiet origin dev
+  # 3. Once the version is tagged, there is nothing to do: no commit, no gh call.
+  git tag v0.1.1 && git push --quiet origin v0.1.1
   : > "$GH_PR"
-  local before after
-  before=$(wc -l < "$GH_LOG")
-  ./scripts/release-pr.sh 2> "$tmp/out" || fail "the in-place run failed: $(cat "$tmp/out")"
-  grep -q 'is in place on dev' "$tmp/out" || fail "the in-place run did not say so: $(cat "$tmp/out")"
-  after=$(wc -l < "$GH_LOG")
-  [ "$before" = "$after" ] || fail "the in-place run called gh"
+  local n; n=$(calls)
+  ./scripts/release-pr.sh 2> "$tmp/out" || fail "the released run failed: $(cat "$tmp/out")"
+  grep -q 'is already released' "$tmp/out" || fail "the released run did not say so: $(cat "$tmp/out")"
+  [ "$(calls)" = "$n" ] || fail "the released run called gh"
+  [ "$(git rev-parse HEAD)" = "$head" ] || fail "the released run made a commit"
 
-  # 4. A dry run after another fix prints the next version and entry and pushes nothing.
-  echo c > c && git add c && git commit --quiet -m "fix: close the edge"
-  git push --quiet origin dev
+  # 4. A dry run after another fix prints the next version and entry, puts the files back, and
+  #    pushes and opens nothing.
+  echo c > c && git add c && git commit --quiet -m "fix: close the edge" && git push --quiet origin dev
+  head=$(git rev-parse HEAD)
   ./scripts/release-pr.sh --dry-run 2> "$tmp/out" || fail "the dry run failed: $(cat "$tmp/out")"
-  grep -q "dry run; would push release/next and open or refresh the pull request 'chore(release): v0.1.2'" "$tmp/out" || fail "the dry run did not name v0.1.2: $(cat "$tmp/out")"
+  grep -q "dry run; would commit 'chore(release): v0.1.2' onto dev" "$tmp/out" || fail "the dry run did not name v0.1.2: $(cat "$tmp/out")"
   grep -q 'close the edge' "$tmp/out" || fail "the dry run did not print the entry"
-  git fetch --quiet origin release/next
-  [ "$(git log -1 --format=%s origin/release/next)" = "chore(release): v0.1.1" ] || fail "the dry run moved release/next"
-  [ "$(wc -l < "$GH_LOG")" = "$after" ] || fail "the dry run called gh"
+  [ "$(git rev-parse HEAD)" = "$head" ] || fail "the dry run made a commit"
+  [ "$(git rev-parse origin/dev)" = "$head" ] || fail "the dry run moved origin/dev"
+  [ -z "$(git status --porcelain)" ] || fail "the dry run left the tree dirty: $(git status --porcelain)"
+  [ "$(calls)" = "$n" ] || fail "the dry run called gh"
+
+  # 5. A dirty tree, another branch and a dev behind origin are refused before anything is written.
+  echo x > x
+  ./scripts/release-pr.sh 2> "$tmp/out" && fail "a dirty tree was not refused"
+  grep -q 'not clean' "$tmp/out" || fail "the dirty tree's refusal: $(cat "$tmp/out")"
+  rm x
+  git checkout --quiet -b topic
+  ./scripts/release-pr.sh 2> "$tmp/out" && fail "another branch was not refused"
+  grep -q 'on branch topic' "$tmp/out" || fail "the branch's refusal: $(cat "$tmp/out")"
+  git checkout --quiet dev
+  git reset --quiet --hard HEAD~1
+  ./scripts/release-pr.sh 2> "$tmp/out" && fail "a dev behind origin was not refused"
+  grep -q 'not at origin/dev' "$tmp/out" || fail "the stale dev's refusal: $(cat "$tmp/out")"
+  git reset --quiet --hard origin/dev
+  [ "$(git rev-parse origin/dev)" = "$head" ] || fail "a refusal moved origin/dev"
+  [ "$(calls)" = "$n" ] || fail "a refusal called gh"
 
   if [ "$status" -eq 0 ]; then
     echo "release-pr: self-test OK"

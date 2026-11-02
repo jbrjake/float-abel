@@ -1,8 +1,9 @@
 # The release, cut from the conventional-commit log counted from 0.0.0 over every commit since the
-# first (DESIGN.md § Release; scripts/version-from-log.sh). The release PR against dev is not this
-# workflow's: scripts/release-pr.sh cuts it from a clone under the developer's own gh login, because
-# a commit and a pull request carry no identity a runner could add, and no runner holds write access
-# to the repository for them. The attestation does carry the runner's identity, so that step is here.
+# first (DESIGN.md § Release; scripts/version-from-log.sh). The release is one pull request, dev into
+# main, and it is not this workflow's: scripts/release-pr.sh commits the version onto dev and opens
+# the pull request from a clone under the developer's own gh login, because a commit and a pull
+# request carry no identity a runner could add, and no runner holds write access to the repository
+# for them. The attestation does carry the runner's identity, so that step is here.
 #
 #   the push to main      the dev→main merge: refuses a Cargo.toml that disagrees with the count and,
 #                         when the version has no tag yet, builds the .crate from that commit with
@@ -48,15 +49,16 @@ jobs:
           rustup toolchain install stable --profile minimal
           rustup default stable
           cargo --version && rustc --version
-      # A main whose Cargo.toml disagrees with the count had dev merged before the release PR; the
-      # job stops there rather than tag the wrong number. A version with its tag is already released.
+      # A main whose Cargo.toml disagrees with the count had dev merged before scripts/release-pr.sh
+      # ran on it; the job stops there rather than tag the wrong number. A version with its tag is
+      # already released.
       - name: The version Cargo.toml carries is the one the log counts to
         id: version
         run: |
           counted=$(./scripts/version-from-log.sh)
           carried=$(awk -F'"' '/^version = "/ { print $2; exit }' Cargo.toml)
           if [ "$counted" != "$carried" ]; then
-            echo "release: Cargo.toml says $carried but the log counts to $counted; merge the release PR into dev before merging dev into main" >&2
+            echo "release: Cargo.toml says $carried but the log counts to $counted; run scripts/release-pr.sh on dev before merging dev into main" >&2
             exit 1
           fi
           echo "version=$counted" >> "$GITHUB_OUTPUT"

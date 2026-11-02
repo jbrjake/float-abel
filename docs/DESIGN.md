@@ -794,21 +794,22 @@ one to the minor and zeroes the patch, else a `fix` adds one to the patch, and e
 leaves it alone; `scripts/version-from-log.sh` is that count, and nobody types a version. A push to
 `dev` is just a push: the push gate ran on the developer's machine, and the runner does nothing.
 Nightly, `ci` runs the whole suite on `dev` when a commit since the last nightly reached anything
-outside the task store, and skips the night otherwise. `scripts/release-pr.sh`, run from a clone
-under the developer's own gh login, opens or refreshes a release PR against `dev` that writes the
-count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
-CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`; no runner holds write access to the
-repository for it, because a commit and a pull request carry no identity a runner could add, where
-the attestation below does. Merging it fixes the version. The pull request from `dev` into `main`
-runs the whole suite again, and merging it cuts the release: the workflow refuses a Cargo.toml that
+outside the task store, and skips the night otherwise. The release is one pull request, `dev` into
+`main`. `scripts/release-pr.sh`, run from a clone on `dev` under the developer's own gh login,
+writes the count into Cargo.toml and Cargo.lock and the entry for the commits since the last tag into
+CHANGELOG.md, grouped by type by `scripts/changelog-entry.sh`, commits the three files onto `dev` as
+`chore(release): vX.Y.Z`, pushes, and opens that pull request with the entry as its body, or
+refreshes the open one; no runner holds write access to the repository for it, because a commit and
+a pull request carry no identity a runner could add, where the attestation below does. The pull
+request runs the whole suite, and merging it cuts the release: the workflow refuses a Cargo.toml that
 disagrees with the count, builds the `.crate` from that commit with `cargo package --locked`, attests
 its provenance with GitHub artifact attestations (Sigstore, bound to this repository, the workflow and
 the commit), then tags `vX.Y.Z` and publishes the GitHub Release with the entry as its notes and the
 `.crate`, its sha256 and the attestation attached, which a reader checks with `gh attestation
 verify`. The build runs on git, cargo and gh
 and the two GitHub-owned actions alone, because the crate's posture of no dependency it does not need
-is the build's too. A ruleset keeps `v*` tags from being moved or deleted. Both merges are the
-owner's acts; so is any announcement. crates.io is outside the release; the owner says when it joins.
+is the build's too. A ruleset keeps `v*` tags from being moved or deleted. The merge is the
+owner's act; so is any announcement. crates.io is outside the release; the owner says when it joins.
 
 ## Non-goals
 

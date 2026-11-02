@@ -20,8 +20,7 @@ git config core.hooksPath .githooks                    # run the gates from git
 ./scripts/bench-baseline.sh compare                    # after a cargo bench: every row past 1.5× of this machine's bench-baseline.json; `write` re-records it
 git push origin dev                                    # where work lands; a push runs no ci (the push gate ran here); main takes only the dev→main PR
 gh workflow run ci.yml --ref dev                       # the whole suite on demand; nightly it runs by itself, only when dev moved outside docs/meshwork/
-./scripts/release-pr.sh                                # from any clone, under your gh login: opens or refreshes the release PR against dev at the version the log counts to; --dry-run prints it first
-gh pr create --base main --head dev --title "chore(release): cut the release the log yields"   # once the release PR has merged into dev; the owner merges both
+./scripts/release-pr.sh                                # from this clone on dev at origin/dev, under your gh login: commits the version the log counts to and the entry onto dev, pushes, and opens or refreshes the one PR, dev→main; --dry-run prints it first
 ./scripts/version-from-log.sh                          # the version the log counts to at HEAD; prepare-release.sh writes it and the CHANGELOG entry
 ```
 
@@ -93,10 +92,11 @@ outside `~/Documents`.
   (owner: "YOU NEED TO BE COUNTING FROM 0.0.0 ON FROM _THE VERY FIRST COMMIT_"; "of course feats
   bump the minor"); the changelog entry is `scripts/changelog-entry.sh`'s, and the release workflow
   runs on git, cargo, gh and the two GitHub-owned actions alone (owner: "THIS IS A MINIMALIST
-  PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED"). The release PR is cut from a
-  clone by `scripts/release-pr.sh` under the developer's own gh login, never by a runner, because a
-  commit and a pull request carry no identity a runner could add (owner: "why can't it be something
-  done from a clone using gh?"). Every GitHub Release carries
+  PROJECT THAT IS SUPPOSED TO HAVE NO DEPENDENCIES IT DOESN'T NEED"). The release is one pull
+  request, `dev`→`main`, cut from a clone by `scripts/release-pr.sh` under the developer's own gh
+  login, never by a runner, because a commit and a pull request carry no identity a runner could add
+  (owner: "why can't it be something done from a clone using gh?"; "i want it to be a single PR,
+  dev to main."). Every GitHub Release carries
   the `.crate` with a GitHub artifact attestation in place of a signed tag, and a ruleset pins `v*`
   tags (owner chose "Attestation + tag ruleset"). crates.io is outside the release until the owner
   says (owner: "I WILL TELL YOU WHEN I WANT IT AND THEN YOU WILL ADD IT TO THE RELEASE PROCESS").
