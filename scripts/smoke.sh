@@ -61,13 +61,15 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 ./scripts/check-test-topics.sh
-# The release scripts' fixtures, when a script is in the diff: the version the release carries, the
-# entry it ships and the pull request that cuts it. release-pr.sh's builds a git repository and runs
-# cargo, so the push gate runs all three on every push and this gate only when they could have moved.
+# The release scripts' and the probe gate's fixtures, when a script is in the diff: the version the
+# release carries, the entry it ships, the pull request that cuts it and whether miri and the fuzz
+# targets are due on it. The last two build a git repository and run cargo, so the push gate runs all
+# four on every push and this gate only when they could have moved.
 if [ "$scripts" -eq 1 ]; then
   ./scripts/version-from-log.sh --self-test
   ./scripts/changelog-entry.sh --self-test
   ./scripts/release-pr.sh --self-test
+  ./scripts/probes-due.sh --self-test
 fi
 cargo fmt --all -- --check
 

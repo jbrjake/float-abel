@@ -116,7 +116,11 @@ outside `~/Documents`.
   reached anything outside `docs/meshwork/`, and again on the pull request into `main`; a push runs
   nothing (owner: "testing to occur nightly, ONLY when there have been code changes since the last
   run. a middle path. then, yes, again on the PR"; "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE
-  TEST!"). `release.yml` cuts the release and `publish.yml` publishes; there is no fourth.
+  TEST!"). On the pull request, miri and the fuzz targets run only when they have not run green
+  since the code last changed, which `scripts/probes-due.sh` decides (owner: "FUZZ NEEDS TO RUN IF
+  IT HASN'T YET SINCE THE CODE LAST CHANGED!"; "I DO NOT WANT CUTTING A PR TO TAKE AN HOUR OF MY
+  TIME just to re-run fuzz tests that are SUPPOSED to run every night"). `release.yml` cuts the
+  release and `publish.yml` publishes; there is no fourth.
 - The golden `aarch64 macOS` job runs whenever the suite runs, whatever it bills, because the
   committed hash is blessed on that platform (owner: "keep the mac leg").
 

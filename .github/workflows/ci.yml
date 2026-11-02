@@ -4,7 +4,9 @@
 #                         anything outside docs/meshwork/ (owner: "testing to occur nightly, ONLY when
 #                         there have been code changes since the last run")
 #   the pull request      into main, the dev→main merge that cuts a release (owner: "then, yes, again
-#                         on the PR")
+#                         on the PR"), with miri and the fuzz targets only when no green run has
+#                         tested the code it carries (owner: "FUZZ NEEDS TO RUN IF IT HASN'T YET
+#                         SINCE THE CODE LAST CHANGED!"); scripts/probes-due.sh decides and says why
 #   a dispatch            the whole suite on the ref named, on demand
 #
 # A push runs nothing (owner: "A PUSH IS NOT SUPPOSED TO BE AN INTENSIVE TEST!"): the push gate,
@@ -43,8 +45,10 @@ jobs:
   # ran at: a night that skipped ends in success at the commit it declined, so the chain never loses a
   # link, and a cancelled run tested nothing and is passed over. A diff from there to this commit that
   # stays inside docs/meshwork/, the task store, which smoke.sh skips under CI, is no code change, and
-  # every other job is skipped. A pull request or a dispatch always runs. gh and git are the runner's
-  # own: no action, no marker cache to evict.
+  # every other job is skipped. A pull request or a dispatch always runs the suite; on a pull request
+  # the probes, miri and the fuzz targets, have their own gate, the `probes` output, which
+  # scripts/probes-due.sh decides against the newest green run on the head branch. gh and git are the
+  # runner's own: no action, no marker cache to evict.
   changes:
     name: code changed since the last nightly
     runs-on: ubuntu-latest
@@ -54,6 +58,7 @@ jobs:
       actions: read # gh run list
     outputs:
       run: ${{ steps.since.outputs.run }}
+      probes: ${{ steps.probes.outputs.run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - id: since
@@ -85,6 +90,21 @@ jobs:
             echo "ci: changed since the last nightly at ${last:0:12}:"
             git --no-pager diff --stat "$last" "$GITHUB_SHA" -- . ':!docs/meshwork'
           fi
+      # Miri and the fuzz targets: on a pull request, only when no green run on the head branch has
+      # tested the code it carries (owner: "FUZZ NEEDS TO RUN IF IT HASN'T YET SINCE THE CODE LAST
+      # CHANGED!"); on a night or a dispatch, whenever the suite runs. The script's failure is read as
+      # due, so the gate fails closed.
+      - id: probes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUITE: ${{ steps.since.outputs.run }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            echo "run=$SUITE" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          due=$(./scripts/probes-due.sh "$GITHUB_HEAD_REF" "$GITHUB_SHA") || due=true
+          echo "run=$due" >> "$GITHUB_OUTPUT"
 
   # The version is derived from the log (DESIGN.md § Release), so every commit a PR brings and the
   # PR's own title have to be Conventional Commits the version count can read. The same script is the
@@ -229,7 +249,7 @@ jobs:
   miri:
     name: cargo miri test (nightly)
     needs: changes
-    if: needs.changes.outputs.run == 'true'
+    if: needs.changes.outputs.probes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -378,7 +398,7 @@ jobs:
   fuzz:
     name: fuzz ${{ matrix.target }} (10 min)
     needs: changes
-    if: needs.changes.outputs.run == 'true'
+    if: needs.changes.outputs.probes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
