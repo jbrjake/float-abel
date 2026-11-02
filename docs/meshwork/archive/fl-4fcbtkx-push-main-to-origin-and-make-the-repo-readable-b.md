@@ -1,7 +1,7 @@
 ---
 id: fl-4fcbtkx
 title: "Push main to origin and make the repo readable by leras's CI — git push origin main through the push gate, then flip jbrjake/float-abel public or add it to leras's ORESEUR_TOKEN PAT, both the owner's acts"
-status: blocked
+status: done
 category: rulings
 labels: [reproducible-floats]
 answers: leras#le-yxhtwgw
@@ -12,7 +12,6 @@ seq: 56
 created: 2026-10-16T16:51Z
 verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-readable-b.md /2026-[0-9][0-9]-[0-9][0-9] owner pushed main to origin/
 blocked-reason: "step 2, the repo's readability for leras's runner (flip public or add to the ORESEUR_TOKEN PAT), is a GitHub setting on the owner's account; main is on origin at b14d830"
-claimed-by: claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
 parent: fl-b9qtzty
 ---
 
@@ -45,6 +44,7 @@ green, and leras's swap task waits only on leras closing its ask.
 - 2026-10-16T19:42Z blocked→open
 - 2026-10-16T19:42Z open→doing — claimed by claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)
 - 2026-10-16T19:44Z doing→blocked — step 2, the repo's readability for leras's runner (flip public or add to the ORESEUR_TOKEN PAT), is a GitHub setting on the owner's account; main is on origin at b14d830
+- 2026-11-02T20:37Z blocked→done — verify exit 0 @ 7d78a7a+3
 
 ## comments
 - 2026-10-16T19:42Z [claude (03cbad3b-1e00-455d-9d44-3b0d9decee6e)] 2026-10-16 owner, in session: "push to origin". Step 1 is on: git push origin main through the push gate from this checkout. Step 2, the repo's readability for leras's runner, is a GitHub setting on the owner's account and is not asked for; the task stays open until the owner does it and writes the sentence the verify reads.
@@ -73,3 +73,4 @@ green, and leras's swap task waits only on leras closing its ask.
 - 2026-11-02T18:05Z [claude (de9bd423-d8b5-4cf3-8a2c-44d698f4cc3e)] 2026-11-02, end of session: ci runs on pull requests and main only, a push to dev runs nothing, and the release PR is opened by `gh workflow run cut-release.yml --ref dev` on the owner's word (owner: "A PUSH IS JUST A PUSH"; "DOING THAT WHEN I TELL YOU TO BUILD A PR"). Item 1 stands (RELEASE_PR_TOKEN or the Actions setting) and is what the dispatch needs. Two ci runs were still in progress when the session ended and the session could not cancel them: 41495939738 (dev) and 41491375969 (main); `gh run cancel <id>` stops each.
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: item 1's workflow is .github/workflows/release.yml (from cut-release.yml), release-pr job; the dispatch is `gh workflow run release.yml --ref dev`. Read this session: `gh api repos/jbrjake/float-abel/rulesets` and `.../branches/main/protection` both answer 403 'Upgrade to GitHub Pro or make this repository public to enable this feature', so until the flip no required check, no PR-only main and no v* tag ruleset can exist; the dev→main PR's checks are what the owner reads before merging by hand. ci.yml's check names changed with the merge: the golden jobs are 'golden <target>' and the fuzz jobs 'fuzz <target> (10 min)', plus 'code changed since the last nightly'; the required-checks list on the ruleset, when it can be set, names those.
 - 2026-11-02T20:06Z [claude (987c488d-43f3-4192-b0e1-6b279735b89c)] 2026-11-02, fl-ebbxwd2 at c9aaa03: item 1 of the settings list (RELEASE_PR_TOKEN, or Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests") is struck. release.yml has no release-pr job and no workflow_dispatch; `scripts/release-pr.sh` cuts the release PR from a clone under the developer's own gh login, and no secret or Actions toggle is wanted for the release (owner: "why do we need a workflow for this? why can't it be something done from a clone using gh?"; "OF COURSE FIX IT!"). Items 2 to 8 stand as written. The branch release/next on origin at ae1c010 is the runner's "chore(release): v0.30.1" from run 41495586562; the script's first real run force-pushes over it.
+- 2026-11-02T20:37Z [claude (987c488d-43f3-4192-b0e1-6b279735b89c)] 2026-11-02 owner pushed main to origin and made the repo readable by leras's CI: main has been on origin since 2026-10-16 (b14d830, now 3ac2723), and the owner flipped jbrjake/float-abel public on 2026-11-02 (owner, in session: "i just made the repo public btw"; gh api: private=false, visibility=public, default_branch=dev). What the flip made settable, read the same minute: a ruleset 'branch-protection' (id 26389594) already exists; default workflow permissions read, can_approve_pull_request_reviews=false; secret scanning and push protection show disabled, dependabot security updates disabled. Items 3 to 7 of the 17:26 list remain the owner's acts.

@@ -12,25 +12,29 @@ verify: contains docs/meshwork/fl-4fcbtkx-push-main-to-origin-and-make-the-repo-
 status: open
 created: 2026-11-02T15:14Z
 handoff: |
-  2026-11-02, dev at the commit this handoff was committed in: the
-  workflows are three, ci.yml (the suite, nightly on dev only when dev
-  moved outside docs/meshwork/, and on the PR into main), release.yml
-  (one job, the tag and GitHub Release with the attested .crate on the
-  push to main; no dispatch, no release-pr job) and publish.yml
-  (crates.io, dormant). The release PR is cut from a clone by
-  `scripts/release-pr.sh` under the developer's own gh login (fl-ebbxwd2,
-  owner: "OF COURSE FIX IT!"), so the release needs no secret and no
-  Actions toggle; `--dry-run` printed 0.30.1 and its entry this session.
-  The three release scripts' self-tests run in both gates (fl-jkb64s3).
-  Every action sits at its current upstream pin; the pins' first run is
-  the next nightly. The release process now waits on the owner's word for
-  `./scripts/release-pr.sh`, the flip and two merges (fl-enkdnvk carries
-  the brief, fl-4fcbtkx the settings from item 2 on, fl-9hcnr6q the
-  ruling on one PR or two). Open here besides: fl-c8jpmpm (fuzz corpus
-  and cargo-fuzz cache), fl-5mywkqp (dbsp cache save; cache v6.1.0 logs a
-  policy write denial as a warning, so read the nightly's dbsp post-cache
-  step first), fl-wpgpd4q (miri hour), fl-9rczhm8, fl-821gnyr, fl-jdsha55,
-  fl-cr71vam.
+  2026-11-02, dev at the commit this handoff was committed in: the repo
+  is public (owner: "i just made the repo public btw"; fl-4fcbtkx closed
+  on it), with a 'branch-protection' ruleset forbidding deletion and
+  force-push on every branch. The workflows are three, ci.yml (the suite,
+  nightly on dev only when dev moved outside docs/meshwork/, and on the
+  PR into main), release.yml (one job, the tag and GitHub Release with
+  the attested .crate on the push to main) and publish.yml (crates.io,
+  dormant). The release is one pull request, dev into main, cut from a
+  clone by `scripts/release-pr.sh` under the developer's own gh login
+  (fl-ebbxwd2, fl-xq4fp0j; owner: "OF COURSE FIX IT!"; "i want it to be
+  a single PR, dev to main."), so it needs no secret and no Actions
+  toggle; `--dry-run` printed 0.30.1 and its entry this session. The
+  three release scripts' self-tests run in both gates (fl-jkb64s3). Every
+  action sits at its current upstream pin; the pins' first run is the
+  next nightly, now on public runners. The release waits on the owner's
+  word for `./scripts/release-pr.sh` and one merge (fl-enkdnvk carries
+  the brief; fl-4fcbtkx's last comment the settings the flip made
+  settable: rulesets on main and v* tags, SHA pinning required, fork-PR
+  approval, code security, topics). Open here besides: fl-c8jpmpm (fuzz
+  corpus and cargo-fuzz cache), fl-5mywkqp (dbsp cache save; cache
+  v6.1.0 logs a policy write denial as a warning, so read the nightly's
+  dbsp post-cache step first), fl-wpgpd4q (miri hour), fl-9rczhm8,
+  fl-821gnyr, fl-jdsha55, fl-cr71vam.
 ---
 
 The one tree for getting the project in front of other people (owner, 2026-11-02: "what else do we
@@ -56,3 +60,4 @@ f24b051 on 2026-10-20; twelve nightly fuzz runs and four dependabot PR runs happ
 - 2026-11-02T18:36Z handoff by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
 - 2026-11-02T19:29Z handoff by claude (55cb23a1-b965-4570-9fea-74159b1286bc)
 - 2026-11-02T20:06Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
+- 2026-11-02T20:43Z handoff by claude (987c488d-43f3-4192-b0e1-6b279735b89c)
