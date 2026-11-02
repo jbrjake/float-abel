@@ -28,8 +28,9 @@ fi
 # The package's version line is the first `version = "…"` in Cargo.toml, under [package].
 awk -v v="$version" 'BEGIN { done = 0 } /^version = "/ && !done { print "version = \"" v "\""; done = 1; next } { print }' Cargo.toml > Cargo.toml.release
 mv Cargo.toml.release Cargo.toml
-# Cargo.lock's own-package records follow, with nothing fetched.
-cargo update --workspace --offline --quiet
+# Cargo.lock's own-package records follow. Only the workspace members move; the index is read because
+# a runner has none cached, and nothing is downloaded.
+cargo update --workspace --quiet
 
 # The entry goes through a file: macOS awk takes no newline in a -v string.
 entry=$(mktemp)
