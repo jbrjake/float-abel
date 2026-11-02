@@ -6,7 +6,8 @@ format, the feature set, the MSRV and the toolchains. Versions follow semantic v
 
 ## Unreleased
 
-Nothing is published yet. The first release, 0.1.0, carries:
+Nothing is published yet. The first release, at the version the conventional-commit log yields,
+carries:
 
 - `Exact`, `Wide` and `Fixed` as exact abelian groups over `f64` with a ring on top, and `Binned`
   as the batch-only tier that is not a group;
