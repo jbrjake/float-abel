@@ -38,7 +38,20 @@ float-abel comes with adapters to make that possible for differential dataflow [
 
 ### getting it
 
-For now, grab a release tag from here. crates.io will come.
+Releases live on [GitHub](https://github.com/jbrjake/float-abel/releases). Each one carries the
+`.crate` built from its tag with `--locked`, its sha256, and a provenance attestation signed through
+Sigstore and bound to this repository's release workflow and commit. Check one before trusting it:
+
+```sh
+gh attestation verify float-abel-X.Y.Z.crate --repo jbrjake/float-abel
+```
+
+Depend on a release by its tag:
+
+```toml
+[dependencies]
+float-abel = { git = "https://github.com/jbrjake/float-abel", tag = "vX.Y.Z" }
+```
 
 ## how it works
 

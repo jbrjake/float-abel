@@ -6,8 +6,9 @@
 # crates.io token through rust-lang/crates-io-auth-action, every later release's route once the
 # owner configures it on the crate (owner jbrjake, repository float-abel, workflow release.yml,
 # environment release). The .crate is built with --locked, attested with
-# actions/attest-build-provenance, which needs the repository public, and attached to a GitHub
-# release of the tag. The tag's signature is not verified here yet (store: fl-x2k7fbb).
+# actions/attest-build-provenance, which needs the repository public, and uploaded onto the GitHub
+# release release-plz made for the tag (release-plz.yml). This workflow is outside the release
+# process until the owner brings crates.io in.
 name: release
 
 on:
@@ -100,8 +101,8 @@ jobs:
           if ls target/package/float-abel-*.crate >/dev/null 2>&1; then
             sha256sum --check target/package/sha256
           fi
-      - name: Attach the .crate to a GitHub release of the tag
+      - name: Upload the published .crate onto the tag's GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
-        run: gh release create "$TAG" target/package/float-abel-*.crate --verify-tag --title "$TAG" --notes "float-abel $TAG, published to crates.io by release.yml; the .crate below is the one uploaded, with its provenance attestation."
+        run: gh release upload "$TAG" target/package/float-abel-*.crate --clobber
