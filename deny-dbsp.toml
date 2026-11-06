@@ -9,7 +9,7 @@
 all-features = true
 
 # deny.toml's two ignores, present here because the differential closure is in this graph too, and
-# the three dbsp's closure carries. rkyv 0.7 is dbsp 0.367's own archive format and the version this
+# the four dbsp's closure carries. rkyv 0.7 is dbsp 0.367's own archive format and the version this
 # crate's `rkyv` line must resolve to; `Exact`'s archived form is six integers with no pointer in
 # it, so the shared-pointer validation flaw is not reachable through this crate's archive. h2 0.3 is
 # actix-http 3's HTTP/2, the server side of feldera-types, which this crate never opens; the h2 0.4
@@ -25,7 +25,7 @@ ignore = [
   { id = "RUSTSEC-2025-0141", reason = "bincode 1.3.3 is timely's serialized exchange, reached only through differential-dataflow" },
   { id = "RUSTSEC-2024-0436", reason = "paste 1.0.15 is columnation's and differential-dataflow's macro helper, reached only through differential-dataflow" },
   { id = "RUSTSEC-2026-0235", reason = "rkyv 0.7.46 is dbsp 0.367.0's storage format (dbsp, feldera-storage and ordered-float are on it), and Exact's archive holds no pointer; fixed upstream only in 0.8" },
-  { id = "RUSTSEC-2026-0258", reason = "h2 0.3.27 is actix-http 3.18's, reached through actix-web and feldera-types from dbsp; no HTTP connection is opened by this crate, and the fix is in the 0.4 line hyper is on" },
+  { id = "RUSTSEC-2026-0258", reason = "h2 0.3.27 is actix-http 3.20's, reached through actix-web and feldera-types from dbsp; no HTTP connection is opened by this crate, and the fix is in the 0.4 line hyper is on" },
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.0.4 is utoipa-gen 4.3's, reached through utoipa, feldera-ir and feldera-types from dbsp; a proc macro that runs at build time" },
   { id = "RUSTSEC-2026-0403", reason = "zstd-safe 6.0.6 is zstd 0.12.4's, dbsp's own direct dependency (zstd ^0.12, every release through 0.375.0); this crate decompresses nothing, and the fix is in the 8.2 line" },
 ]
@@ -61,20 +61,19 @@ highlight = "all"
 skip = [
   { crate = "syn@2", reason = "columnar_derive 0.13, reached only through differential-dataflow, is on syn 2 while serde_derive and thiserror-impl are on syn 3" },
   { crate = "ahash@0.7", reason = "hashbrown 0.12.3 on it; hashbrown 0.13.2, hashbrown 0.14.5, metrics 0.23.1, quick_cache 0.6.24 on 0.8.12; through dbsp" },
-  { crate = "base64@0.22", reason = "actix-http 3.18.13 on it; hyper-util 0.1.21, object_store 0.14.2, reqwest 0.13.5 on 0.23.1; through dbsp" },
   { crate = "crypto-common@0.1", reason = "digest 0.10.7 on it; cipher 0.5.2, digest 0.11.3 on 0.2.2; through dbsp" },
-  { crate = "derive_more@1", reason = "dbsp 0.367.0 on it; actix-http 3.18.13, actix-web 4.16.0 on 2.1.1; through dbsp" },
+  { crate = "derive_more@1", reason = "dbsp 0.367.0 on it; actix-http 3.20.3, actix-web 4.18.2 on 2.1.1; through dbsp" },
   { crate = "derive_more-impl@1", reason = "derive_more 1.0.0 on it; derive_more 2.1.1 on 2.1.1; through dbsp" },
   { crate = "digest@0.10", reason = "crc-fast 1.10.0 on it; hmac 0.13.0, md-5 0.11.0, pbkdf2 0.13.0, sha1 0.11.0, sha2 0.11.1 on 0.11.3; through dbsp" },
   { crate = "getrandom@0.2", reason = "ahash 0.7.8, rand_core 0.6.4 on it; jobserver 0.1.35, rand 0.10.3, uuid 1.28.0 on 0.4.3; through dbsp" },
   { crate = "getrandom@0.3", reason = "ahash 0.8.12, rand_core 0.9.5 on it; jobserver 0.1.35, rand 0.10.3, tempfile 3.27.0, uuid 1.28.0, zip 9.0.5 on 0.4.3; through dbsp" },
-  { crate = "h2@0.3", reason = "actix-http 3.18.13 on it; hyper 1.12.0, reqwest 0.13.5 on 0.4.20; through dbsp" },
+  { crate = "h2@0.3", reason = "actix-http 3.20.3 on it; hyper 1.12.0, reqwest 0.13.5 on 0.4.20; through dbsp" },
   { crate = "hashbrown@0.12", reason = "rkyv 0.7.46 on it; indexmap 2.14.2 on 0.17.1; through dbsp" },
   { crate = "hashbrown@0.13", reason = "feldera-size-of 0.1.7 on it; indexmap 2.14.2 on 0.17.1; through dbsp" },
   { crate = "hashbrown@0.14", reason = "dashmap 5.5.3, dbsp 0.367.0 on it; indexmap 2.14.2 on 0.17.1; through dbsp" },
   { crate = "hashbrown@0.16", reason = "quick_cache 0.6.24 on it; indexmap 2.14.2 on 0.17.1; through dbsp" },
   { crate = "heck@0.4", reason = "ouroboros_macro 0.18.5 on it; clap_derive 4.6.7 on 0.5.0; through dbsp" },
-  { crate = "http@0.2", reason = "actix-http 3.18.13, actix-router 0.5.4, h2 0.3.27 on it; h2 0.4.20, http-body 1.1.0, http-body-util 0.1.5, hyper 1.12.0, hyper-rustls 0.27.10, hyper-util 0.1.21, object_store 0.14.2, reqwest 0.13.5, tower-http 0.6.11 on 1.5.0; through dbsp" },
+  { crate = "http@0.2", reason = "actix-http 3.20.3, actix-router 0.5.4, h2 0.3.27 on it; h2 0.4.20, http-body 1.1.0, http-body-util 0.1.5, hyper 1.12.0, hyper-rustls 0.27.10, hyper-util 0.1.21, object_store 0.14.2, reqwest 0.13.5, tower-http 0.6.11 on 1.5.0; through dbsp" },
   { crate = "itertools@0.14", reason = "dbsp 0.367.0, feldera-samply 0.367.0, feldera-storage 0.367.0, timely 0.31.0 on it; object_store 0.14.2 on 0.15.0; through dbsp and differential-dataflow" },
   { crate = "nix@0.27", reason = "feldera-storage 0.367.0 on it; object_store 0.14.2, zip 9.0.5 on 0.31.3; through dbsp" },
   { crate = "nix@0.29", reason = "dbsp 0.367.0, feldera-samply 0.367.0 on it; object_store 0.14.2, zip 9.0.5 on 0.31.3; through dbsp" },
@@ -82,8 +81,8 @@ skip = [
   { crate = "ptr_meta@0.1", reason = "bytecheck 0.6.12, rkyv 0.7.46 on it; dbsp 0.367.0 on 0.2.0; through dbsp" },
   { crate = "ptr_meta_derive@0.1", reason = "ptr_meta 0.1.4 on it; ptr_meta 0.2.0 on 0.2.0; through dbsp" },
   { crate = "r-efi@5", reason = "getrandom 0.3.4 on it; getrandom 0.4.3 on 6.0.0; through dbsp" },
-  { crate = "rand@0.8", reason = "dbsp 0.367.0 on it; actix-http 3.18.13, object_store 0.14.2 on 0.10.3; through dbsp" },
-  { crate = "rand@0.9", reason = "proptest 1.11.0 (the laws feature) on it; actix-http 3.18.13, object_store 0.14.2 on 0.10.3 through dbsp" },
+  { crate = "rand@0.8", reason = "dbsp 0.367.0 on it; actix-http 3.20.3, object_store 0.14.2 on 0.10.3; through dbsp" },
+  { crate = "rand@0.9", reason = "proptest 1.11.0 (the laws feature) on it; actix-http 3.20.3, object_store 0.14.2 on 0.10.3 through dbsp" },
   { crate = "rand_chacha@0.3", reason = "dbsp 0.367.0, rand 0.8.8 on it, through dbsp; proptest 1.11.0 (the laws feature) on 0.9.0" },
   { crate = "rand_core@0.6", reason = "rand 0.8.8, rand_chacha 0.3.1 on it; chacha20 0.10.2, getrandom 0.4.3, rand 0.10.3 on 0.10.1; through dbsp" },
   { crate = "rand_core@0.9", reason = "rand 0.9.5, rand_chacha 0.9.0, rand_xorshift 0.4.0 on it, through proptest 1.11.0 (the laws feature); chacha20 0.10.2, getrandom 0.4.3, rand 0.10.3 on 0.10.1 through dbsp" },
@@ -92,7 +91,7 @@ skip = [
   { crate = "thiserror-impl@1", reason = "thiserror 1.0.69 on it; thiserror 2.0.21 on 2.0.21; through dbsp" },
   { crate = "unicode-width@0.1", reason = "textwrap 0.15.2 on it; getopts 0.2.24 on 0.2.2; through dbsp" },
   { crate = "windows-sys@0.52", reason = "memory-stats 1.2.0 on it; anstyle-query 1.1.5, anstyle-wincon 3.0.11, colored 3.1.1, errno 0.3.14, mio 1.2.4, nu-ansi-term 0.50.3, object_store 0.14.2, rustix 1.1.5, rustls-platform-verifier 0.7.1, schannel 0.1.29, socket2 0.6.5, tempfile 3.27.0, terminal_size 0.4.4, thread-id 5.1.0, tokio 1.53.2, winapi-util 0.1.11 on 0.61.2; through dbsp" },
-  { crate = "zstd@0.12", reason = "dbsp 0.367.0 on it; actix-http 3.18.13 on 0.13.3, zip 9.0.5 on 0.14.3; through dbsp" },
+  { crate = "zstd@0.12", reason = "dbsp 0.367.0 on it; actix-http 3.20.3, zip 9.0.5 on 0.14.3; through dbsp" },
   { crate = "zstd@0.13", reason = "actix-http 3.18.13 on it; zip 9.0.5 on 0.14.3; through dbsp" },
   { crate = "zstd-safe@6", reason = "zstd 0.12.4 on it; zstd 0.14.3 on 8.2.0; through dbsp" },
   { crate = "zstd-safe@7", reason = "zstd 0.13.3 on it; zstd 0.14.3 on 8.2.0; through dbsp" },
