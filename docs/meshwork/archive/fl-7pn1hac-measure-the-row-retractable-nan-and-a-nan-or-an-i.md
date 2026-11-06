@@ -8,7 +8,7 @@ seq: 310
 docs:
   - docs/DESIGN.md#nan-and--sp-specials
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| retractable NaN and ∞ \| yes \| no \| no \| no \| no \| no \| no \| no \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 f64 includes NaN and ±∞, and a `SUM` over a changing column has to recover when the NaN row is
@@ -33,3 +33,5 @@ Mutant: `Exact` with a sticky NaN flag that retraction does not clear. Control: 
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:58Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:00Z doing→done — verify exit 0 @ 0597002+2
