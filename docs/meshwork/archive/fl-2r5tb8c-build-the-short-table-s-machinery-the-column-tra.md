@@ -8,7 +8,7 @@ seq: 240
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| \| float-abel \| bitrep \| xsum \| fsum \| accurate \| num-rational \| bigdecimal \| fixed \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Each later row adds at most one method to the trait, in all nine columns, so each row is one diff.
@@ -48,3 +48,5 @@ Tests: the guard turns accurate's zero-state panic into `Panicked` at
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:30Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:39Z doing→done — verify exit 0 @ c5c8527+2
