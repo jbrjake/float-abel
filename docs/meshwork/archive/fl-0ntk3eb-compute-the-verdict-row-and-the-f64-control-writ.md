@@ -8,7 +8,7 @@ seq: 330
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| \*\*usable as the weight\*\* \| \*\*yes\*\* \| \*\*no\*\* \| \*\*no\*\* \| \*\*no\*\* \| \*\*no\*\* \| \*\*no\*\* \| \*\*no\*\* \| \*\*no\*\* \|$/, contains examples/short-table/OUTPUT.md /^## Control: plain f64/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 - The bold verdict row is the AND of the eight cells per column, computed, never written.
@@ -24,3 +24,5 @@ created: 2026-11-06T14:19Z
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T15:04Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:08Z doing→done — verify exit 0 @ a8c0439+2
