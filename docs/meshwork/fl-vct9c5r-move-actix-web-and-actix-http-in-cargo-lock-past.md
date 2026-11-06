@@ -6,7 +6,7 @@ category: crate/hardening
 verify: lacks Cargo.lock /name = "actix-web"\nversion = "4\.16\.0"/
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
-seq: 30
+seq: 25
 created: 2026-11-06T15:19Z
 ---
 
