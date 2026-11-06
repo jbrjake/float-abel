@@ -63,4 +63,12 @@ impl Column for FloatAbel {
     fn is_zero(s: &Exact) -> Outcome<bool> {
         Ok(s.is_zero())
     }
+
+    fn scale(s: Exact, k: i64) -> Outcome<Exact> {
+        Ok(s * k)
+    }
+
+    fn mul(a: Exact, b: Exact) -> Outcome<Exact> {
+        Ok(a * b)
+    }
 }

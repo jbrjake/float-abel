@@ -1,7 +1,7 @@
 //! bitrep: `SumF64`, a fixed-point limb accumulator with a count and sticky special flags.
 
 use std::hash::Hash;
-use std::ops::Neg;
+use std::ops::{Mul, Neg};
 
 use bitrep::SumF64;
 use impls::impls;
@@ -11,6 +11,8 @@ use crate::column::{num, Column, Outcome, Shortfall, View};
 // What the crate asserts absent, checked by the compiler.
 const _: () = assert!(!impls!(SumF64: Neg));
 const _: () = assert!(!impls!(SumF64: Hash));
+const _: () = assert!(!impls!(SumF64: Mul<i64>));
+const _: () = assert!(!impls!(SumF64: Mul<SumF64>));
 
 /// `SumF64` through `add`, `try_unmerge` for the inverse, `merge`, `to_bytes` and
 /// `FromIterator<f64>`.
@@ -86,5 +88,16 @@ impl Column for Bitrep {
     /// No `is_zero`, so the state is compared with the empty accumulator.
     fn is_zero(s: &SumF64) -> Outcome<bool> {
         Ok(*s == SumF64::new())
+    }
+
+    fn scale(_: SumF64, _: i64) -> Outcome<SumF64> {
+        Err(Shortfall::Absent("no Mul<i64> on SumF64".to_owned()))
+    }
+
+    /// `DotF64` is the crate's product, and a different type from the sum.
+    fn mul(_: SumF64, _: SumF64) -> Outcome<SumF64> {
+        Err(Shortfall::Absent(
+            "no Mul<SumF64> on SumF64, and DotF64 is a different type".to_owned(),
+        ))
     }
 }

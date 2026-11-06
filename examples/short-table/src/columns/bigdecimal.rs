@@ -65,4 +65,12 @@ impl Column for BigDec {
     fn is_zero(s: &BigDecimal) -> Outcome<bool> {
         Ok(Zero::is_zero(s))
     }
+
+    fn scale(s: BigDecimal, k: i64) -> Outcome<BigDecimal> {
+        Ok(s * BigDecimal::from(k))
+    }
+
+    fn mul(a: BigDecimal, b: BigDecimal) -> Outcome<BigDecimal> {
+        Ok(a * b)
+    }
 }

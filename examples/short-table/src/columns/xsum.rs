@@ -1,7 +1,7 @@
 //! xsum: Radford Neal's exact summation, the small accumulator.
 
 use std::hash::Hash;
-use std::ops::{Add, AddAssign, Neg};
+use std::ops::{Add, AddAssign, Mul, Neg};
 
 use impls::impls;
 use xsum::{Xsum as _, XsumExt as _, XsumSmall};
@@ -16,6 +16,8 @@ const _: () = assert!(!impls!(XsumSmall: Neg));
 const _: () = assert!(!impls!(XsumSmall: PartialEq));
 const _: () = assert!(!impls!(XsumSmall: Hash));
 const _: () = assert!(!impls!(XsumSmall: Clone));
+const _: () = assert!(!impls!(XsumSmall: Mul<i64>));
+const _: () = assert!(!impls!(XsumSmall: Mul<XsumSmall>));
 
 /// `XsumSmall` one value at a time, and `[f64]::xsum()` for a slice, the entry the crate
 /// recommends; its whole `Xsum` trait is `new`, `add_list`, `add`, `sum` and `clear`.
@@ -79,6 +81,16 @@ impl Column for Xsum {
     fn is_zero(_: &XsumSmall) -> Outcome<bool> {
         Err(Shortfall::Absent(
             "no PartialEq or Clone on XsumSmall, and sum takes &mut self".to_owned(),
+        ))
+    }
+
+    fn scale(_: XsumSmall, _: i64) -> Outcome<XsumSmall> {
+        Err(Shortfall::Absent("no Mul<i64> on XsumSmall".to_owned()))
+    }
+
+    fn mul(_: XsumSmall, _: XsumSmall) -> Outcome<XsumSmall> {
+        Err(Shortfall::Absent(
+            "no Mul<XsumSmall> on XsumSmall".to_owned(),
         ))
     }
 }

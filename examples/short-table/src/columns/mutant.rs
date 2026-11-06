@@ -72,6 +72,21 @@ pub(crate) trait Mutation {
     fn is_zero(s: &Mutated) -> Outcome<bool> {
         FloatAbel::is_zero(&s.x)
     }
+
+    fn scale(s: Mutated, k: i64) -> Outcome<Mutated> {
+        Ok(Mutated {
+            x: FloatAbel::scale(s.x, k)?,
+            ..s
+        })
+    }
+
+    fn mul(a: Mutated, b: Mutated) -> Outcome<Mutated> {
+        Ok(Mutated {
+            x: FloatAbel::mul(a.x, b.x)?,
+            inserts: a.inserts + b.inserts,
+            flag: a.flag || b.flag,
+        })
+    }
 }
 
 /// The column a [`Mutation`] makes.
@@ -127,6 +142,14 @@ impl<M: Mutation> Column for Mutant<M> {
 
     fn is_zero(s: &Mutated) -> Outcome<bool> {
         M::is_zero(s)
+    }
+
+    fn scale(s: Mutated, k: i64) -> Outcome<Mutated> {
+        M::scale(s, k)
+    }
+
+    fn mul(a: Mutated, b: Mutated) -> Outcome<Mutated> {
+        M::mul(a, b)
     }
 }
 

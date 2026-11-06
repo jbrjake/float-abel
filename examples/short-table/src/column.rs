@@ -36,6 +36,10 @@ pub(crate) trait Column {
     fn hash_eq(a: &Self::State, b: &Self::State) -> Outcome<bool>;
     /// The crate's `is_zero`, or `== empty` where it has `==` and no `is_zero`.
     fn is_zero(s: &Self::State) -> Outcome<bool>;
+    /// The state times an integer count, as `explode` multiplies a value by its diff.
+    fn scale(s: Self::State, k: i64) -> Outcome<Self::State>;
+    /// The product of two states, as `join` multiplies two weights.
+    fn mul(a: Self::State, b: Self::State) -> Outcome<Self::State>;
 }
 
 /// Whether two values hash alike under the standard hasher. Compared here and never printed,

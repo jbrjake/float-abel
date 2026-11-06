@@ -1,7 +1,7 @@
 //! accurate: `OnlineExactSum`, Zhu and Hayes's exponent-indexed accumulators.
 
 use std::hash::Hash;
-use std::ops::Neg;
+use std::ops::{Mul, Neg};
 
 use accurate::sum::OnlineExactSum;
 use accurate::traits::SumAccumulator;
@@ -12,6 +12,8 @@ use crate::column::{is_zero, Column, Outcome, Shortfall, View};
 // What the crate asserts absent, checked by the compiler.
 const _: () = assert!(!impls!(OnlineExactSum<f64>: Neg));
 const _: () = assert!(!impls!(OnlineExactSum<f64>: PartialEq));
+const _: () = assert!(!impls!(OnlineExactSum<f64>: Mul<i64>));
+const _: () = assert!(!impls!(OnlineExactSum<f64>: Mul<OnlineExactSum<f64>>));
 const _: () = assert!(!impls!(OnlineExactSum<f64>: Hash));
 
 /// `OnlineExactSum<f64>` through `+=`, and `absorb` for a slice.
@@ -77,5 +79,17 @@ impl Column for Accurate {
     /// No `PartialEq`; the one question the state answers is whether a clone's `sum` reads zero.
     fn is_zero(s: &OnlineExactSum<f64>) -> Outcome<bool> {
         Ok(is_zero(s.clone().sum()))
+    }
+
+    fn scale(_: OnlineExactSum<f64>, _: i64) -> Outcome<OnlineExactSum<f64>> {
+        Err(Shortfall::Absent(
+            "no Mul<i64> on OnlineExactSum<f64>".to_owned(),
+        ))
+    }
+
+    fn mul(_: OnlineExactSum<f64>, _: OnlineExactSum<f64>) -> Outcome<OnlineExactSum<f64>> {
+        Err(Shortfall::Absent(
+            "no Mul<OnlineExactSum<f64>> on OnlineExactSum<f64>".to_owned(),
+        ))
     }
 }

@@ -1,5 +1,6 @@
 //! num-rational: `BigRational`, an exact fraction of big integers.
 
+use num_bigint::BigInt;
 use num_rational::BigRational;
 use num_traits::{ToPrimitive, Zero};
 
@@ -64,5 +65,13 @@ impl Column for NumRational {
 
     fn is_zero(s: &BigRational) -> Outcome<bool> {
         Ok(Zero::is_zero(s))
+    }
+
+    fn scale(s: BigRational, k: i64) -> Outcome<BigRational> {
+        Ok(s * BigInt::from(k))
+    }
+
+    fn mul(a: BigRational, b: BigRational) -> Outcome<BigRational> {
+        Ok(a * b)
     }
 }

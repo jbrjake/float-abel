@@ -64,4 +64,14 @@ impl Column for Control {
     fn is_zero(s: &f64) -> Outcome<bool> {
         Ok(is_zero(*s))
     }
+
+    /// The counts probed are small integers, which the cast carries exactly.
+    #[allow(clippy::cast_precision_loss)]
+    fn scale(s: f64, k: i64) -> Outcome<f64> {
+        Ok(s * k as f64)
+    }
+
+    fn mul(a: f64, b: f64) -> Outcome<f64> {
+        Ok(a * b)
+    }
 }

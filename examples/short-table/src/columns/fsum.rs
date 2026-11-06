@@ -1,7 +1,7 @@
 //! fsum: Shewchuk's partials, as Python's `math.fsum` keeps them.
 
 use std::hash::Hash;
-use std::ops::{Add, AddAssign, Neg};
+use std::ops::{Add, AddAssign, Mul, Neg};
 
 use fsum::FSum;
 use impls::impls;
@@ -14,6 +14,8 @@ const _: () = assert!(!impls!(FSum: AddAssign<FSum>));
 const _: () = assert!(!impls!(FSum: Neg));
 const _: () = assert!(!impls!(FSum: PartialEq));
 const _: () = assert!(!impls!(FSum: Hash));
+const _: () = assert!(!impls!(FSum: Mul<i64>));
+const _: () = assert!(!impls!(FSum: Mul<FSum>));
 
 /// `FSum`, through its `+=` and `-=` on `f64` and `with_all` for a slice.
 pub(crate) struct Fsum;
@@ -70,5 +72,13 @@ impl Column for Fsum {
     /// No `PartialEq`; the one question the state answers is whether its value reads zero.
     fn is_zero(s: &FSum) -> Outcome<bool> {
         Ok(is_zero(s.value()))
+    }
+
+    fn scale(_: FSum, _: i64) -> Outcome<FSum> {
+        Err(Shortfall::Absent("no Mul<i64> on FSum".to_owned()))
+    }
+
+    fn mul(_: FSum, _: FSum) -> Outcome<FSum> {
+        Err(Shortfall::Absent("no Mul<FSum> on FSum".to_owned()))
     }
 }

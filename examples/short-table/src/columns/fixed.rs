@@ -71,4 +71,15 @@ impl Column for Fixed {
     fn is_zero(s: &I64F64) -> Outcome<bool> {
         Ok(s.is_zero())
     }
+
+    fn scale(s: I64F64, k: i64) -> Outcome<I64F64> {
+        s.checked_mul_int(i128::from(k))
+            .ok_or_else(|| Shortfall::Refused(format!("checked_mul_int by {k} overflows")))
+    }
+
+    /// The product of two 64.64 values, truncated to 64 fractional bits.
+    fn mul(a: I64F64, b: I64F64) -> Outcome<I64F64> {
+        a.checked_mul(b)
+            .ok_or_else(|| Shortfall::Refused("checked_mul of the two states overflows".to_owned()))
+    }
 }

@@ -11,6 +11,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | merges partial sums | yes | yes | no | no | yes | yes | yes | yes |
 | standalone negatives | yes | no | no | no | no | yes | yes | yes |
 | `==` / `Hash` / `is_zero` mean the number | yes | no | no | no | no | yes | yes | yes |
+| exact products (explode, join) | yes | no | no | no | no | yes | yes | no |
 
 ## Evidence
 
@@ -114,3 +115,23 @@ never printed, because their values are not stable across Rust releases.
 | num-rational | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
 | bigdecimal | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
 | fixed | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
+
+### exact products (explode, join)
+
+`explode` multiplies each value by its ±1 diff, and `join` evaluates (a + b) × c as a × c + b × c,
+so a weight multiplies exactly, by counts and by other weights. By count, with S = +0.1 +0.2:
+scale(S, 3) must read what +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 reads, and scale(S, −1) then +0.1 +0.2 must
+read zero. By weight: the square of +1.0000000000009095, less 1.000000000001819, must read
+8.271806125530277e-25. The exact square is 1 + 2⁻³⁹ + 2⁻⁸⁰; a product rounded to 53 bits, or
+truncated at 64 fractional bits, drops the 2⁻⁸⁰ and reads 0.
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: scale(+0.1 +0.2, 3) reads 0.9, as +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 does; scale(+0.1 +0.2, -1), then +0.1 +0.2, reads 0.0; (+1.0000000000009095)², less 1.000000000001819, reads 8.271806125530277e-25 |
+| bitrep | no | absent: no Mul<i64> on SumF64; absent: no Mul<SumF64> on SumF64, and DotF64 is a different type |
+| xsum | no | absent: no Mul<i64> on XsumSmall; absent: no Mul<XsumSmall> on XsumSmall |
+| fsum | no | absent: no Mul<i64> on FSum; absent: no Mul<FSum> on FSum |
+| accurate | no | absent: no Mul<i64> on OnlineExactSum<f64>; absent: no Mul<OnlineExactSum<f64>> on OnlineExactSum<f64> |
+| num-rational | yes | ran: scale(+0.1 +0.2, 3) reads 0.9, as +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 does; scale(+0.1 +0.2, -1), then +0.1 +0.2, reads 0.0; (+1.0000000000009095)², less 1.000000000001819, reads 8.271806125530277e-25 |
+| bigdecimal | yes | ran: scale(+0.1 +0.2, 3) reads 0.9, as +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 does; scale(+0.1 +0.2, -1), then +0.1 +0.2, reads 0.0; (+1.0000000000009095)², less 1.000000000001819, reads 8.271806125530277e-25 |
+| fixed | no | ran: (+1.0000000000009095)², less 1.000000000001819, reads 0.0, want 8.271806125530277e-25 |
