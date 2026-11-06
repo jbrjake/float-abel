@@ -72,7 +72,7 @@ pub(crate) enum View {
 
 impl View {
     /// How two views of the same kind differ, for an evidence line: both renderings when they
-    /// are short, else where and how much.
+    /// are short, else where they part and a window of each around that point.
     pub(crate) fn difference(&self, other: &View) -> String {
         match (self, other) {
             (View::Bytes(a), View::Bytes(b)) => match a.iter().zip(b).position(|(x, y)| x != y) {
@@ -83,16 +83,34 @@ impl View {
                 if a.chars().count() + b.chars().count() <= 64 {
                     format!("`{a}` against `{b}`")
                 } else {
+                    let (x, y): (Vec<char>, Vec<char>) = (a.chars().collect(), b.chars().collect());
+                    let at = x
+                        .iter()
+                        .zip(&y)
+                        .position(|(p, q)| p != q)
+                        .unwrap_or(x.len().min(y.len()));
                     format!(
-                        "Debug differs, {} against {} characters",
-                        a.chars().count(),
-                        b.chars().count()
+                        "Debug differs from character {at}: {} against {}",
+                        window(&x, at),
+                        window(&y, at)
                     )
                 }
             }
             _ => "the two views are of different kinds".to_owned(),
         }
     }
+}
+
+/// Up to 24 characters of `chars` around `at`, in backticks with an ellipsis on each cut side.
+fn window(chars: &[char], at: usize) -> String {
+    let start = at.saturating_sub(8);
+    let end = (start + 24).min(chars.len());
+    let body: String = chars[start..end].iter().collect();
+    format!(
+        "`{}{body}{}`",
+        if start > 0 { "…" } else { "" },
+        if end < chars.len() { "…" } else { "" }
+    )
 }
 
 /// One step of a recipe.
@@ -116,8 +134,9 @@ pub(crate) fn build<C: Column>(recipe: &[Step]) -> Outcome<C::State> {
     Ok(s)
 }
 
-/// The value as the log prints it: Rust's shortest round-trip form, with the specials and the two
-/// named edges of the range spelled by name.
+/// The value as the log prints it: Rust's shortest round-trip form, in exponent form from a
+/// billion up (where `Debug` would still spell out `1e12`), with the specials and the two named
+/// edges of the range spelled by name.
 pub(crate) fn num(x: f64) -> String {
     // Bit identity, not `==`: the one comparison that tells the named values from their
     // neighbours and never confuses `-0.0` with `0.0`.
@@ -132,6 +151,8 @@ pub(crate) fn num(x: f64) -> String {
         "f64::MAX".to_owned()
     } else if is(f64::MIN_POSITIVE) {
         "f64::MIN_POSITIVE".to_owned()
+    } else if x.abs() >= 1e9 {
+        format!("{x:e}")
     } else {
         format!("{x:?}")
     }
@@ -186,6 +207,9 @@ mod tests {
         assert_eq!(num(0.1), "0.1");
         assert_eq!(num(1e-20), "1e-20");
         assert_eq!(num(1e30), "1e30");
+        assert_eq!(num(1e12), "1e12");
+        assert_eq!(num(-1e16), "-1e16");
+        assert_eq!(num(1e308), "1e308");
         assert_eq!(num(65536.0), "65536.0");
         assert_eq!(num(5e-324), "5e-324");
         assert_eq!(num(f64::MAX), "f64::MAX");
@@ -246,10 +270,16 @@ mod tests {
             short.difference(&View::Debug("[]".into())),
             "`[0.0]` against `[]`"
         );
-        let long = View::Debug("x".repeat(40));
+        let long = View::Debug(format!("{}A{}", "x".repeat(20), "x".repeat(20)));
         assert_eq!(
-            long.difference(&View::Debug("y".repeat(40))),
-            "Debug differs, 40 against 40 characters"
+            long.difference(&View::Debug("x".repeat(41))),
+            "Debug differs from character 20: `…xxxxxxxxAxxxxxxxxxxxxxxx…` against \
+             `…xxxxxxxxxxxxxxxxxxxxxxxx…`"
+        );
+        let prefix = View::Debug("y".repeat(40));
+        assert_eq!(
+            prefix.difference(&View::Debug("y".repeat(50))),
+            "Debug differs from character 40: `…yyyyyyyy` against `…yyyyyyyyyyyyyyyyyy`"
         );
     }
 }

@@ -1,5 +1,6 @@
 //! One file per row: the eight properties, each a set of probes run over every column.
 
+pub(crate) mod bits;
 pub(crate) mod holds;
 
 use crate::column::Column;
@@ -36,5 +37,5 @@ pub(crate) fn measure<R: Row>() -> RowReport {
 
 /// Every row, in table order. A row joins this list when its file lands.
 pub(crate) fn all() -> Vec<RowReport> {
-    vec![measure::<holds::Holds>()]
+    vec![measure::<holds::Holds>(), measure::<bits::Bits>()]
 }
