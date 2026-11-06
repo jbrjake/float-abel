@@ -8,7 +8,7 @@ seq: 270
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| merges partial sums \| yes \| yes \| no \| no \| yes \| yes \| yes \| yes \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Workers sum their shares, and the engine combines the partial states.
@@ -30,3 +30,5 @@ Mutant: `Exact` that merges `Exact::from(other.to_f64())`. Control: `f64` reads 
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:45Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:48Z doing→done — verify exit 0 @ 5cd9370+2
