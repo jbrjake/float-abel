@@ -731,6 +731,7 @@ suite runs: nightly when `dev` moved, and on the pull request into `main`.
 | batch tier | a `Binned` fold bit-identical under 1,000 shuffles and 1–64 merge partitions; equal to the sum of the inputs truncated below the window, and so within `n·2^(−64(K−1))·max\|x\|` of `Exact`; `Binned<K>` fails to compile as a differential-dataflow diff or a DBSP weight | `trybuild` |
 | differential-dataflow | the three-worker integration test; join `Exact × isize`; antijoin with `isize`; `iterate` | feature `differential` |
 | DBSP | `OrdIndexedWSet` consolidation and cancellation; `aggregate_linear` scale and retract; the UDA example builds | feature `dbsp`, rustc 1.99.0 |
+| the short table | `Exact` and seven neighbours (bitrep, xsum, fsum, accurate, num-rational, bigdecimal, fixed) through the eight properties of § What an incremental engine asks of a weight, every cell measured and every no with its evidence (ran, refused, panicked, or absent, the last asserted by the compiler), the verdict row computed; plain `f64` as the control, and in the tests `Exact` with one property broken per row, which must fail that row | `examples/short-table/`, a standalone package; `OUTPUT.md` is its committed output, which both gates re-derive `--locked` and diff (`scripts/check-short-table.sh`), CI's gate job on x86_64 Linux against the copy blessed on aarch64 macOS |
 
 ## Measured, on a prototype {#sp-measured}
 

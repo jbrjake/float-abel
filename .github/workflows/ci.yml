@@ -146,7 +146,9 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             target
-          key: gate-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          # The three lockfiles the two gates build: the crate's, the fuzz package's and the short
+          # table's, so a change in any of them saves a cache that holds its closure.
+          key: gate-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'fuzz/Cargo.lock', 'examples/short-table/Cargo.lock') }}
           restore-keys: gate-${{ runner.os }}-
       - run: ./scripts/smoke.sh
       - run: ./scripts/regression.sh

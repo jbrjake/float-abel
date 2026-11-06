@@ -35,7 +35,9 @@
 //!
 //! The output is byte-identical in debug and release and across architectures: no timings, hash
 //! values, paths or versions beyond the neighbours' pins, which the header reads from this
-//! package's lockfile. `OUTPUT.md` beside this package is that output, committed.
+//! package's lockfile. `OUTPUT.md` beside this package is that output, committed; both gates
+//! re-run the program and fail when the two differ (`scripts/check-short-table.sh`), CI's gate
+//! job on `x86_64` Linux against the copy blessed on `aarch64` macOS.
 
 mod column;
 mod columns;

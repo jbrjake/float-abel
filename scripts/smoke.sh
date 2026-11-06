@@ -17,10 +17,11 @@ else
   scope="tree"
 fi
 
-rust=0 store=0 fuzz=0 actions=0 scripts=0
+rust=0 store=0 fuzz=0 short_table=0 actions=0 scripts=0
 for f in "${files[@]}"; do
   case "$f" in
     fuzz/*) rust=1 fuzz=1 ;;
+    examples/short-table/*) rust=1 short_table=1 ;;
     scripts/*) rust=1 scripts=1 ;;
     *.rs|Cargo.toml|Cargo.lock|.githooks/*|.cargo/*|deny.toml) rust=1 ;;
     docs/meshwork/*) store=1 ;;
@@ -80,6 +81,13 @@ if [ "$fuzz" -eq 1 ]; then
     echo "smoke: FAILED (the fuzz oracle's tests)" >&2
     exit 1
   fi
+fi
+
+# The short table's package is outside the workspace too: its tests, and the program's output
+# diffed against examples/short-table/OUTPUT.md, run when the diff reaches examples/short-table/.
+# Clippy on it waits for the push gate, like the fuzz package's.
+if [ "$short_table" -eq 1 ]; then
+  ./scripts/check-short-table.sh
 fi
 
 if out=$(cargo test --quiet 2>&1); then

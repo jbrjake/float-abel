@@ -41,6 +41,11 @@ cargo clippy --quiet --workspace --all-targets -- -D warnings
 # tests run here; the targets themselves run in ci.yml's fuzz jobs, ten minutes each.
 cargo clippy --quiet --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
 cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null
+# The short table's package stands outside the workspace too (examples/short-table/Cargo.toml):
+# its lint and tests, then the program run `--locked` and diffed against
+# examples/short-table/OUTPUT.md, so the committed table is always what the code prints. CI's gate
+# job runs this on x86_64 Linux against the copy blessed on aarch64 macOS.
+./scripts/check-short-table.sh --lint
 
 RUSTDOCFLAGS="-D warnings" cargo doc --quiet --no-deps
 
