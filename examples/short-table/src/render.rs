@@ -68,7 +68,16 @@ pub(crate) fn yes_no(pass: bool) -> &'static str {
     }
 }
 
-/// The table: the header from the column names, then one line per row.
+/// Whether each column, in table order, passed every row: the verdict, computed and never
+/// written.
+pub(crate) fn verdict(rows: &[RowReport]) -> Vec<bool> {
+    (0..NAMES.len())
+        .map(|i| rows.iter().all(|r| r.cells[i].1.pass))
+        .collect()
+}
+
+/// The table: the header from the column names, one line per row, and, once there are rows, the
+/// bold verdict line, the AND of each column.
 pub(crate) fn table(rows: &[RowReport]) -> String {
     let mut out = String::from("| |");
     for n in NAMES {
@@ -85,6 +94,27 @@ pub(crate) fn table(rows: &[RowReport]) -> String {
             let _ = write!(out, " {} |", yes_no(c.pass));
         }
         out.push('\n');
+    }
+    if !rows.is_empty() {
+        out.push_str("| **usable as the weight** |");
+        for pass in verdict(rows) {
+            let _ = write!(out, " **{}** |", yes_no(pass));
+        }
+        out.push('\n');
+    }
+    out
+}
+
+/// The control section: plain `f64` through every row's probes, outside the table.
+pub(crate) fn control(cells: &[(&'static str, Cell)]) -> String {
+    let mut out = String::from("\n## Control: plain f64\n\n");
+    out.push_str(&paragraph(
+        "The same probes on plain f64, the type the engines sum with today, so each row's \
+         evidence can be read against what the property costs without an exact weight.",
+    ));
+    out.push_str("\n| row | cell | evidence |\n|---|---|---|\n");
+    for (name, c) in cells {
+        let _ = writeln!(out, "| {name} | {} | {} |", yes_no(c.pass), c.evidence);
     }
     out
 }
@@ -213,12 +243,40 @@ mod tests {
         };
         let t = table(std::slice::from_ref(&row));
         assert!(
-            t.ends_with("| a property | yes | no | no | no | no | no | no | no |\n"),
+            t.ends_with(
+                "| a property | yes | no | no | no | no | no | no | no |\n\
+                 | **usable as the weight** | **yes** | **no** | **no** | **no** | **no** | **no** \
+                 | **no** | **no** |\n"
+            ),
             "{t}"
+        );
+        // A second row failing the first column alone turns its verdict.
+        let mut second = row.clone();
+        second.cells[0].1.pass = false;
+        second.cells[1].1.pass = true;
+        assert_eq!(
+            verdict(&[row.clone(), second]),
+            [false, false, false, false, false, false, false, false]
+        );
+        assert_eq!(
+            verdict(std::slice::from_ref(&row)),
+            [true, false, false, false, false, false, false, false]
         );
         let e = evidence(std::slice::from_ref(&row));
         assert!(e.starts_with("\n## Evidence\n\n### a property\n\nWhat was asked.\n\n| column | cell | evidence |\n|---|---|---|\n| float-abel | yes | e0 |\n"), "{e}");
         assert!(e.ends_with("| fixed | no | e7 |\n"), "{e}");
         assert_eq!(evidence(&[]), "");
+        let c = control(&[(
+            "a property",
+            Cell {
+                pass: false,
+                evidence: "why".into(),
+            },
+        )]);
+        assert!(c.starts_with("\n## Control: plain f64\n\n"), "{c}");
+        assert!(
+            c.ends_with("\n| row | cell | evidence |\n|---|---|---|\n| a property | no | why |\n"),
+            "{c}"
+        );
     }
 }

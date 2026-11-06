@@ -14,6 +14,13 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | exact products (explode, join) | yes | no | no | no | no | yes | yes | no |
 | retractable NaN and ∞ | yes | no | no | no | no | no | no | no |
 | correct on every input tested | yes | yes | no | no | no | yes | yes | no |
+| **usable as the weight** | **yes** | **no** | **no** | **no** | **no** | **no** | **no** | **no** |
+
+Each row is a property an incremental engine needs of its weight, DESIGN.md § What an incremental
+engine asks of a weight; a column is usable only if every cell in it is yes, and the bold row is
+that conjunction, computed. Every cell was measured by running it, and the evidence for each
+follows: `ran` says what was read, `refused` that the crate's API declined, `panicked` where the
+crate panicked, and `absent` that the API does not exist, which the compiler asserts.
 
 ## Evidence
 
@@ -182,3 +189,19 @@ one magnitude).
 | num-rational | yes | ran: all 11 inputs read their answer, one value at a time; no slice entry |
 | bigdecimal | yes | ran: all 11 inputs read their answer, one value at a time; no slice entry |
 | fixed | no | refused: I64F64::checked_from_num(1e100) is None; refused: I64F64::checked_from_num(1e200) is None; refused: I64F64::checked_from_num(1e308) is None; refused: I64F64::checked_from_num(f64::MAX) is None; ran: +5e-324 ×2 reads 0.0, want 1e-323; ran: +1e-20 +1.0 +(-1.0) reads 0.0, want 1e-20; refused: I64F64::checked_from_num(1e30) is None |
+
+## Control: plain f64
+
+The same probes on plain f64, the type the engines sum with today, so each row's evidence can be
+read against what the property costs without an exact weight.
+
+| row | cell | evidence |
+|---|---|---|
+| holds every f64 exactly | yes | ran: all 7 values and their 7 one-ulp gaps read back bit for bit |
+| same bits for the same number, however reached | no | ran: order: +1.0000000000000002 ×2 +1.0 against +1.0000000000000002 +1.0 +1.0000000000000002, bytes differ from offset 0 of 8; ran: excursion: +1e-12 against +1e-12 +1e12 −1e12, bytes differ from offset 0 of 8 |
+| merges partial sums | no | ran: (w1 ⊕ w2) ⊕ w3 reads 0.0, want 1.875; ran: w3 ⊕ (w2 ⊕ w1) reads 0.0, want 1.875 |
+| standalone negatives | no | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads -2.7755575615628914e-17, want 0.0 |
+| `==` / `Hash` / `is_zero` mean the number | no | absent: no Hash on f64 |
+| exact products (explode, join) | no | ran: scale(+0.1 +0.2, -1), then +0.1 +0.2, reads -2.7755575615628914e-17, want 0.0; ran: (+1.0000000000009095)², less 1.000000000001819, reads 0.0, want 8.271806125530277e-25 |
+| retractable NaN and ∞ | no | ran: +1.5 +NaN reads NaN, then −NaN reads NaN, want 1.5; ran: +1.5 +∞ reads ∞, then −∞ reads NaN, want 1.5; ran: +1.5 +∞ +(−∞) reads NaN, then −∞ −(−∞) reads NaN, want 1.5; ran: −NaN +NaN +1.5 reads NaN, want 1.5 |
+| correct on every input tested | no | ran: +0.1 +0.2 +(-0.1) +(-0.2) reads 2.7755575615628914e-17, want 0.0; ran: the slice entry on +0.1 +0.2 +(-0.1) +(-0.2) reads 2.7755575615628914e-17, want 0.0; ran: +1e100 +1.0 +(-1e100) reads 0.0, want 1.0; ran: the slice entry on +1e100 +1.0 +(-1e100) reads 0.0, want 1.0; ran: +1e200 +1e100 +1.0 +(-1e100) +(-1e200) reads 0.0, want 1.0; ran: the slice entry on +1e200 +1e100 +1.0 +(-1e100) +(-1e200) reads 0.0, want 1.0; ran: +0.1 ×10 +(-1.0) reads -1.1102230246251565e-16, want 5.551115123125783e-17; ran: the slice entry on +0.1 ×10 +(-1.0) reads -1.1102230246251565e-16, want 5.551115123125783e-17; ran: +1e308 ×2 +(-1e308) reads ∞, want 1e308; ran: the slice entry on +1e308 ×2 +(-1e308) reads ∞, want 1e308; ran: +f64::MAX ×2 +(-f64::MAX) reads ∞, want f64::MAX; ran: the slice entry on +f64::MAX ×2 +(-f64::MAX) reads ∞, want f64::MAX; ran: +1e-20 +1.0 +(-1.0) reads 0.0, want 1e-20; ran: the slice entry on +1e-20 +1.0 +(-1.0) reads 0.0, want 1e-20; ran: +1e30 +2.0 +(-1e30) reads 0.0, want 2.0; ran: the slice entry on +1e30 +2.0 +(-1e30) reads 0.0, want 2.0 |

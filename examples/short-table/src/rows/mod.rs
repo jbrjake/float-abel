@@ -10,6 +10,7 @@ pub(crate) mod products;
 pub(crate) mod specials;
 
 use crate::column::Column;
+use crate::columns::control::Control;
 use crate::columns::{Accurate, BigDec, Bitrep, Fixed, FloatAbel, Fsum, NumRational, Xsum};
 use crate::render::{Cell, RowReport};
 
@@ -41,7 +42,7 @@ pub(crate) fn measure<R: Row>() -> RowReport {
     }
 }
 
-/// Every row, in table order. A row joins this list when its file lands.
+/// Every row, in table order.
 pub(crate) fn all() -> Vec<RowReport> {
     vec![
         measure::<holds::Holds>(),
@@ -53,4 +54,61 @@ pub(crate) fn all() -> Vec<RowReport> {
         measure::<specials::Specials>(),
         measure::<correct::Correct>(),
     ]
+}
+
+/// One row's name and its cell on one column.
+fn on<R: Row, C: Column>() -> (&'static str, Cell) {
+    (R::NAME, R::cell::<C>())
+}
+
+/// Every row on one column, in table order.
+pub(crate) fn column<C: Column>() -> Vec<(&'static str, Cell)> {
+    vec![
+        on::<holds::Holds, C>(),
+        on::<bits::Bits, C>(),
+        on::<merge::Merge, C>(),
+        on::<negatives::Negatives, C>(),
+        on::<equality::Equality, C>(),
+        on::<products::Products, C>(),
+        on::<specials::Specials, C>(),
+        on::<correct::Correct, C>(),
+    ]
+}
+
+/// Every row on plain `f64`, the control.
+pub(crate) fn control() -> Vec<(&'static str, Cell)> {
+    column::<Control>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::columns::mutant::{Honest, Mutant};
+    use crate::render::verdict;
+
+    #[test]
+    fn float_abel_passes_every_row_and_so_does_its_honest_wrapper() {
+        let rows = all();
+        assert_eq!(rows.len(), 8);
+        for r in &rows {
+            assert_eq!(r.cells[0].0, FloatAbel::NAME);
+            assert!(r.cells[0].1.pass, "{}: {}", r.name, r.cells[0].1.evidence);
+        }
+        assert!(verdict(&rows)[0]);
+        for (name, c) in column::<Mutant<Honest>>() {
+            assert!(c.pass, "{name}: {}", c.evidence);
+        }
+    }
+
+    #[test]
+    fn the_control_passes_the_first_row_alone() {
+        let cells = control();
+        assert_eq!(cells.len(), 8);
+        let passes: Vec<bool> = cells.iter().map(|(_, c)| c.pass).collect();
+        assert_eq!(
+            passes,
+            [true, false, false, false, false, false, false, false],
+            "{cells:?}"
+        );
+    }
 }
