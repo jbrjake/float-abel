@@ -9,7 +9,7 @@ docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
   - docs/DESIGN.md#nan-and--sp-specials
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| holds every f64 exactly \| yes \| yes \| yes \| yes \| yes \| yes \| yes \| no \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 The weight carries the column's value, so a lossy carrier makes the `SUM` wrong.
@@ -33,3 +33,5 @@ Mutant: `Exact` that rounds each input through `f32` on entry. Control: `f64` pa
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:39Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:42Z doing→done — verify exit 0 @ 55160e0+2
