@@ -175,7 +175,7 @@ pub(crate) fn num(x: f64) -> String {
     if x.is_nan() {
         "NaN".to_owned()
     } else if is(f64::INFINITY) {
-        "+∞".to_owned()
+        "∞".to_owned()
     } else if is(f64::NEG_INFINITY) {
         "−∞".to_owned()
     } else if is(f64::MAX) {
@@ -246,8 +246,18 @@ mod tests {
         assert_eq!(num(f64::MAX), "f64::MAX");
         assert_eq!(num(f64::MIN_POSITIVE), "f64::MIN_POSITIVE");
         assert_eq!(num(f64::NAN), "NaN");
-        assert_eq!(num(f64::INFINITY), "+∞");
+        assert_eq!(num(f64::INFINITY), "∞");
         assert_eq!(num(f64::NEG_INFINITY), "−∞");
+        // So a recipe reads `+∞` for an insert of +∞ and `−∞` for its retraction, and an insert
+        // of −∞ is `+(−∞)`.
+        assert_eq!(
+            recipe(&[
+                Step::Insert(f64::INFINITY),
+                Step::Retract(f64::INFINITY),
+                Step::Insert(f64::NEG_INFINITY)
+            ]),
+            "+∞ −∞ +(−∞)"
+        );
     }
 
     #[test]

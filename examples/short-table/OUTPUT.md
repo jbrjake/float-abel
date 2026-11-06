@@ -12,6 +12,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | standalone negatives | yes | no | no | no | no | yes | yes | yes |
 | `==` / `Hash` / `is_zero` mean the number | yes | no | no | no | no | yes | yes | yes |
 | exact products (explode, join) | yes | no | no | no | no | yes | yes | no |
+| retractable NaN and ∞ | yes | no | no | no | no | no | no | no |
 
 ## Evidence
 
@@ -135,3 +136,22 @@ truncated at 64 fractional bits, drops the 2⁻⁸⁰ and reads 0.
 | num-rational | yes | ran: scale(+0.1 +0.2, 3) reads 0.9, as +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 does; scale(+0.1 +0.2, -1), then +0.1 +0.2, reads 0.0; (+1.0000000000009095)², less 1.000000000001819, reads 8.271806125530277e-25 |
 | bigdecimal | yes | ran: scale(+0.1 +0.2, 3) reads 0.9, as +0.1 +0.2 +0.1 +0.2 +0.1 +0.2 does; scale(+0.1 +0.2, -1), then +0.1 +0.2, reads 0.0; (+1.0000000000009095)², less 1.000000000001819, reads 8.271806125530277e-25 |
 | fixed | no | ran: (+1.0000000000009095)², less 1.000000000001819, reads 0.0, want 8.271806125530277e-25 |
+
+### retractable NaN and ∞
+
+f64 includes NaN and ±∞, and a `SUM` over a changing column has to recover when the NaN row is
+deleted. Four histories, where a retraction is the column's own retraction of that same value: +1.5
++NaN reads NaN, then −NaN reads 1.5; +1.5 +∞ reads ∞, then −∞ reads 1.5; +1.5 +∞ +(−∞) reads NaN,
+then −∞ −(−∞) reads 1.5; −NaN +NaN +1.5 reads 1.5. The last starts with a NaN retracted before any
+arrived, a state a group holds and IEEE cannot.
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: +1.5 +NaN reads NaN, then −NaN reads 1.5; +1.5 +∞ reads ∞, then −∞ reads 1.5; +1.5 +∞ +(−∞) reads NaN, then −∞ −(−∞) reads 1.5; −NaN +NaN +1.5 reads 1.5 |
+| bitrep | no | refused: try_unmerge of NaN returned false; refused: try_unmerge of ∞ returned false |
+| xsum | no | ran: +1.5 +NaN reads NaN, then −NaN reads NaN, want 1.5; ran: +1.5 +∞ reads ∞, then −∞ reads NaN, want 1.5; ran: +1.5 +∞ +(−∞) reads NaN, then −∞ −(−∞) reads NaN, want 1.5; ran: −NaN +NaN +1.5 reads NaN, want 1.5 |
+| fsum | no | ran: +1.5 +NaN reads NaN, then −NaN reads NaN, want 1.5; ran: +1.5 +∞ reads NaN, want ∞; ran: +1.5 +∞ +(−∞) reads NaN, then −∞ −(−∞) reads NaN, want 1.5; ran: −NaN +NaN +1.5 reads NaN, want 1.5 |
+| accurate | no | panicked: `assertion failed: count < xs.len()` at accurate-0.4.1/src/sum/ifastsum.rs:89 |
+| num-rational | no | refused: BigRational::from_float(NaN) is None; refused: BigRational::from_float(∞) is None |
+| bigdecimal | no | refused: BigDecimal::from_f64(NaN) is None; refused: BigDecimal::from_f64(∞) is None |
+| fixed | no | refused: I64F64::checked_from_num(NaN) is None; refused: I64F64::checked_from_num(∞) is None |
