@@ -8,7 +8,7 @@ seq: 340
 docs:
   - docs/DESIGN.md#verification
 verify: 'all(contains scripts/regression.sh examples/short-table/OUTPUT.md, contains scripts/smoke.sh examples/short-table/, contains docs/DESIGN.md examples/short-table)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Mirror the fuzz package's legs.
@@ -30,3 +30,5 @@ Watch the diff leg fail on a deliberate one-character edit to `OUTPUT.md` before
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T15:08Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:12Z doing→done — verify exit 0 @ d9e9770+2
