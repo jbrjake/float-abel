@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # The release pull request, one, dev into main (DESIGN.md § Release; owner: "i want it to be a
 # single PR, dev to main."). From a clone on dev, clean and at origin/dev, under the developer's own
-# gh login: scripts/prepare-release.sh writes the version the log counts to into Cargo.toml and
-# Cargo.lock and the entry for the commits since the last tag into CHANGELOG.md; the three files are
+# gh login: scripts/prepare-release.sh writes the version the log counts to into Cargo.toml,
+# Cargo.lock and every standalone package's lockfile, which records it through a path dependency
+# (fuzz/Cargo.lock, examples/short-table/Cargo.lock), and the entry for the commits since the last
+# tag into CHANGELOG.md; those files are
 # committed on dev as `chore(release): vX.Y.Z` and pushed (a push to dev is just a push); then the
 # pull request from dev into main is opened, or refreshed when one is open, with the entry as its
 # body. Merging it is the release. No runner holds write access to the repository for any of this: a
@@ -11,8 +13,8 @@
 # and the pull request still opened or refreshed; with the version tagged, there is nothing to do.
 #
 # The release commit and its push skip the hooks. The tree is what the push gate passed at
-# origin/dev, and the three files differ from it by a version line, the lockfile's own-package
-# record and a changelog entry, none of which the gate reads; the pull request runs the whole suite.
+# origin/dev, and the files differ from it by a version line, the lockfiles' records of it and a
+# changelog entry, none of which the gate reads; the pull request runs the whole suite.
 #
 #   release-pr.sh              commit the release onto dev, push, open or refresh the dev→main PR
 #   release-pr.sh --dry-run    the version, the diff and the entry, with the three files put back
@@ -24,14 +26,17 @@
 set -euo pipefail
 
 GH=${GH:-gh}
-FILES=(Cargo.toml Cargo.lock CHANGELOG.md)
 
 refuse() { echo "release-pr: $*" >&2; exit 1; }
 
 cut() {
   local dry=$1
-  local branch version tag entry pr before
+  local branch version tag entry pr before lock
   cd "$(git rev-parse --show-toplevel)"
+  # What the release commit carries: the version, the changelog, and every tracked lockfile, the
+  # root's and each standalone package's, which prepare-release.sh moves together.
+  FILES=(Cargo.toml Cargo.lock CHANGELOG.md)
+  while IFS= read -r lock; do FILES+=("$lock"); done < <(git ls-files -- '*/Cargo.lock')
   branch=$(git rev-parse --abbrev-ref HEAD)
   [ "$branch" = dev ] || refuse "on branch $branch; the release is cut from dev"
   [ -z "$(git status --porcelain)" ] || refuse "the tree is not clean; commit or stash first"
@@ -124,12 +129,17 @@ STUB
   cd "$tmp/clone"
   git checkout --quiet -b dev
   git remote add origin "$tmp/origin.git"
-  mkdir -p src scripts
-  printf '[package]\nname = "fixture"\nversion = "0.0.0"\nedition = "2021"\n' > Cargo.toml
+  mkdir -p src scripts fuzz/src
+  printf '[package]\nname = "fixture"\nversion = "0.0.0"\nedition = "2021"\n\n[workspace]\nexclude = ["fuzz"]\n' > Cargo.toml
   : > src/lib.rs
+  # A standalone package with a path dependency on the crate, as fuzz/ and examples/short-table/
+  # are: its lockfile records the crate's version and must move with it.
+  printf '[package]\nname = "fixture-fuzz"\nversion = "0.0.0"\nedition = "2021"\n\n[dependencies]\nfixture = { path = ".." }\n' > fuzz/Cargo.toml
+  : > fuzz/src/lib.rs
   printf '# Changelog\n\n## [Unreleased]\n' > CHANGELOG.md
   cp "$here"/version-from-log.sh "$here"/changelog-entry.sh "$here"/prepare-release.sh "$here"/release-pr.sh scripts/
   cargo generate-lockfile --quiet --offline
+  cargo generate-lockfile --quiet --offline --manifest-path fuzz/Cargo.toml
   git add -A && git commit --quiet -m "build: lay the crate down"
   git tag v0.0.0
   git branch main
@@ -142,7 +152,9 @@ STUB
   ./scripts/release-pr.sh 2>/dev/null
   [ "$(git log -1 --format=%s)" = "chore(release): v0.1.1" ] || fail "dev carries '$(git log -1 --format=%s)', not the v0.1.1 commit"
   [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/dev)" ] || fail "dev was not pushed"
-  [ "$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')" = "CHANGELOG.md Cargo.lock Cargo.toml " ] || fail "the release commit changes $(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
+  [ "$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')" = "CHANGELOG.md Cargo.lock Cargo.toml fuzz/Cargo.lock " ] || fail "the release commit changes $(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
+  grep -A1 '^name = "fixture"$' fuzz/Cargo.lock | grep -q '^version = "0.1.1"$' || fail "the standalone package's lockfile records $(grep -A1 '^name = "fixture"$' fuzz/Cargo.lock | tail -1), not 0.1.1"
+  cargo metadata --quiet --offline --locked --format-version 1 --manifest-path fuzz/Cargo.toml >/dev/null || fail "the standalone package's lockfile is not current under --locked"
   grep -q '^pr create --base main --head dev --title chore(release): v0.1.1 --body-file ' "$GH_LOG" || fail "no pr create in the gh log: $(cat "$GH_LOG")"
   head -1 "$GH_LOG.body" | grep -q '^## \[0.1.1\]' || fail "the body does not open with the 0.1.1 entry: $(head -1 "$GH_LOG.body")"
   grep -q 'refuse a bad byte' "$GH_LOG.body" || fail "the body lacks the fix line"

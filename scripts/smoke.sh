@@ -77,7 +77,7 @@ cargo fmt --all -- --check
 # The fuzz package is outside the workspace, so the root test below never reaches its oracle.
 if [ "$fuzz" -eq 1 ]; then
   cargo fmt --manifest-path fuzz/Cargo.toml -- --check
-  if ! cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null; then
+  if ! cargo test --quiet --locked --manifest-path fuzz/Cargo.toml >/dev/null; then
     echo "smoke: FAILED (the fuzz oracle's tests)" >&2
     exit 1
   fi

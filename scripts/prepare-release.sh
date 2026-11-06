@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Writes the release the log counts to (DESIGN.md § Release): the version into Cargo.toml and
-# Cargo.lock, and the CHANGELOG.md entry for the commits since the last release tag under the
+# Writes the release the log counts to (DESIGN.md § Release): the version into Cargo.toml,
+# Cargo.lock and every standalone package's lockfile (fuzz/Cargo.lock, examples/short-table/Cargo.lock),
+# and the CHANGELOG.md entry for the commits since the last release tag under the
 # `## [Unreleased]` line. Nobody types the number: scripts/version-from-log.sh counts it from the
 # first commit, scripts/changelog-entry.sh renders the entry, and the release workflow refuses a
 # Cargo.toml that disagrees with the count. Prints the version. With the tree already carrying it,
@@ -31,6 +32,14 @@ mv Cargo.toml.release Cargo.toml
 # Cargo.lock's own-package records follow. Only the workspace members move; the index is read because
 # a runner has none cached, and nothing is downloaded.
 cargo update --workspace --quiet
+# The standalone packages record the crate's version too, through their path dependency on it:
+# every tracked Cargo.lock below the root (the fuzz package's and the short table's). That one
+# record moves, offline, so the gates' `--locked` runs find the tree clean after the release.
+name=$(awk -F'"' '/^name = "/ { print $2; exit }' Cargo.toml)
+while IFS= read -r lock; do
+  grep -q "^name = \"$name\"\$" "$lock" || continue
+  cargo update --quiet --offline --manifest-path "${lock%Cargo.lock}Cargo.toml" --package "$name"
+done < <(git ls-files -- '*/Cargo.lock')
 
 # The entry goes through a file: macOS awk takes no newline in a -v string.
 entry=$(mktemp)

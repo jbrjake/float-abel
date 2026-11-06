@@ -38,9 +38,10 @@ cargo clippy --quiet --lib -- -D warnings
 cargo clippy --quiet --workspace --all-targets -- -D warnings
 # The fuzz package stands outside the workspace (fuzz/Cargo.toml), so the lint above never sees
 # it. Stable builds everything in it but the sanitizer, so its targets are linted and its oracle's
-# tests run here; the targets themselves run in ci.yml's fuzz jobs, ten minutes each.
-cargo clippy --quiet --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
-cargo test --quiet --manifest-path fuzz/Cargo.toml >/dev/null
+# tests run here; the targets themselves run in ci.yml's fuzz jobs, ten minutes each. `--locked`,
+# so a lockfile a release left stale fails loudly instead of being rewritten under the gate.
+cargo clippy --quiet --locked --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
+cargo test --quiet --locked --manifest-path fuzz/Cargo.toml >/dev/null
 # The short table's package stands outside the workspace too (examples/short-table/Cargo.toml):
 # its lint and tests, then the program run `--locked` and diffed against
 # examples/short-table/OUTPUT.md, so the committed table is always what the code prints. CI's gate
