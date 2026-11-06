@@ -45,4 +45,8 @@ impl Column for NumRational {
     fn batch(_: &[f64]) -> Option<Outcome<f64>> {
         None
     }
+
+    fn merge(a: BigRational, b: BigRational) -> Outcome<BigRational> {
+        Ok(a + b)
+    }
 }

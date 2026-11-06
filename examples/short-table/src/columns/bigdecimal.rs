@@ -45,4 +45,8 @@ impl Column for BigDec {
     fn batch(_: &[f64]) -> Option<Outcome<f64>> {
         None
     }
+
+    fn merge(a: BigDecimal, b: BigDecimal) -> Outcome<BigDecimal> {
+        Ok(a + b)
+    }
 }

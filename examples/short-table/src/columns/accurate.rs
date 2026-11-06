@@ -42,4 +42,8 @@ impl Column for Accurate {
             .absorb(xs.iter().copied())
             .sum()))
     }
+
+    fn merge(a: OnlineExactSum<f64>, b: OnlineExactSum<f64>) -> Outcome<OnlineExactSum<f64>> {
+        Ok(a + b)
+    }
 }

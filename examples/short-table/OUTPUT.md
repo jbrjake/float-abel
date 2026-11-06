@@ -8,6 +8,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 |---|---|---|---|---|---|---|---|---|
 | holds every f64 exactly | yes | yes | yes | yes | yes | yes | yes | no |
 | same bits for the same number, however reached | yes | no | no | no | no | yes | no | yes |
+| merges partial sums | yes | yes | no | no | yes | yes | yes | yes |
 
 ## Evidence
 
@@ -52,3 +53,23 @@ and back. A column passes if every route's two views are equal.
 | num-rational | yes | ran: all 5 routes view equal |
 | bigdecimal | no | ran: split: +1.0 against +0.5 ×2, `digits 1 at scale 0` against `digits 10 at scale 1`; ran: cancel: empty against +0.1 −0.1, `digits 0 at scale 0` against `digits 0 at scale 55`; ran: return: +1.0 against +1.0 +0.5 −0.5, `digits 1 at scale 0` against `digits 10 at scale 1` |
 | fixed | yes | ran: all 5 routes view equal |
+
+### merges partial sums
+
+Workers sum their shares and the engine combines the partial states. Three workers hold +0.5 +0.25,
++0.125 +1e16 and +1.0 +(-1e16); merged as (w1 ⊕ w2) ⊕ w3 and as w3 ⊕ (w2 ⊕ w1), both must read
+1.875, the exact total and itself a double. The split is chosen so that losing the 0.125 under 1e16
+anywhere shows: plain f64 reads 0.0 one-shot and merged, and a merge that passes through a rounded
+double reads 0.75 in one order and 1.0 in the other. Whether the merged states have equal bits is
+the previous row's question.
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+| bitrep | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+| xsum | no | absent: no merge: the Xsum trait is new, add_list, add, sum and clear, and XsumSmall has no Add<XsumSmall> or AddAssign<XsumSmall> |
+| fsum | no | absent: no Add<FSum> or AddAssign<FSum>: FSum takes f64 alone |
+| accurate | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+| num-rational | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+| bigdecimal | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+| fixed | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |

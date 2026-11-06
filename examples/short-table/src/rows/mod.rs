@@ -2,6 +2,7 @@
 
 pub(crate) mod bits;
 pub(crate) mod holds;
+pub(crate) mod merge;
 
 use crate::column::Column;
 use crate::columns::{Accurate, BigDec, Bitrep, Fixed, FloatAbel, Fsum, NumRational, Xsum};
@@ -37,5 +38,9 @@ pub(crate) fn measure<R: Row>() -> RowReport {
 
 /// Every row, in table order. A row joins this list when its file lands.
 pub(crate) fn all() -> Vec<RowReport> {
-    vec![measure::<holds::Holds>(), measure::<bits::Bits>()]
+    vec![
+        measure::<holds::Holds>(),
+        measure::<bits::Bits>(),
+        measure::<merge::Merge>(),
+    ]
 }

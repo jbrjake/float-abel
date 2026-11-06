@@ -45,6 +45,14 @@ pub(crate) trait Mutation {
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         FloatAbel::batch(xs)
     }
+
+    fn merge(a: Mutated, b: Mutated) -> Outcome<Mutated> {
+        Ok(Mutated {
+            x: FloatAbel::merge(a.x, b.x)?,
+            inserts: a.inserts + b.inserts,
+            flag: a.flag || b.flag,
+        })
+    }
 }
 
 /// The column a [`Mutation`] makes.
@@ -80,6 +88,10 @@ impl<M: Mutation> Column for Mutant<M> {
 
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         M::batch(xs)
+    }
+
+    fn merge(a: Mutated, b: Mutated) -> Outcome<Mutated> {
+        M::merge(a, b)
     }
 }
 

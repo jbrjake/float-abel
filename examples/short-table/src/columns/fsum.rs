@@ -1,8 +1,15 @@
 //! fsum: Shewchuk's partials, as Python's `math.fsum` keeps them.
 
-use fsum::FSum;
+use std::ops::{Add, AddAssign};
 
-use crate::column::{Column, Outcome, View};
+use fsum::FSum;
+use impls::impls;
+
+use crate::column::{Column, Outcome, Shortfall, View};
+
+// What the crate asserts absent, checked by the compiler.
+const _: () = assert!(!impls!(FSum: Add<FSum>));
+const _: () = assert!(!impls!(FSum: AddAssign<FSum>));
 
 /// `FSum`, through its `+=` and `-=` on `f64` and `with_all` for a slice.
 pub(crate) struct Fsum;
@@ -36,5 +43,11 @@ impl Column for Fsum {
 
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         Some(Ok(FSum::with_all(xs).value()))
+    }
+
+    fn merge(_: FSum, _: FSum) -> Outcome<FSum> {
+        Err(Shortfall::Absent(
+            "no Add<FSum> or AddAssign<FSum>: FSum takes f64 alone".to_owned(),
+        ))
     }
 }

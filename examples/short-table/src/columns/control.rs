@@ -35,4 +35,8 @@ impl Column for Control {
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         Some(Ok(xs.iter().sum()))
     }
+
+    fn merge(a: f64, b: f64) -> Outcome<f64> {
+        Ok(a + b)
+    }
 }

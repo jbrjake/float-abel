@@ -47,4 +47,9 @@ impl Column for Bitrep {
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         Some(Ok(xs.iter().copied().collect::<SumF64>().value()))
     }
+
+    fn merge(mut a: SumF64, b: SumF64) -> Outcome<SumF64> {
+        a.merge(&b);
+        Ok(a)
+    }
 }

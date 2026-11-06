@@ -1,8 +1,16 @@
 //! xsum: Radford Neal's exact summation, the small accumulator.
 
+use std::ops::{Add, AddAssign};
+
+use impls::impls;
 use xsum::{Xsum as _, XsumExt as _, XsumSmall};
 
-use crate::column::{Column, Outcome, View};
+use crate::column::{Column, Outcome, Shortfall, View};
+
+// What the crate asserts absent, checked by the compiler: a release that adds one of these
+// traits fails this build rather than leaving a stale no.
+const _: () = assert!(!impls!(XsumSmall: Add<XsumSmall>));
+const _: () = assert!(!impls!(XsumSmall: AddAssign<XsumSmall>));
 
 /// `XsumSmall` one value at a time, and `[f64]::xsum()` for a slice, the entry the crate
 /// recommends; its whole `Xsum` trait is `new`, `add_list`, `add`, `sum` and `clear`.
@@ -39,5 +47,13 @@ impl Column for Xsum {
 
     fn batch(xs: &[f64]) -> Option<Outcome<f64>> {
         Some(Ok(xs.xsum()))
+    }
+
+    fn merge(_: XsumSmall, _: XsumSmall) -> Outcome<XsumSmall> {
+        Err(Shortfall::Absent(
+            "no merge: the Xsum trait is new, add_list, add, sum and clear, and XsumSmall has no \
+             Add<XsumSmall> or AddAssign<XsumSmall>"
+                .to_owned(),
+        ))
     }
 }

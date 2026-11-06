@@ -49,4 +49,9 @@ impl Column for Fixed {
     fn batch(_: &[f64]) -> Option<Outcome<f64>> {
         None
     }
+
+    fn merge(a: I64F64, b: I64F64) -> Outcome<I64F64> {
+        a.checked_add(b)
+            .ok_or_else(|| Shortfall::Refused("checked_add of the two states overflows".to_owned()))
+    }
 }

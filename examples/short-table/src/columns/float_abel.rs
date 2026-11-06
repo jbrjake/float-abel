@@ -43,4 +43,8 @@ impl Column for FloatAbel {
             .sum::<Exact>()
             .to_f64()))
     }
+
+    fn merge(a: Exact, b: Exact) -> Outcome<Exact> {
+        Ok(a + b)
+    }
 }

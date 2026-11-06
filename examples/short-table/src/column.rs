@@ -25,6 +25,8 @@ pub(crate) trait Column {
     fn view(s: &Self::State) -> Outcome<View>;
     /// The crate's entry for a whole slice, when it has one; `None` is not a shortfall.
     fn batch(xs: &[f64]) -> Option<Outcome<f64>>;
+    /// The one state that holds everything two workers' states hold.
+    fn merge(a: Self::State, b: Self::State) -> Outcome<Self::State>;
 }
 
 /// What a probe hands back: the passing reading's description, or why it did not pass.
