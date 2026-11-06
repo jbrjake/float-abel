@@ -6,6 +6,17 @@
 //!
 //! Prints `OUTPUT.md`: the comparison table of `Exact` and seven neighbouring crates over the
 //! eight properties an incremental engine asks of a weight, every cell measured by running it.
+// Until the rows and the control section land, parts of the trait, the columns and the renderer
+// have no caller; the verdict row's commit removes this line.
+#![allow(dead_code)]
+
+mod column;
+mod columns;
+mod guard;
+mod render;
+mod rows;
+
+use render::flow;
 
 /// This package's lockfile, so the header names the exact neighbour versions the run measured
 /// without a second copy of them in the source.
@@ -44,31 +55,6 @@ fn locked_version(name: &str) -> &'static str {
     panic!("{name} is not in examples/short-table/Cargo.lock")
 }
 
-/// The column every line of prose wraps at.
-const WIDTH: usize = 100;
-
-/// `words` laid out in lines of at most [`WIDTH`] characters, a space between neighbours and a
-/// newline at the end. A word is never split, so a caller that must keep a phrase on one line
-/// passes it as one word.
-fn flow<'a>(words: impl IntoIterator<Item = &'a str>) -> String {
-    let mut out = String::new();
-    let mut line = String::new();
-    for word in words {
-        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > WIDTH {
-            out.push_str(&line);
-            out.push('\n');
-            line.clear();
-        }
-        if !line.is_empty() {
-            line.push(' ');
-        }
-        line.push_str(word);
-    }
-    out.push_str(&line);
-    out.push('\n');
-    out
-}
-
 /// The file's title and provenance: what wrote it, and which versions it measured. float-abel is
 /// named as this checkout, never by version, because every release moves the version and would
 /// stale the committed copy for nothing.
@@ -97,8 +83,19 @@ fn header() -> String {
     format!("# The short table, measured\n\n{provenance}")
 }
 
+/// The whole file: the header, the table, and the evidence for every row.
+fn report() -> String {
+    let rows = rows::all();
+    let mut out = header();
+    out.push('\n');
+    out.push_str(&render::table(&rows));
+    out.push_str(&render::evidence(&rows));
+    out
+}
+
 fn main() {
-    print!("{}", header());
+    guard::install();
+    print!("{}", report());
 }
 
 #[cfg(test)]
@@ -118,19 +115,6 @@ mod tests {
     }
 
     #[test]
-    fn flow_wraps_at_the_width_and_keeps_every_word() {
-        let words: Vec<String> = (0..60).map(|i| format!("word{i}")).collect();
-        let wrapped = flow(words.iter().map(String::as_str));
-        assert!(wrapped.lines().count() > 1);
-        assert!(
-            wrapped.lines().all(|l| l.chars().count() <= WIDTH),
-            "{wrapped}"
-        );
-        assert_eq!(wrapped.split_whitespace().collect::<Vec<_>>(), words);
-        assert!(wrapped.ends_with('\n'));
-    }
-
-    #[test]
     fn header_keeps_each_neighbour_and_its_version_on_one_line() {
         let h = header();
         for n in NEIGHBOURS {
@@ -140,7 +124,7 @@ mod tests {
                 "{pair} is split in\n{h}"
             );
         }
-        assert!(h.lines().all(|l| l.chars().count() <= WIDTH), "{h}");
+        assert!(h.lines().all(|l| l.chars().count() <= render::WIDTH), "{h}");
     }
 
     #[test]
@@ -148,5 +132,18 @@ mod tests {
         let h = header();
         assert!(!h.contains(env!("CARGO_PKG_VERSION")), "{h}");
         assert!(!h.contains("float-abel 0."), "{h}");
+    }
+
+    #[test]
+    fn the_report_carries_no_path_from_this_machine() {
+        let r = report();
+        for leak in ["/Users/", "/home/", "/root/", ".cargo/registry", "C:\\"] {
+            assert!(!r.contains(leak), "{leak} in\n{r}");
+        }
+        assert!(
+            r.lines()
+                .all(|l| l.chars().count() <= render::WIDTH || l.starts_with('|')),
+            "{r}"
+        );
     }
 }
