@@ -2,7 +2,7 @@
 
 use float_abel::Exact;
 
-use crate::column::{Column, Outcome, View};
+use crate::column::{hashes_equal, Column, Outcome, View};
 
 /// `Exact`, driven exactly as the differential and DBSP adapters drive it.
 pub(crate) struct FloatAbel;
@@ -50,5 +50,17 @@ impl Column for FloatAbel {
 
     fn negate(s: Exact) -> Outcome<Exact> {
         Ok(-s)
+    }
+
+    fn eq(a: &Exact, b: &Exact) -> Outcome<bool> {
+        Ok(a == b)
+    }
+
+    fn hash_eq(a: &Exact, b: &Exact) -> Outcome<bool> {
+        Ok(hashes_equal(a, b))
+    }
+
+    fn is_zero(s: &Exact) -> Outcome<bool> {
+        Ok(s.is_zero())
     }
 }

@@ -1,6 +1,7 @@
 //! One file per row: the eight properties, each a set of probes run over every column.
 
 pub(crate) mod bits;
+pub(crate) mod equality;
 pub(crate) mod holds;
 pub(crate) mod merge;
 pub(crate) mod negatives;
@@ -44,5 +45,6 @@ pub(crate) fn all() -> Vec<RowReport> {
         measure::<bits::Bits>(),
         measure::<merge::Merge>(),
         measure::<negatives::Negatives>(),
+        measure::<equality::Equality>(),
     ]
 }

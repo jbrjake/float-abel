@@ -1,16 +1,19 @@
 //! fsum: Shewchuk's partials, as Python's `math.fsum` keeps them.
 
+use std::hash::Hash;
 use std::ops::{Add, AddAssign, Neg};
 
 use fsum::FSum;
 use impls::impls;
 
-use crate::column::{Column, Outcome, Shortfall, View};
+use crate::column::{is_zero, Column, Outcome, Shortfall, View};
 
 // What the crate asserts absent, checked by the compiler.
 const _: () = assert!(!impls!(FSum: Add<FSum>));
 const _: () = assert!(!impls!(FSum: AddAssign<FSum>));
 const _: () = assert!(!impls!(FSum: Neg));
+const _: () = assert!(!impls!(FSum: PartialEq));
+const _: () = assert!(!impls!(FSum: Hash));
 
 /// `FSum`, through its `+=` and `-=` on `f64` and `with_all` for a slice.
 pub(crate) struct Fsum;
@@ -54,5 +57,18 @@ impl Column for Fsum {
 
     fn negate(_: FSum) -> Outcome<FSum> {
         Err(Shortfall::Absent("no Neg on FSum".to_owned()))
+    }
+
+    fn eq(_: &FSum, _: &FSum) -> Outcome<bool> {
+        Err(Shortfall::Absent("no PartialEq on FSum".to_owned()))
+    }
+
+    fn hash_eq(_: &FSum, _: &FSum) -> Outcome<bool> {
+        Err(Shortfall::Absent("no Hash on FSum".to_owned()))
+    }
+
+    /// No `PartialEq`; the one question the state answers is whether its value reads zero.
+    fn is_zero(s: &FSum) -> Outcome<bool> {
+        Ok(is_zero(s.value()))
     }
 }

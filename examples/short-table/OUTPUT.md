@@ -10,6 +10,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | same bits for the same number, however reached | yes | no | no | no | no | yes | no | yes |
 | merges partial sums | yes | yes | no | no | yes | yes | yes | yes |
 | standalone negatives | yes | no | no | no | no | yes | yes | yes |
+| `==` / `Hash` / `is_zero` mean the number | yes | no | no | no | no | yes | yes | yes |
 
 ## Evidence
 
@@ -93,3 +94,23 @@ is the `==` row's question; this row asks only that the negative exists and canc
 | num-rational | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
 | bigdecimal | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
 | fixed | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
+
+### `==` / `Hash` / `is_zero` mean the number
+
+Builders dedup by `==`, `is_zero` deletes an update, and `count_total` makes the weight data, so
+records merge by comparison and route to workers by `Hash`. Probes: +1.0 and +0.5 ×2 are `==` and
+hash equal; +0.1 −0.1 is zero and `==` the empty state; +0.1 and +0.2 are not `==`, so an `Eq` that
+says yes to everything fails. A crate with `==` but no `is_zero` is asked whether the state `==` the
+empty one. Hashes are from the standard library's default hasher and are compared inside the run,
+never printed, because their values are not stable across Rust releases.
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
+| bitrep | no | ran: +1.0 != +0.5 ×2 by ==; absent: no Hash on SumF64 |
+| xsum | no | absent: no PartialEq on XsumSmall; absent: no Hash on XsumSmall; absent: no PartialEq or Clone on XsumSmall, and sum takes &mut self |
+| fsum | no | absent: no PartialEq on FSum; absent: no Hash on FSum |
+| accurate | no | absent: no PartialEq on OnlineExactSum<f64>; absent: no Hash on OnlineExactSum<f64>; panicked: `assertion failed: count < xs.len()` at accurate-0.4.1/src/sum/ifastsum.rs:89 |
+| num-rational | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
+| bigdecimal | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |
+| fixed | yes | ran: +1.0 == +0.5 ×2; their hashes are equal; +0.1 −0.1 is zero; +0.1 −0.1 == empty; +0.1 != +0.2 |

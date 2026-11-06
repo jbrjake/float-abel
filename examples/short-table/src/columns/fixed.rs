@@ -2,7 +2,7 @@
 
 use fixed::types::I64F64;
 
-use crate::column::{num, Column, Outcome, Shortfall, View};
+use crate::column::{hashes_equal, num, Column, Outcome, Shortfall, View};
 
 /// `I64F64` through its checked API, so a value outside the grid or the range is a refusal and
 /// never a panic: `checked_from_num` on entry, `checked_add` and `checked_sub` to accumulate.
@@ -58,5 +58,17 @@ impl Column for Fixed {
     fn negate(s: I64F64) -> Outcome<I64F64> {
         s.checked_neg()
             .ok_or_else(|| Shortfall::Refused("checked_neg overflows".to_owned()))
+    }
+
+    fn eq(a: &I64F64, b: &I64F64) -> Outcome<bool> {
+        Ok(a == b)
+    }
+
+    fn hash_eq(a: &I64F64, b: &I64F64) -> Outcome<bool> {
+        Ok(hashes_equal(a, b))
+    }
+
+    fn is_zero(s: &I64F64) -> Outcome<bool> {
+        Ok(s.is_zero())
     }
 }

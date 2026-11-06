@@ -2,7 +2,7 @@
 
 use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive, Zero};
 
-use crate::column::{num, Column, Outcome, Shortfall, View};
+use crate::column::{hashes_equal, num, Column, Outcome, Shortfall, View};
 
 /// `BigDecimal` entered through `from_f64`.
 pub(crate) struct BigDec;
@@ -52,5 +52,17 @@ impl Column for BigDec {
 
     fn negate(s: BigDecimal) -> Outcome<BigDecimal> {
         Ok(-s)
+    }
+
+    fn eq(a: &BigDecimal, b: &BigDecimal) -> Outcome<bool> {
+        Ok(a == b)
+    }
+
+    fn hash_eq(a: &BigDecimal, b: &BigDecimal) -> Outcome<bool> {
+        Ok(hashes_equal(a, b))
+    }
+
+    fn is_zero(s: &BigDecimal) -> Outcome<bool> {
+        Ok(Zero::is_zero(s))
     }
 }

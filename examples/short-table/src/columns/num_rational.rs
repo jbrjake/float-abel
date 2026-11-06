@@ -3,7 +3,7 @@
 use num_rational::BigRational;
 use num_traits::{ToPrimitive, Zero};
 
-use crate::column::{num, Column, Outcome, Shortfall, View};
+use crate::column::{hashes_equal, num, Column, Outcome, Shortfall, View};
 
 /// `BigRational` entered through `from_float`, which is exact for every finite double.
 pub(crate) struct NumRational;
@@ -52,5 +52,17 @@ impl Column for NumRational {
 
     fn negate(s: BigRational) -> Outcome<BigRational> {
         Ok(-s)
+    }
+
+    fn eq(a: &BigRational, b: &BigRational) -> Outcome<bool> {
+        Ok(a == b)
+    }
+
+    fn hash_eq(a: &BigRational, b: &BigRational) -> Outcome<bool> {
+        Ok(hashes_equal(a, b))
+    }
+
+    fn is_zero(s: &BigRational) -> Outcome<bool> {
+        Ok(Zero::is_zero(s))
     }
 }

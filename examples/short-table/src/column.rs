@@ -1,6 +1,7 @@
 //! What every column implements, what a probe hands back, and the recipes states are built from.
 
 use std::fmt;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 /// One crate's accumulator, driven the way an incremental engine drives a weight. Each row adds at
 /// most one method here and implements it in every column, so a row lands as one diff that reads
@@ -29,6 +30,23 @@ pub(crate) trait Column {
     fn merge(a: Self::State, b: Self::State) -> Outcome<Self::State>;
     /// The state's negative, from the state alone.
     fn negate(s: Self::State) -> Outcome<Self::State>;
+    /// The crate's `==` on two states.
+    fn eq(a: &Self::State, b: &Self::State) -> Outcome<bool>;
+    /// Whether two states hash alike under the crate's `Hash`.
+    fn hash_eq(a: &Self::State, b: &Self::State) -> Outcome<bool>;
+    /// The crate's `is_zero`, or `== empty` where it has `==` and no `is_zero`.
+    fn is_zero(s: &Self::State) -> Outcome<bool>;
+}
+
+/// Whether two values hash alike under the standard hasher. Compared here and never printed,
+/// because the hasher's output is not stable across Rust releases.
+pub(crate) fn hashes_equal<T: Hash + ?Sized>(a: &T, b: &T) -> bool {
+    fn one<T: Hash + ?Sized>(v: &T) -> u64 {
+        let mut h = DefaultHasher::new();
+        v.hash(&mut h);
+        h.finish()
+    }
+    one(a) == one(b)
 }
 
 /// Whether `x` is a zero of either sign, decided on the bits.

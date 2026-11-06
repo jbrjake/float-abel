@@ -60,6 +60,18 @@ pub(crate) trait Mutation {
             ..s
         })
     }
+
+    fn eq(a: &Mutated, b: &Mutated) -> Outcome<bool> {
+        FloatAbel::eq(&a.x, &b.x)
+    }
+
+    fn hash_eq(a: &Mutated, b: &Mutated) -> Outcome<bool> {
+        FloatAbel::hash_eq(&a.x, &b.x)
+    }
+
+    fn is_zero(s: &Mutated) -> Outcome<bool> {
+        FloatAbel::is_zero(&s.x)
+    }
 }
 
 /// The column a [`Mutation`] makes.
@@ -103,6 +115,18 @@ impl<M: Mutation> Column for Mutant<M> {
 
     fn negate(s: Mutated) -> Outcome<Mutated> {
         M::negate(s)
+    }
+
+    fn eq(a: &Mutated, b: &Mutated) -> Outcome<bool> {
+        M::eq(a, b)
+    }
+
+    fn hash_eq(a: &Mutated, b: &Mutated) -> Outcome<bool> {
+        M::hash_eq(a, b)
+    }
+
+    fn is_zero(s: &Mutated) -> Outcome<bool> {
+        M::is_zero(s)
     }
 }
 
