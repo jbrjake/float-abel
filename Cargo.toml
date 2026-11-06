@@ -190,8 +190,10 @@ workspace = true
 [workspace]
 members = ["tests/noalloc", "tests/golden"]
 # The cargo-fuzz package stands alone: libFuzzer wants nightly and a sanitizer build, and its
-# closure has no place in this lockfile, which the MSRV build parses whole.
-exclude = ["fuzz"]
+# closure has no place in this lockfile, which the MSRV build parses whole. So does the short
+# table's package, examples/short-table/: its neighbours include an edition-2024 crate with
+# rust-version 1.93, and deny.toml would otherwise judge seven crates the library never ships.
+exclude = ["fuzz", "examples/short-table"]
 
 # Lints warn here and fail only at the gate (`cargo clippy --all-targets -- -D warnings` and
 # `RUSTDOCFLAGS="-D warnings" cargo doc` in scripts/regression.sh). `unsafe_code` is denied in

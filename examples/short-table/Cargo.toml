@@ -1,0 +1,60 @@
+# The short table, measured: one program runs `Exact` and seven neighbouring crates through the
+# eight properties an incremental engine asks of a weight (DESIGN.md § What an incremental engine
+# asks of a weight), prints the comparison table it measures with the evidence for every cell, and
+# OUTPUT.md beside it is that output, committed; the push gate re-runs the program and fails when
+# the two differ. Run from the repo root:
+# `cargo run --manifest-path examples/short-table/Cargo.toml`.
+#
+# A package of its own, excluded from the workspace like fuzz/, because fixed 1.31.0 is edition 2024
+# with rust-version 1.93 and cargo 1.74 parses every locked manifest, so a neighbour in the crate's
+# own lockfile would break the MSRV build of features it never compiles, and deny.toml would start
+# judging seven crates the library never ships. The main is under src/, not examples/, so the root
+# package's autodiscovery never sees it as an example target.
+[package]
+name = "float-abel-short-table"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+float-abel = { path = "../.." }
+# The seven neighbours, each pinned exactly: a cell's evidence names the version it was measured
+# on, and a trait the program asserts absent could appear in a later release.
+accurate = "=0.4.1"
+bigdecimal = "=0.4.11"
+bitrep = "=0.5.1"
+fixed = "=1.31.0"
+fsum = "=0.1.4"
+num-rational = "=0.4.2"
+xsum = "=0.1.6"
+# num-rational's integers and the traits its conversions live on.
+num-bigint = "0.4"
+num-traits = "0.2"
+# `impls!(Type: Trait)` as a `const` expression: every "absent" cell is asserted at compile time, so
+# a version bump that adds the trait fails the build instead of leaving a stale no.
+impls = "=1.0.3"
+
+# The root's dev profile, restated because an excluded package cannot inherit it.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+debug = false
+
+# Debug assertions in release too, so both profiles print the same bytes and the run never executes
+# undefined behaviour: xsum 0.1.6 derives `Debug`, the one window on its state, only under
+# `cfg(debug_assertions)`, and accurate 0.4.1's zero-state `sum()` guards a one-past-the-end write
+# with a `debug_assert!`.
+[profile.release]
+debug-assertions = true
+
+# The workspace's lint posture, restated because an excluded package cannot inherit it.
+[lints.rust]
+missing_docs = "warn"
+unsafe_code = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
