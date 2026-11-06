@@ -8,7 +8,7 @@ seq: 300
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| exact products \(explode. join\) \| yes \| no \| no \| no \| no \| yes \| yes \| no \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 `explode` multiplies each value by its ±1 diff, and `join` evaluates `(a + b) × c` as
@@ -33,3 +33,5 @@ Mutant: `Exact` whose product is `Exact::from(a.to_f64() * b.to_f64())`. Control
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:54Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:58Z doing→done — verify exit 0 @ af0eddd+2
