@@ -13,6 +13,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | `==` / `Hash` / `is_zero` mean the number | yes | no | no | no | no | yes | yes | yes |
 | exact products (explode, join) | yes | no | no | no | no | yes | yes | no |
 | retractable NaN and ∞ | yes | no | no | no | no | no | no | no |
+| correct on every input tested | yes | yes | no | no | no | yes | yes | no |
 
 ## Evidence
 
@@ -155,3 +156,29 @@ arrived, a state a group holds and IEEE cannot.
 | num-rational | no | refused: BigRational::from_float(NaN) is None; refused: BigRational::from_float(∞) is None |
 | bigdecimal | no | refused: BigDecimal::from_f64(NaN) is None; refused: BigDecimal::from_f64(∞) is None |
 | fixed | no | refused: I64F64::checked_from_num(NaN) is None; refused: I64F64::checked_from_num(∞) is None |
+
+### correct on every input tested
+
+Every other row assumes the arithmetic underneath is right. Eleven finite sums whose exact answers
+are themselves doubles, so no oracle is needed, each run one value at a time through the column's
+insert and, where the crate has one, through its entry for a whole slice; both paths must read the
+answer. The specials have their own row. The inputs: +0.1 +0.2 +(-0.1) +(-0.2) is 0.0 (the README's
+opening example); +1e100 +1.0 +(-1e100) is 1.0 (insert, insert, delete); +1e200 +1e100 +1.0
++(-1e100) +(-1e200) is 1.0 (three scales defeat one correction term); +0.1 ×10 +(-1.0) is
+5.551115123125783e-17 (0.1 is 3602879701896397 / 2⁵⁵, so ten of them less one is 2 / 2⁵⁵; a carrier
+holding decimal 0.1 reads 0); +1e308 ×2 +(-1e308) is 1e308 (a partial past f64::MAX); +f64::MAX ×2
++(-f64::MAX) is f64::MAX (the same at the top of the range); +1.0 +(-1.0) is 0.0 (a state cancelled
+to exactly zero); +5e-324 ×2 is 1e-323 (subnormals); +1e-20 +1.0 +(-1.0) is 1e-20 (below a fixed
+grid); +1e30 +2.0 +(-1e30) is 2.0 (above a fixed range); +1.0 ×65536 is 65536.0 (a long stream of
+one magnitude).
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: all 11 inputs read their answer, one value at a time and through the slice entry |
+| bitrep | yes | ran: all 11 inputs read their answer, one value at a time and through the slice entry |
+| xsum | no | ran: the slice entry on +1.0 ×65536 reads -65536.00000000001, want 65536.0 |
+| fsum | no | ran: +1e308 ×2 +(-1e308) reads NaN, want 1e308; ran: the slice entry on +1e308 ×2 +(-1e308) reads NaN, want 1e308; ran: +f64::MAX ×2 +(-f64::MAX) reads NaN, want f64::MAX; ran: the slice entry on +f64::MAX ×2 +(-f64::MAX) reads NaN, want f64::MAX |
+| accurate | no | panicked: `assertion failed: count < xs.len()` at accurate-0.4.1/src/sum/ifastsum.rs:89 |
+| num-rational | yes | ran: all 11 inputs read their answer, one value at a time; no slice entry |
+| bigdecimal | yes | ran: all 11 inputs read their answer, one value at a time; no slice entry |
+| fixed | no | refused: I64F64::checked_from_num(1e100) is None; refused: I64F64::checked_from_num(1e200) is None; refused: I64F64::checked_from_num(1e308) is None; refused: I64F64::checked_from_num(f64::MAX) is None; ran: +5e-324 ×2 reads 0.0, want 1e-323; ran: +1e-20 +1.0 +(-1.0) reads 0.0, want 1e-20; refused: I64F64::checked_from_num(1e30) is None |

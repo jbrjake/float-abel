@@ -53,6 +53,12 @@ pub(crate) fn hashes_equal<T: Hash + ?Sized>(a: &T, b: &T) -> bool {
     one(a) == one(b)
 }
 
+/// Whether `got` is the number `want`: the same bits, or zeros of either sign. NaN is never the
+/// same number as anything.
+pub(crate) fn same_number(got: f64, want: f64) -> bool {
+    got.to_bits() == want.to_bits() && !got.is_nan() || is_zero(got) && is_zero(want)
+}
+
 /// Whether `x` is a zero of either sign, decided on the bits.
 pub(crate) fn is_zero(x: f64) -> bool {
     x.to_bits() << 1 == 0
@@ -180,6 +186,8 @@ pub(crate) fn num(x: f64) -> String {
         "−∞".to_owned()
     } else if is(f64::MAX) {
         "f64::MAX".to_owned()
+    } else if is(-f64::MAX) {
+        "-f64::MAX".to_owned()
     } else if is(f64::MIN_POSITIVE) {
         "f64::MIN_POSITIVE".to_owned()
     } else if x.abs() >= 1e9 {
@@ -244,6 +252,8 @@ mod tests {
         assert_eq!(num(65536.0), "65536.0");
         assert_eq!(num(5e-324), "5e-324");
         assert_eq!(num(f64::MAX), "f64::MAX");
+        assert_eq!(num(-f64::MAX), "-f64::MAX");
+        assert_eq!(recipe(&[Step::Insert(-f64::MAX)]), "+(-f64::MAX)");
         assert_eq!(num(f64::MIN_POSITIVE), "f64::MIN_POSITIVE");
         assert_eq!(num(f64::NAN), "NaN");
         assert_eq!(num(f64::INFINITY), "∞");
