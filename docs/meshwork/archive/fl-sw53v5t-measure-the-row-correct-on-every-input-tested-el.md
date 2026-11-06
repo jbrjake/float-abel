@@ -8,7 +8,7 @@ seq: 320
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| correct on every input tested \| yes \| yes \| no \| no \| no \| yes \| yes \| no \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Every other row assumes the arithmetic underneath is right.
@@ -43,3 +43,5 @@ Mutant: `Exact` that ignores every insert after the 65,535th. Control: `f64` rea
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T15:00Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:04Z doing→done — verify exit 0 @ ab75d88+2
