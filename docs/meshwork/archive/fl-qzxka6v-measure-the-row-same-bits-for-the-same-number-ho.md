@@ -8,7 +8,7 @@ seq: 260
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| same bits for the same number. however reached \| yes \| no \| no \| no \| no \| yes \| no \| yes \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Consolidation adds equal-key diffs in an unspecified order and matches them structurally, so one
@@ -38,3 +38,5 @@ against `3.0`) and excursion (`0` against `1e-12`).
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:42Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:45Z doing→done — verify exit 0 @ f37253b+2
