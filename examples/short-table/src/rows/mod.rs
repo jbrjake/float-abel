@@ -1,5 +1,7 @@
 //! One file per row: the eight properties, each a set of probes run over every column.
 
+pub(crate) mod holds;
+
 use crate::column::Column;
 use crate::columns::{Accurate, BigDec, Bitrep, Fixed, FloatAbel, Fsum, NumRational, Xsum};
 use crate::render::{Cell, RowReport};
@@ -34,5 +36,5 @@ pub(crate) fn measure<R: Row>() -> RowReport {
 
 /// Every row, in table order. A row joins this list when its file lands.
 pub(crate) fn all() -> Vec<RowReport> {
-    Vec::new()
+    vec![measure::<holds::Holds>()]
 }
