@@ -7,7 +7,7 @@ seq: 230
 docs:
   - docs/DESIGN.md#crate-posture-sp-posture
 verify: 'all(exists examples/short-table/Cargo.lock, exists examples/short-table/OUTPUT.md, contains Cargo.toml examples/short-table, contains .gitignore examples/short-table/target, contains examples/short-table/OUTPUT.md /xsum 0\.1\.6/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 Create `examples/short-table/` as a package of its own, the way `fuzz/` is one.
@@ -40,3 +40,5 @@ reads `examples/*.rs` and `examples/*/main.rs`, and this main is in `src/`.
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:24Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:30Z doing→done — verify exit 0 @ 492e923+2
