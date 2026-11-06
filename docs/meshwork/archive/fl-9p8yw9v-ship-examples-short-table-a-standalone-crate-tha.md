@@ -7,7 +7,7 @@ docs:
   - README.md#how-its-checked
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains scripts/regression.sh examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| \*\*usable as the weight\*\* \| \*\*yes\*\*/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 The README is to carry this table, and a program anyone can run has to produce it:
@@ -49,3 +49,4 @@ Out of scope: the README, cost (BENCH.md carries it), and engines.
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T15:16Z open→done — verify exit 0 @ 46e848b+5

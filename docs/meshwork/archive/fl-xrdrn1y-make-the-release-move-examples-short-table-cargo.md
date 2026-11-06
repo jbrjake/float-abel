@@ -8,7 +8,7 @@ seq: 350
 docs:
   - docs/DESIGN.md#release-sp-release
 verify: contains scripts/release-pr.sh examples/short-table/Cargo.lock
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 The same gap fl-vp9vk3r closes for `fuzz/Cargo.lock`. Once that task's mechanism exists, extend it
@@ -19,3 +19,5 @@ release leaves a clean tree.
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T15:16Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:16Z doing→done — verify exit 0 @ 46e848b+4

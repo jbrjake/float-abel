@@ -1,7 +1,7 @@
 ---
 id: fl-vp9vk3r
 title: "Make prepare-release.sh move fuzz/Cargo.lock with Cargo.lock: the fuzz package records the path dependency's version, so the release commit leaves it stale and the next gate run dirties the tree"
-status: open
+status: done
 category: crate/release
 labels: [reproducible-floats]
 relates: [fl-xq4fp0j]
@@ -16,6 +16,8 @@ Found 2026-11-02 after the first release: the push gate's fuzz leg (cargo clippy
 
 ## log
 - 2026-11-02T22:06Z created
+- 2026-11-06T15:12Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T15:16Z doing→done — verify exit 0 @ 46e848b+2
 
 ## comments
 - 2026-11-02T22:06Z [claude (aa073407-90a0-459f-92ea-439fb58eb49c)] Correction to the body: fuzz/Cargo.lock's record was 0.0.0, never 0.30.1; the crate's own version was 0.0.0 until the release commit, so this is the first time the fuzz lockfile moved. Committed as chore(fuzz) on dev.
