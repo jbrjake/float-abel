@@ -8,7 +8,7 @@ seq: 280
 docs:
   - docs/DESIGN.md#what-an-incremental-engine-asks-of-a-weight-sp-laws
 verify: 'all(exists examples/short-table/OUTPUT.md, contains examples/short-table/OUTPUT.md /^\| standalone negatives \| yes \| no \| no \| no \| no \| yes \| yes \| yes \|$/)'
-status: open
+status: done
 created: 2026-11-06T14:19Z
 ---
 `negate` runs inside `iterate`, `antijoin` and `reduce_abelian`, and consolidation can meet a −x
@@ -31,3 +31,5 @@ Mutant: `Exact` whose negation is `Exact::from(-self.to_f64())`. Control: `f64` 
 
 ## log
 - 2026-11-06T14:19Z created
+- 2026-11-06T14:48Z open→doing — claimed by claude (14a6c070-cc69-4944-b798-52354e82e5d7)
+- 2026-11-06T14:50Z doing→done — verify exit 0 @ ac1cbf9+2
