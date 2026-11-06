@@ -1,9 +1,15 @@
 //! accurate: `OnlineExactSum`, Zhu and Hayes's exponent-indexed accumulators.
 
+use std::ops::Neg;
+
 use accurate::sum::OnlineExactSum;
 use accurate::traits::SumAccumulator;
+use impls::impls;
 
-use crate::column::{Column, Outcome, View};
+use crate::column::{Column, Outcome, Shortfall, View};
+
+// What the crate asserts absent, checked by the compiler.
+const _: () = assert!(!impls!(OnlineExactSum<f64>: Neg));
 
 /// `OnlineExactSum<f64>` through `+=`, and `absorb` for a slice.
 pub(crate) struct Accurate;
@@ -45,5 +51,11 @@ impl Column for Accurate {
 
     fn merge(a: OnlineExactSum<f64>, b: OnlineExactSum<f64>) -> Outcome<OnlineExactSum<f64>> {
         Ok(a + b)
+    }
+
+    fn negate(_: OnlineExactSum<f64>) -> Outcome<OnlineExactSum<f64>> {
+        Err(Shortfall::Absent(
+            "no Neg on OnlineExactSum<f64>".to_owned(),
+        ))
     }
 }

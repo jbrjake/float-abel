@@ -49,4 +49,8 @@ impl Column for NumRational {
     fn merge(a: BigRational, b: BigRational) -> Outcome<BigRational> {
         Ok(a + b)
     }
+
+    fn negate(s: BigRational) -> Outcome<BigRational> {
+        Ok(-s)
+    }
 }

@@ -3,6 +3,7 @@
 pub(crate) mod bits;
 pub(crate) mod holds;
 pub(crate) mod merge;
+pub(crate) mod negatives;
 
 use crate::column::Column;
 use crate::columns::{Accurate, BigDec, Bitrep, Fixed, FloatAbel, Fsum, NumRational, Xsum};
@@ -42,5 +43,6 @@ pub(crate) fn all() -> Vec<RowReport> {
         measure::<holds::Holds>(),
         measure::<bits::Bits>(),
         measure::<merge::Merge>(),
+        measure::<negatives::Negatives>(),
     ]
 }

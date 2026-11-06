@@ -1,6 +1,6 @@
 //! xsum: Radford Neal's exact summation, the small accumulator.
 
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Neg};
 
 use impls::impls;
 use xsum::{Xsum as _, XsumExt as _, XsumSmall};
@@ -11,6 +11,7 @@ use crate::column::{Column, Outcome, Shortfall, View};
 // traits fails this build rather than leaving a stale no.
 const _: () = assert!(!impls!(XsumSmall: Add<XsumSmall>));
 const _: () = assert!(!impls!(XsumSmall: AddAssign<XsumSmall>));
+const _: () = assert!(!impls!(XsumSmall: Neg));
 
 /// `XsumSmall` one value at a time, and `[f64]::xsum()` for a slice, the entry the crate
 /// recommends; its whole `Xsum` trait is `new`, `add_list`, `add`, `sum` and `clear`.
@@ -55,5 +56,9 @@ impl Column for Xsum {
              Add<XsumSmall> or AddAssign<XsumSmall>"
                 .to_owned(),
         ))
+    }
+
+    fn negate(_: XsumSmall) -> Outcome<XsumSmall> {
+        Err(Shortfall::Absent("no Neg on XsumSmall".to_owned()))
     }
 }

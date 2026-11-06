@@ -1,8 +1,14 @@
 //! bitrep: `SumF64`, a fixed-point limb accumulator with a count and sticky special flags.
 
+use std::ops::Neg;
+
 use bitrep::SumF64;
+use impls::impls;
 
 use crate::column::{num, Column, Outcome, Shortfall, View};
+
+// What the crate asserts absent, checked by the compiler.
+const _: () = assert!(!impls!(SumF64: Neg));
 
 /// `SumF64` through `add`, `try_unmerge` for the inverse, `merge`, `to_bytes` and
 /// `FromIterator<f64>`.
@@ -51,5 +57,18 @@ impl Column for Bitrep {
     fn merge(mut a: SumF64, b: SumF64) -> Outcome<SumF64> {
         a.merge(&b);
         Ok(a)
+    }
+
+    /// No `Neg`; the nearest operation is `try_unmerge` of the state from an empty accumulator,
+    /// which refuses because the state's count exceeds the empty one's.
+    fn negate(s: SumF64) -> Outcome<SumF64> {
+        let mut empty = SumF64::new();
+        if empty.try_unmerge(&s) {
+            Ok(empty)
+        } else {
+            Err(Shortfall::Refused(
+                "try_unmerge into an empty SumF64 returned false, and SumF64 has no Neg".to_owned(),
+            ))
+        }
     }
 }

@@ -47,4 +47,8 @@ impl Column for FloatAbel {
     fn merge(a: Exact, b: Exact) -> Outcome<Exact> {
         Ok(a + b)
     }
+
+    fn negate(s: Exact) -> Outcome<Exact> {
+        Ok(-s)
+    }
 }

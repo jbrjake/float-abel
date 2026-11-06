@@ -53,6 +53,13 @@ pub(crate) trait Mutation {
             flag: a.flag || b.flag,
         })
     }
+
+    fn negate(s: Mutated) -> Outcome<Mutated> {
+        Ok(Mutated {
+            x: FloatAbel::negate(s.x)?,
+            ..s
+        })
+    }
 }
 
 /// The column a [`Mutation`] makes.
@@ -92,6 +99,10 @@ impl<M: Mutation> Column for Mutant<M> {
 
     fn merge(a: Mutated, b: Mutated) -> Outcome<Mutated> {
         M::merge(a, b)
+    }
+
+    fn negate(s: Mutated) -> Outcome<Mutated> {
+        M::negate(s)
     }
 }
 

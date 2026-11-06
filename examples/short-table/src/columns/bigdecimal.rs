@@ -49,4 +49,8 @@ impl Column for BigDec {
     fn merge(a: BigDecimal, b: BigDecimal) -> Outcome<BigDecimal> {
         Ok(a + b)
     }
+
+    fn negate(s: BigDecimal) -> Outcome<BigDecimal> {
+        Ok(-s)
+    }
 }

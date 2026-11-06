@@ -39,4 +39,8 @@ impl Column for Control {
     fn merge(a: f64, b: f64) -> Outcome<f64> {
         Ok(a + b)
     }
+
+    fn negate(s: f64) -> Outcome<f64> {
+        Ok(-s)
+    }
 }

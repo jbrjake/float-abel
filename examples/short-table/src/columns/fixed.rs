@@ -54,4 +54,9 @@ impl Column for Fixed {
         a.checked_add(b)
             .ok_or_else(|| Shortfall::Refused("checked_add of the two states overflows".to_owned()))
     }
+
+    fn negate(s: I64F64) -> Outcome<I64F64> {
+        s.checked_neg()
+            .ok_or_else(|| Shortfall::Refused("checked_neg overflows".to_owned()))
+    }
 }

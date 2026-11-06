@@ -27,6 +27,13 @@ pub(crate) trait Column {
     fn batch(xs: &[f64]) -> Option<Outcome<f64>>;
     /// The one state that holds everything two workers' states hold.
     fn merge(a: Self::State, b: Self::State) -> Outcome<Self::State>;
+    /// The state's negative, from the state alone.
+    fn negate(s: Self::State) -> Outcome<Self::State>;
+}
+
+/// Whether `x` is a zero of either sign, decided on the bits.
+pub(crate) fn is_zero(x: f64) -> bool {
+    x.to_bits() << 1 == 0
 }
 
 /// What a probe hands back: the passing reading's description, or why it did not pass.

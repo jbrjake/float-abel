@@ -9,6 +9,7 @@ xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 an
 | holds every f64 exactly | yes | yes | yes | yes | yes | yes | yes | no |
 | same bits for the same number, however reached | yes | no | no | no | no | yes | no | yes |
 | merges partial sums | yes | yes | no | no | yes | yes | yes | yes |
+| standalone negatives | yes | no | no | no | no | yes | yes | yes |
 
 ## Evidence
 
@@ -73,3 +74,22 @@ the previous row's question.
 | num-rational | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
 | bigdecimal | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
 | fixed | yes | ran: (w1 ⊕ w2) ⊕ w3 reads 1.875; w3 ⊕ (w2 ⊕ w1) reads 1.875 |
+
+### standalone negatives
+
+`negate` runs inside `iterate`, `antijoin` and `reduce_abelian`, and consolidation can meet a −x
+diff before its +x, so every state needs a negative that exists on its own. S is +0.1 +0.2.
+negate(S) must exist without knowing S's inputs; then the history where the negative comes first:
+start from negate(S), insert 0.1, insert 0.2, and read exactly zero. Equality with the empty state
+is the `==` row's question; this row asks only that the negative exists and cancels exactly.
+
+| column | cell | evidence |
+|---|---|---|
+| float-abel | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
+| bitrep | no | refused: try_unmerge into an empty SumF64 returned false, and SumF64 has no Neg |
+| xsum | no | absent: no Neg on XsumSmall |
+| fsum | no | absent: no Neg on FSum |
+| accurate | no | absent: no Neg on OnlineExactSum<f64> |
+| num-rational | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
+| bigdecimal | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
+| fixed | yes | ran: negate(+0.1 +0.2), then +0.1 +0.2, reads 0.0 |
