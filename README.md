@@ -26,11 +26,17 @@ total -= Exact::from(0.2);
 assert!(total.is_zero()); // true zero
 ```
 
-There's no magic involved and no fundamental computer science breakthrough. The gist is, just use more memory to store numbers at a higher resolution: 256 bits at a minimum. The resolution still has a limit, it's just finer, like the way a HiDPI screen still has pixels if you use a magnifying glass. Some of the core principles were demonstrated in Kyle Clouthier's [bitrep](https://github.com/KyleClouthier/bitrep) project, which served as the inspiration for float-abel's `Wide` type.
+Finding ways to exactly add floating-point numbers is nothing new [12, 14, 15]. There's no magic involved and no fundamental computer science breakthrough. The gist is, just use more memory to store numbers at a higher resolution: 256 bits at a minimum. The resolution still has a limit, it's just very fine. It's like how a HiDPI screen still has pixels if you look up close: twice as many in the same space as a standard display. Despite still being made of pixels, it can faithfully render standard density content, just by using 4 smaller pixels instead of only 1.
 
-Most of the implementation here is to make it use the least memory possible while running as quickly as it can. The memory cost is balanced by what it lets you do: keep an accurate running sum of f64 values [faster than you could if you recomputed the entire vector](#what-it-costs) each time a new value came in.
+"Pixel" here means that float-abel tracks f64s in terms of the smallest positive value they can represent. Then, inspired by Kyle Clouthier's [bitrep](https://github.com/KyleClouthier/bitrep) implementation of a Kulisch long accumulator, it just counts how many of those pixels add up to any f64 value [14]. Those counts are integers, of course, so it can do exact integer math on them.
 
-float-abel's thing, that makes it different than adjacent approaches, is that it's fully retractable and leaves behind no state residue. When you subtract a value in float-abel, it truly goes away. There is no difference in the bits regardless of how you arrived at the value.
+float-abel maintains the tightest resolution that an f64 can express. An actual f64 floats, and so the pixels grow larger and less precise with the scale of the value they collectively represent.
+
+It's still working with f64 input, so values coming in are only as precise as f64 can be. But then float-abel only rounds them back to f64 once at the end, instead of introducing error each time two numbers get added together.
+
+Those counts can take a lot of bits, so most of the implementation here is to make it use the least memory possible while running as quickly as it can. The memory cost is balanced by what it lets you do: keep an accurate running sum of f64 values [faster than you could if you recomputed the entire vector](#what-it-costs) each time a new value came in.
+
+float-abel's thing, that [makes it different than adjacent approaches](#how-float-abel-compares-to-other-ways-of-adding-real-numbers), is that it's fully retractable and leaves behind no state residue. When you subtract a value in float-abel, it truly goes away. There is no difference in the bits regardless of how you arrived at the value.
 
 float-abel's designed for incremental engines, which do just that: maintain a running total and update it as rows both come _and go_...even if events arrive out of order. Floats have always been a challenge for them, because you can't get consistent results across runs without consistent ordering, and you can't guarantee, as seen above, that removing all the numbers you've added will bring you back to zero.
 
@@ -241,6 +247,28 @@ Behind the `dbsp` feature, `Exact` is a DBSP weight, so the Rust side is three s
 
 `Wide` and `Fixed` implement both engines' weight traits too, for engines whose weight slot has to be `Copy`.
 
+### how float-abel compares to other ways of adding real numbers
+
+If you're dealing with just a few hundred items, you have all your data up front, you don't need clean retraction, or you're only dealing with currency, options like [bitrep](https://github.com/KyleClouthier/bitrep) (the inspiration for float-abel's `Wide` type), [ReproBLAS](https://github.com/willow-ahrens/ReproBLAS), [bigdecimal](https://github.com/akubera/bigdecimal-rs), [xsum](https://github.com/gumichocopengin8/xsum.rs), [fsum](https://github.com/beling/bsuccinct-rs), or fixed-width numbers may suit your needs better. And if you have infinite memory and time, [num-rational](https://github.com/rust-num/num-rational) can be a much more pure approach. Those solutions can also be less complex, making them easier to reason about and maintain as dependencies.
+
+For example, bitrep's guarantee is only that the bytes are the same for the same inputs regardless of order. That lets it store a count in its bits tracking how many values have been added together, so it can calculate averages. So while numbers that come out are exact, the variable storing them holds different bits based on what you've done with it. `1.0` has a different count than `0.5 + 0.5`. That kind of bookkeeping prevents true equality between otherwise-exact variables, if they were arrived at in different ways.
+
+Because float-abel needs bit-exactness for incremental engines, which doesn't allow state history like that, it has to do more. There are a bunch of different capabilities for incremental usage which float-abel collects into one place:
+
+| | float-abel | bitrep | xsum | fsum | accurate | num-rational | bigdecimal | fixed |
+|---|---|---|---|---|---|---|---|---|
+| holds every f64 exactly | yes | yes | yes | yes | yes | yes | yes | no |
+| stores the same bits for the same number, however reached | yes | no | no | no | no | yes | no | yes |
+| merges partial sums | yes | yes | no | no | yes | yes | yes | yes |
+| accepts 'negation' separately, before being provided a numeric value | yes | no | no | no | no | yes | yes | yes |
+| compares numeric values for Hash and Eq | yes | no | no | no | no | yes | yes | yes |
+| handles multiplication exactly | yes | no | no | no | no | yes | yes | no |
+| supports retracting NaN and ∞ | yes | no | no | no | no | no | no | no |
+| validates correct values on every input tested | yes | yes | no | no | no | yes | yes | no |
+| **usable as an incremental engine weight** | **yes** | **no** | **no** | **no** | **no** | **no** | **no** | **no** |
+
+*You can see the results yourself by running [a small Rust crate that validates each capability](examples/short-table/) across all of those data types. It tests against bitrep 0.5.1, xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 and fixed 1.31.0.*
+
 ### what it costs
 
 Exactness isn't cheap. float-abel takes 15–30× more time than an imprecise hardware float add per row. If you don't care about exactness, just use f64 like a normal person.
@@ -316,10 +344,6 @@ These tools exist to make float-abel as open as possible. You can adapt float-ab
 - **Sums and some products, nothing else.** Division, `exp`, `log` and constants like ⅓ aren't group operations, so they happen once, on the exact total, at read time. float-abel makes what an engine accumulates reproducible. It doesn't make arbitrary float code reproducible and [it can't handle an arbitrarily long chain of multiplications](#pick-three).
 - **`Exact` has two named caps.** 34,368 bits of span, and an exponent bound of 2³⁰. Sums of f64s never get near either. Only long chains of nested `float × float` products do. Past a cap, `+=` panics with the cap's name, because an engine's `plus_equals` can't return an error, and the `checked_*` methods return `PastCap` instead. If you run more than one worker and can reach a cap, build with `panic = "abort"`, or one worker's panic leaves the rest spinning.
 - **Ordering is out of scope.** `MIN`, `MAX` and float keys don't round, so they don't need a group.
-
-If you're dealing with just a few hundred items, you have all your data up front, you don't need clean retraction, or you're only dealing with currency, options like bitrep, ReproBLAS, or fixed-width decimals may suit your needs better.
-
-Those solutions can also be less complex, making them easier to reason about and maintain as dependencies. For example, because bitrep's guarantee is only that floating-point statistics are exact, it can achieve its goal by keeping track of what's been added and removed over time as stored state, in a count that never goes down. The numbers that come out are exact, but the variable storing them holds different bits based on what you've done with it. That prevents true equality between otherwise-exact variables, if they were arrived at in different ways. Because float-abel needs bit-exactness for incremental engines, which doesn't allow state history like that, it has to do more.
 
 ### features
 
@@ -478,7 +502,7 @@ I ran into this wanting personalized PageRank and graph Laplacians, among other 
 | binned summation, ReproBLAS [12, 13] | yes | no | yes | yes |
 | a long accumulator [14, 15] | yes | yes | yes | yes, but about 300 B |
 
-Only the last row passes every column, and it's old: Kulisch proposed a fixed-point register wide enough for every product of two f64s [14], and Neal's superaccumulators are a fast software form [15]. float-abel's `Wide` is that row, sized for sums of f64s rather than products. (It's also the approach the bitrep project uses.) `Exact` is the same group in 32 bytes that move to the heap only when a sum needs more than 127 bits.
+Only the last row passes every column, and it's old: Kulisch proposed a fixed-point register wide enough for every product of two f64s [14], and Neal's superaccumulators are a fast software form [15]. float-abel's `Wide` is that row, sized for sums of f64s rather than products. `Exact` is the same group in 32 bytes that move to the heap only when a sum needs more than 127 bits.
 
 ### why binned summation isn't enough
 
