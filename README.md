@@ -26,7 +26,7 @@ total -= Exact::from(0.2);
 assert!(total.is_zero()); // true zero
 ```
 
-Finding ways to exactly add floating-point numbers is nothing new [12, 14, 15]. There's no magic involved and no fundamental computer science breakthrough. The gist is, just use more memory to store numbers at a higher resolution: 256 bits at a minimum. The resolution still has a limit, it's just very fine. It's like how a HiDPI screen still has pixels if you look up close: twice as many in the same space as a standard display. Despite still being made of pixels, it can faithfully render standard density content, just by using 4 smaller pixels instead of only 1.
+Finding ways to exactly add floating-point numbers is nothing new [14, 15]. There's no magic involved and no fundamental computer science breakthrough. The gist is, just use more memory to store numbers at a higher resolution: 256 bits at a minimum. The resolution still has a limit, it's just very fine. It's like how a HiDPI screen still has pixels if you look up close: twice as many in the same space as a standard display. Despite still being made of pixels, it can faithfully render standard density content, just by using 4 smaller pixels instead of only 1.
 
 "Pixel" here means that float-abel tracks f64s in terms of the smallest positive value they can represent. Then, inspired by Kyle Clouthier's [bitrep](https://github.com/KyleClouthier/bitrep) implementation of a Kulisch long accumulator, it just counts how many of those pixels add up to any f64 value [14]. Those counts are integers, of course, so it can do exact integer math on them.
 
@@ -102,7 +102,7 @@ assert_eq!(total.to_f64(), 3.5); // now we're good
 
 You get any three.
 
-You can't have all four qualities at once, because the range gets so wide: an f64 can be as large as 2¹⁰²³ or as small as 2⁻¹⁰⁷⁴, which works out to 2,098 bits. (More, really. You need a few extra bits for headroom.) A type that's exact over the whole range is either that big all the time, like `Wide`, or small unless a sum needs more space, the way `Exact` works. The others stay small and fixed by giving up the range or the exactness, since sometimes you want that.
+You can't have all four qualities at once, because the range gets so wide: an f64 can be nearly as large as 2¹⁰²⁴ or as small as 2⁻¹⁰⁷⁴, which works out to 2,098 bits. (More, really. You need a few extra bits for headroom.) A type that's exact over the whole range is either that big all the time, like `Wide`, or small unless a sum needs more space, the way `Exact` works. The others stay small and fixed by giving up the range or the exactness, since sometimes you want that.
 
 | type | small | fixed size | full range | exact |
 |---|---|---|---|---|
@@ -264,7 +264,7 @@ Because float-abel needs bit-exactness for incremental engines, which doesn't al
 | compares numeric values for Hash and Eq | yes | no | no | no | no | yes | yes | yes |
 | handles multiplication exactly | yes | no | no | no | no | yes | yes | no |
 | supports retracting NaN and ∞ | yes | no | no | no | no | no | no | no |
-| validates correct values on every input tested | yes | yes | no | no | no | yes | yes | no |
+| returns the correct value on every input tested | yes | yes | no | no | no | yes | yes | no |
 | **usable as an incremental engine weight** | **yes** | **no** | **no** | **no** | **no** | **no** | **no** | **no** |
 
 *You can see the results yourself by running [a small Rust crate that validates each capability](examples/short-table/) across all of those data types. It tests against bitrep 0.5.1, xsum 0.1.6, fsum 0.1.4, accurate 0.4.1, num-rational 0.4.2, bigdecimal 0.4.11 and fixed 1.31.0.*
@@ -275,7 +275,7 @@ Exactness isn't cheap. float-abel takes 15–30× more time than an imprecise ha
 
 If you're a sicko who needs this stuff, then the real comparison isn't adding single values. It's how float-abel compares against the way you'd get consistent results from f64: adding up the entire list whenever any value gets added.
 
-float-abel's always faster than recompute once you're adding up streams of more than 120k items, and often pays off before then. Even float-abel's order of magnitude decrease in speed is dwarfed by how long a full recompute takes once collections grow that large. With float-abel, you just need to add the new items that come in.
+float-abel's always faster than recompute once you're adding up streams of more than 200k items, and often pays off before then. Even float-abel's order of magnitude decrease in speed is dwarfed by how long a full recompute takes once collections grow that large. With float-abel, you just need to add the new items that come in.
 
 | | M5 Max | Ryzen 7 |
 |---|--:|--:|
@@ -290,7 +290,7 @@ At one change per epoch, float-abel starts to make sense after about 8,400 rows 
 
 ### how it's checked
 
-* The [laws kit](#check-your-own-weight) runs on every type, with the `f64` control required to fail.
+* The [laws kit](#check-your-own-weight) runs on the `Exact`, `Wide`, and `Fixed256` types, with the `f64` control required to fail.
 * `to_f64`, `to_f32` and `div_f64` are tested against correctly rounded vectors generated with CPython's `Fraction`, ties and subnormals included.
 * `Fixed256`, `Wide` and `Exact` are validated to agree bit for bit where their domains overlap, and `Wide` is validated against bitrep as a reference implementation. Sums are checked against a `num-bigint` oracle under `cargo-fuzz`.
 * The suite is tested under miri.
@@ -385,18 +385,20 @@ Between 1 and 2 it can write four numbers, all using the same exponent:
   decimal   1      1.25   1.5    1.75     from 1 to 2, 0.25 apart
 ```
 
-Let's break this down a bit more. How does `100` become `1.00`? The exponent comes out to zero, because it's calculated against a pre-determined bias for this toy float type of `-011` (-3). That bias shifts the range on the number line, centering exponents evenly between negative and positive powers, so it's equally useful for small and large values. It gets added to the exponent provided in the float value, which in this case is `011`, or (3). -3 + 3 = 0. Because we're using binary, the point shifts with powers of 2. 2 to the power of 0, like any number to 0, gives you 1. So the point is located 1 place in. Seriously, all float numbers are this convoluted.
+Let's break this down a bit more. How does `100` become `1.00`? The exponent comes out to zero, because it's calculated against a pre-determined bias for this toy float type of `-011` (-3). That bias shifts the range on the number line, centering exponents evenly between negative and positive powers, so it's equally useful for small and large values. It gets added to the exponent provided in the float value, which in this case is `011`, or (3). -3 + 3 = 0.
+
+Because we're using binary, the point shifts by multiplying against powers of 2. 2 to the power of 0, like any number to 0, gives you 1. So the point is located 1 place in. Every time the power goes up by one, the result doubles, and the binary point shifts one digit right. Seriously, all float numbers are this convoluted.
 
 Now, going from `101` to `1.25` is a little more tricky. It's the same exponent for all numbers in this range, so that's why it also becomes `1.01` instead of, say, `101.0` or `10.1`. Then it's just converting the binary fraction to a decimal one. Instead of going down by tenths (1/10th, 1/100th, 1/1000th), they go down by halves (1/2th, 1/4th, 1/8th). So the `.01` is 'zero halves and 1 quarter', decimal `.25`.
 
-Slide the point one place right by changing the exponent from `011` to `100`, and instead of applying `-3 + 3` we're applying an exponent of `-3 + 4`, or `1`. 2 to the power of 1 is 2, so the binary point is after the second digit. `1.00` becomes `10.0`, etc. This means the same four bit patterns can now express the numbers between 2 and 4:
+Slide the point one place right by changing the exponent from `011` to `100`, and instead of applying `-3 + 3` we're applying an exponent of `-3 + 4`, or `1`. 2 to the power of 1 is 2, so multiplying it out the binary point is after the second digit. `1.00` becomes `10.0`, etc. This means the same four bit patterns can now express the numbers between 2 and 4:
 
 ```text
   binary    10.0   10.1   11.0   11.1
   decimal   2      2.5    3      3.5      from 2 to 4, 0.5 apart
 ```
 
-Slide it again with exponent `101`, we're shifting the binary point from 2 to 3. So now `10.0` becomes `100.` and the same bits cover 4 to 8:
+Slide it again with exponent `101`, we're multiplying by four instead of by two, shifting the binary point from 2 to 3. So now `10.0` becomes `100.` and the same bits cover 4 to 8:
 
 ```text
   binary    100.   101.   110.   111.
