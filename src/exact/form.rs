@@ -56,20 +56,17 @@ impl PartialEq for Exact {
     /// heap word never are, by canonical form.
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        if self.lo == other.lo
+        let same_word = self.lo == other.lo
             && self.hi == other.hi
             && self.exp == other.exp
             && self.nan == other.nan
             && self.pos_inf == other.pos_inf
-            && self.neg_inf == other.neg_inf
-        {
-            return true;
-        }
+            && self.neg_inf == other.neg_inf;
         #[cfg(feature = "alloc")]
-        if self.is_heap() && other.is_heap() {
+        if !same_word && self.is_heap() && other.is_heap() {
             return self.eq_blocks(other);
         }
-        false
+        same_word
     }
 }
 
