@@ -1,14 +1,13 @@
 ---
 id: fl-gjxces5
 title: "Make Exact's PartialEq lint clean on clippy 1.100 in the no-alloc build: stable moved to 1.100.0 on the runner and the nightly's gate job fails at regression.sh's first clippy leg on needless_bool"
-status: doing
+status: done
 category: crate/hardening
 verify: "all(lacks src/exact/form.rs /return true;/, run cargo test exact_ target=main)"
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
 seq: 8
 created: 2026-11-13T18:58Z
-claimed-by: claude (703e78c8-930e-41d9-9c50-c37aaeb95109)
 ---
 
 Found 2026-11-13: the nightly `ci` run 43414233153 on 08d92c1 is red in one job of seventeen,
@@ -34,3 +33,7 @@ dispatched `ci` run on dev with `conclusion=success`.
 ## log
 - 2026-11-13T18:58Z created
 - 2026-11-13T18:58Z open→doing — claimed by claude (703e78c8-930e-41d9-9c50-c37aaeb95109)
+- 2026-11-13T19:50Z doing→done — verify exit 0 @ 3575f6b+2
+
+## comments
+- 2026-11-13T19:50Z [claude (703e78c8-930e-41d9-9c50-c37aaeb95109)] 2026-11-13, 35c0b77: `eq` binds the six-field comparison as `same_word` and returns it, with the heap check an early return only when the words differ; no `#[allow]`. `cargo clippy --quiet --lib --no-default-features -- -D warnings` exited 101 on `cargo +1.100.0` before the edit and 0 after, and 0 on `cargo +1.99.0` both times; `let_and_return` did not fire on the no-alloc build on either compiler. Nothing else sat behind it: `RUSTUP_TOOLCHAIN=1.100.0 ./scripts/regression.sh` printed `regression: OK`, exit 0, on aarch64 macOS, and the lib lints clean for x86_64-unknown-linux-gnu on 1.100.0 with no features, the defaults and the test set (`--workspace --all-targets` does not cross: alloca's build script wants a C cross compiler). The dispatched suite on dev at 3575f6b, run 43488969222, ended `conclusion=success`, 16 jobs success and the PR-only commits job skipped; its gate job installed rustc 1.100.0 (0ef1bc386) and printed `regression: OK`. The one new thing that run shows, cargo 1.100's two `unused_dependencies` warnings on the fuzz package, is fl-bvt5k3t. The default stable on the dev machine is still 1.99.0, so the local gates do not see the runner's lints; a 1.100.0 toolchain is installed beside it.
