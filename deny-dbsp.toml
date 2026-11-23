@@ -28,6 +28,9 @@ ignore = [
   { id = "RUSTSEC-2026-0258", reason = "h2 0.3.27 is actix-http 3.20's, reached through actix-web and feldera-types from dbsp; no HTTP connection is opened by this crate, and the fix is in the 0.4 line hyper is on" },
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.0.4 is utoipa-gen 4.3's, reached through utoipa, feldera-ir and feldera-types from dbsp; a proc macro that runs at build time" },
   { id = "RUSTSEC-2026-0403", reason = "zstd-safe 6.0.6 is zstd 0.12.4's, dbsp's own direct dependency (zstd ^0.12, every release through 0.375.0); this crate decompresses nothing, and the fix is in the 8.2 line" },
+  { id = "RUSTSEC-2026-0594", reason = "cookie 0.16.2 is actix-web 4's (cookie ^0.16, through 4.20.0), reached through feldera-types from dbsp, at 0.367.0 and at 0.388.0; this crate builds no cookie jar and forks no process, and the fix is in 0.18.3" },
+  { id = "RUSTSEC-2026-0543", reason = "chrono 0.4.45 is feldera-observability's, feldera-types' and object_store 0.14's, reached from dbsp, at 0.367.0 and at 0.388.0; unmaintained, with no fixed release" },
+  { id = "RUSTSEC-2026-0542", reason = "humantime 2.4.0 is object_store 0.14.2's, reached through feldera-storage from dbsp, at 0.367.0 and at 0.388.0; unmaintained as chrono's wrapper, with no fixed release" },
 ]
 
 # deny.toml's three, then the nine the dbsp closure carries, each with the crates that carry it.
