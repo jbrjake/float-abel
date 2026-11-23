@@ -673,7 +673,7 @@ AVX-512 where present, NEON unconditionally on `aarch64`), with `#[target_featur
 blended.
 
 Products are not vectorised. `deposit_products` on every tier is the scalar check-then-deposit of
-the exact 106-bit product, the dot-product shape, exact and bit-identical, at 7–23× the same tier's
+the exact 106-bit product, the dot-product shape, exact and bit-identical, at 5–16× the same tier's
 bulk deposit kernel (BENCH.md § The product-kernel row); a kernel waits on a consumer with the bulk
 dot-product shape, the owner's hold (fl-mj3tcta), since an engine's join multiplies one row at a
 time.

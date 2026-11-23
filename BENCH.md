@@ -188,28 +188,41 @@ above, so two products in five promote the running sum, which the heap form hold
 Each tier's bulk entry against the one-at-a-time deposits that define it, on the same-scale band.
 The kill condition is a kernel under 3× its scalar reference; the design's absolute targets are
 1.0 ns (`Fixed`, NEON) and 0.6 ns (AVX2), 0.5 ns (`Binned`) and 1.5 ns (`Wide`) per value.
-`benches/simd.rs`, at commit 2a82388.
+`benches/simd.rs`, at commit 64fb3cd, the Mac on macOS 27.2. The AVX2 columns are one sitting on
+an idle machine. The NEON host was shared with another build throughout, so each NEON figure is
+the median of four takes of the row; one take in four ran up to 1.5× the others.
 
 | tier, same-scale | NEON: one at a time | NEON: bulk | NEON gain | AVX2: one at a time | AVX2: bulk | AVX2 gain |
 |---|--:|--:|--:|--:|--:|--:|
-| `Wide` | 18.70 ns | 1.82 ns | 10.3× | 36.36 ns | 2.52 ns | 14.4× |
-| `Fixed256` | 7.89 ns | 1.60 ns | 4.9× | 16.18 ns | 2.02 ns | 8.0× |
-| `Binned<3>` | 10.22 ns | 2.00 ns | 5.1× | 18.51 ns | 1.68 ns | 11.0× |
-| vectorised naive `f64` sum, the floor | | 0.080 ns | | | 0.368 ns | |
+| `Wide` | 5.08 ns | 1.90 ns | 2.7× | 8.76 ns | 2.53 ns | 3.5× |
+| `Fixed256` | 5.15 ns | 1.65 ns | 3.1× | 9.62 ns | 2.02 ns | 4.8× |
+| `Binned<3>` | 8.65 ns | 2.09 ns | 4.1× | 14.03 ns | 1.67 ns | 8.4× |
+| vectorised naive `f64` sum, the floor | | 0.080 ns | | | 0.369 ns | |
 
-Every kernel clears the kill condition on both architectures. No kernel reaches its absolute
-target: `Fixed` lands at 1.6× its NEON target and 3.4× its AVX2 one, `Wide` at 1.2× and 1.7×, and
-`Binned` at 4.0× and 3.4× of a 0.5 ns target that assumed five vector ops per limb and value,
-where the kernels spend about seven: a per-limb shift count that has to stay inside a signed byte
-on NEON, a left and a right shift on AVX2, and the carry-free digit accumulation.
+Every kernel clears the kill condition on AVX2. On NEON `Binned` clears it, `Fixed256` sits on
+the line, and `Wide` is under it at 2.7×: the scalar reference is the one-value deposit, which
+adds or subtracts the shifted mantissa in the limbs it lands on (`limbs::add_shifted`) and costs a
+quarter of three full-width passes, the reference at 2a82388, under the same kernels. What the condition should read against that reference is the owner's
+question (fl-ng7bs72). No kernel reaches its absolute target: `Fixed` lands at 1.7× its NEON
+target and 3.4× its AVX2 one, `Wide` at 1.3× and 1.7×, and `Binned` at 4.2× and 3.3× of a 0.5 ns
+target that assumed five vector ops per limb and value, where the kernels spend about seven: a
+per-limb shift count that has to stay inside a signed byte on NEON, a left and a right shift on
+AVX2, and the carry-free digit accumulation.
 
-`Wide`'s NEON kernel owes 14% to the `#[inline]` on `ieee::decompose`, a function the kernel
-reaches only through `Wide::deposit` in its refusal closure: with the decomposition inline, the
-compiler inlines that closure, and with it `fold_tile` itself, into `wide_extend`; built without
-the mark, `wide_extend` calls `fold_tile` out of line with the closure behind an indirect call and
-the partial sums spilled around it. The two builds run A/B/A in one sitting at 2.11, 1.82 and
-2.11 ns with the one-at-a-time loop and the `f64` floor flat; the AVX2 build inlines the fold
-either way and is unchanged to 0.1%.
+`Wide`'s NEON kernel is sensitive to what its refusal closure inlines. The deposit of a value
+the tile's window does not hold is called through `simd::wide_deposit_outside`, cold and out of
+line: with the one-value deposit inlined into the fold instead, four builds of the kernel ran
+2.06–2.14 ns against 1.81 ns behind the call and 1.87 ns on the control at 0451613, in one
+sitting; the AVX2 kernel is 2.52 and 2.53 ns either way. The `#[inline]` on `ieee::decompose`,
+which the kernel reaches only through that deposit, is the same sensitivity: at 2a82388 the
+builds with and without the mark ran A/B/A at 2.11, 1.82 and 2.11 ns.
+
+What the one-value deposit gained, against the control at 0451613 in the same AVX2 sitting:
+`Wide` 36.59 → 8.76 ns a value (4.2×) and 49.99 → 15.15 ns a product (3.3×), `Fixed256` 16.12 →
+9.62 ns (1.7×) and 20.10 → 13.03 ns (1.5×), and `Binned<3>`, whose three-word placement
+`limbs::set_shifted` is `#[inline]`, 18.25 → 14.03 ns (1.3×) and 24.62 → 19.94 ns (1.2×),
+with every bulk kernel and the `f64` floor within 1%. On NEON the control's `Wide` loop ran
+18.6–19.3 ns in five takes against 5.08.
 
 `Binned<3>` bulk against `Wide` bulk is the batch tier's own kill condition, under 2× faster
 meaning `Binned` stays a convenience rather than a recommended default: 0.9× on NEON, where
@@ -219,15 +232,15 @@ meaning `Binned` stays a convenience rather than a recommended default: 0.9× on
 
 `Wide` on 2²⁰ doubles with top bits uniform in [2⁻³⁰⁰, 2³⁰⁰): a tile spans far more than the
 four-limb window, so almost every vector carries a lane outside it and goes to the scalar deposit.
-`benches/simd.rs`, at commit 2a82388.
+`benches/simd.rs`, at commit 64fb3cd, the NEON row the median of four takes.
 
 | `Wide`, 2^±300 | one at a time | bulk |
 |---|--:|--:|
-| NEON | 18.29 ns | 18.00 ns |
-| AVX2 | 35.65 ns | 37.69 ns |
+| NEON | 5.02 ns | 5.51 ns |
+| AVX2 | 8.75 ns | 10.60 ns |
 
-The bulk entry is the scalar fold plus the span pass here; AVX2 pays 6% for it, and NEON nothing,
-the deposit inlined into the fold's refusal path running 2% under the bench's own deposit loop.
+The bulk entry is the scalar fold plus the span pass here, with each value's deposit behind the
+kernel's cold call: 10% over the one-at-a-time loop on NEON and 21% on AVX2.
 That fixture is not a column, and the design's `Wide` target is stated on real columns, but it
 bounds the cost of the fallback.
 
@@ -239,19 +252,20 @@ the window and then deposits one pair at a time, beside the one-at-a-time `depos
 (the check pass's share is the difference) and the same tier's bulk `deposit` kernel on the same
 corpus. The corpus is 2²⁰ same-scale factor pairs with 26-bit mantissas, so every product sits on
 `Fixed256`'s grid and under every ceiling; the kernel's cost does not depend on how many mantissa
-bits are set. `benches/simd.rs`, at commit 2a82388.
+bits are set. `benches/simd.rs`, at commit 64fb3cd; the NEON columns are one take on a shared
+host, each row's confidence interval under 2% of its estimate.
 
 | tier | NEON: `deposit_products` | NEON: loop | NEON: bulk `deposit` | ratio | AVX2: `deposit_products` | AVX2: loop | AVX2: bulk `deposit` | ratio |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| `Wide` | 25.84 ns | 24.46 ns | 1.80 ns | 14.4× | 56.08 ns | 50.13 ns | 2.49 ns | 22.5× |
-| `Fixed256` | 10.70 ns | 9.22 ns | 1.60 ns | 6.7× | 26.08 ns | 20.37 ns | 2.01 ns | 13.0× |
-| `Binned<3>` | 15.13 ns | 13.21 ns | 2.00 ns | 7.6× | 31.69 ns | 24.93 ns | 1.69 ns | 18.8× |
+| `Wide` | 10.02 ns | 7.55 ns | 1.87 ns | 5.4× | 20.51 ns | 15.15 ns | 2.46 ns | 8.3× |
+| `Fixed256` | 8.07 ns | 6.75 ns | 1.74 ns | 4.6× | 17.89 ns | 13.03 ns | 2.01 ns | 8.9× |
+| `Binned<3>` | 14.04 ns | 11.98 ns | 2.02 ns | 6.9× | 26.45 ns | 19.94 ns | 1.67 ns | 15.8× |
 
-The scalar product path costs 7–23× the bulk deposit kernel per pair, which is the band the sums'
-one-at-a-time loops sit in above their kernels (5–14× above). A product lane would do what a sum
+The scalar product path costs 5–16× the bulk deposit kernel per pair, where the sums'
+one-at-a-time loops sit 3–8× above their kernels. A product lane would do what a sum
 lane does, the shift and the placement, plus the 106-bit product as four 32×32 multiplies and a
 third limb placed, so the gain available is in the same band less the multiply. The check pass is
-1.4–1.9 ns a pair on NEON and 6–7 ns on AVX2: a second decomposition of both doubles and a second
+1.3–2.5 ns a pair on NEON and 5–7 ns on AVX2: a second decomposition of both doubles and a second
 product, which a kernel would fold into its lane. The decision is the owner's; this row is its
 input.
 
