@@ -170,6 +170,15 @@ fn top_limb(xs: &[f64]) -> i16 {
     scalar::top_limb(xs)
 }
 
+/// The deposit of a value the tile's window does not hold, kept out of line and off the fold's
+/// hot path: inlined, the one-value deposit's limb walk costs the lane loop its registers on a
+/// column where it never runs (BENCH.md § SIMD earns its feature).
+#[cold]
+#[inline(never)]
+fn wide_deposit_outside(w: &mut Wide, x: f64) {
+    w.deposit(x);
+}
+
 /// `Wide::extend_from_slice`: each tile picks its window, folds, and lands in the limbs shifted
 /// up to `Wide`'s grid; what the window does not hold is deposited one at a time.
 pub(crate) fn wide_extend(w: &mut Wide, xs: &[f64]) {
@@ -177,7 +186,7 @@ pub(crate) fn wide_extend(w: &mut Wide, xs: &[f64]) {
         let lsb = wide_window(tile);
         let mut partials = Partials::<WIDE_WINDOW>::ZERO;
         fold_tile::<WIDE_WINDOW, false>(tile, lsb, &mut partials, &mut |x| {
-            w.deposit(x);
+            wide_deposit_outside(w, x);
             true
         });
         let sum = partials.twos_complement();

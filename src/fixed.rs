@@ -236,12 +236,7 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
 
     /// Adds `(-1)^negative · mant · 2^(shift + LSB)`. The caller has checked that it fits.
     fn add_placed(&mut self, negative: bool, mant: u128, shift: u32) {
-        let mut term = [0u64; LIMBS];
-        limbs::set_shifted(&mut term, mant, shift);
-        if negative {
-            limbs::negate(&mut term);
-        }
-        let overflow = limbs::add_assign(&mut self.limbs, &term);
+        let overflow = limbs::add_shifted(&mut self.limbs, negative, mant, shift);
         assert!(
             !overflow,
             "Fixed: headroom exhausted, past 2^64 deposits at the ceiling"

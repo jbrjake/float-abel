@@ -38,6 +38,7 @@ mod laws;
 #[cfg(not(miri))]
 mod laws_cap;
 mod layout;
+mod placed_add;
 mod posture;
 mod rounding;
 mod simd;

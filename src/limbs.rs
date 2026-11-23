@@ -80,6 +80,7 @@ pub(crate) fn abs_into(src: &[u64], dst: &mut [u64]) -> bool {
 
 /// `dst = mag << shift`. The caller has checked that the shifted value fits, so a nonzero word
 /// past the end is a bug and panics as an index out of range.
+#[inline]
 pub(crate) fn set_shifted(dst: &mut [u64], mag: u128, shift: u32) {
     dst.fill(0);
     let limb = (shift / 64) as usize;
@@ -98,6 +99,57 @@ pub(crate) fn set_shifted(dst: &mut [u64], mag: u128, shift: u32) {
         if w != 0 {
             dst[limb + i] = w;
         }
+    }
+}
+
+/// `a += (-1)^negative · mag · 2^shift`, wrapping, in the limbs the term lands on: the shifted
+/// magnitude is added, or subtracted as its complement with a carry in, across the at most three
+/// limbs it spans, and above them the carry or the borrow runs only until it stops. Returns `true`
+/// on signed overflow, as [`add_assign`] does for the same term written across the whole width.
+/// The caller has checked that the shifted magnitude fits below the sign bit, so a nonzero word
+/// past the end is a bug and panics.
+#[inline]
+pub(crate) fn add_shifted(a: &mut [u64], negative: bool, mag: u128, shift: u32) -> bool {
+    let was_negative = is_negative(a);
+    let at = (shift / 64) as usize;
+    let off = shift % 64;
+    let (lo, hi) = (mag as u64, (mag >> 64) as u64);
+    let words = if off == 0 {
+        [lo, hi, 0]
+    } else {
+        [
+            lo << off,
+            (lo >> (64 - off)) | (hi << off),
+            hi >> (64 - off),
+        ]
+    };
+    let flip = if negative { u64::MAX } else { 0 };
+    let mut carry = u64::from(negative);
+    for (i, &w) in words.iter().enumerate() {
+        if let Some(x) = a.get_mut(at + i) {
+            let (s1, c1) = x.overflowing_add(w ^ flip);
+            let (s2, c2) = s1.overflowing_add(carry);
+            *x = s2;
+            carry = u64::from(c1 | c2);
+        } else {
+            assert!(w == 0, "limbs: a placed term runs past the width");
+        }
+    }
+    // Above the term an addition goes on while a carry is out and a subtraction while none is,
+    // one up or one down a limb, and stops at the first limb that does not wrap.
+    if (carry == 1) != negative {
+        let step = if negative { u64::MAX } else { 1 };
+        for x in a.iter_mut().skip(at + words.len()) {
+            *x = x.wrapping_add(step);
+            if *x != flip {
+                break;
+            }
+        }
+    }
+    if negative {
+        was_negative && !is_negative(a)
+    } else {
+        !was_negative && is_negative(a)
     }
 }
 
@@ -264,6 +316,63 @@ mod tests {
         assert_eq!(d, [u64::MAX - 1, u64::MAX, 1]);
         set_shifted(&mut d, 5, 130);
         assert_eq!(d, [0, 0, 5 << 2]);
+    }
+
+    /// splitmix64, for the sweep below.
+    fn next(state: &mut u64) -> u64 {
+        *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        let mut z = *state;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^ (z >> 31)
+    }
+
+    #[test]
+    fn add_shifted_matches_the_full_width_term_and_its_overflow_flag() {
+        // The oracle is the form it replaces: the term set across the width, negated whole, added
+        // whole. Eight limbs, most of them all zeros or all ones, so carries and borrows run
+        // the width and both ends of the signed range are reached; the magnitude is any that fits
+        // below the sign bit.
+        let mut rng = 0x5eed_u64;
+        let (mut cases, mut overflows) = (0u32, 0u32);
+        for _ in 0..if cfg!(miri) { 2_000 } else { 200_000 } {
+            let mut a = [0u64; 8];
+            for x in &mut a {
+                *x = match next(&mut rng) % 8 {
+                    0..=2 => 0,
+                    3..=5 => u64::MAX,
+                    6 => 1 << 63,
+                    _ => next(&mut rng),
+                };
+            }
+            let mag = (u128::from(next(&mut rng)) << 64 | u128::from(next(&mut rng)))
+                >> (next(&mut rng) % 128);
+            let room = 511 - (128 - mag.leading_zeros());
+            let shift = (next(&mut rng) % u64::from(room + 1)) as u32;
+            let negative = next(&mut rng) & 1 == 1;
+
+            let mut term = [0u64; 8];
+            set_shifted(&mut term, mag, shift);
+            if negative {
+                negate(&mut term);
+            }
+            let mut want = a;
+            let want_overflow = add_assign(&mut want, &term);
+
+            let got_overflow = add_shifted(&mut a, negative, mag, shift);
+            assert_eq!(a, want, "mag {mag:#x} << {shift}, negative {negative}");
+            assert_eq!(got_overflow, want_overflow, "mag {mag:#x} << {shift}");
+            cases += 1;
+            overflows += u32::from(want_overflow);
+        }
+        assert!(cases >= 2_000);
+        assert!(overflows >= cases / 100, "{overflows} overflows in {cases}");
+    }
+
+    #[test]
+    #[should_panic(expected = "past the width")]
+    fn add_shifted_refuses_a_term_past_the_width() {
+        add_shifted(&mut [0u64; 2], false, 1 << 64, 64);
     }
 
     #[test]
