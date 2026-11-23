@@ -1,7 +1,7 @@
 ---
 id: fl-1vyq5fe
 title: "Clear the push gate's dbsp deny leg of the seven advisories published since the last push: move actix-http and url in Cargo.lock to their fixed releases, and put cookie, chrono and humantime, which have no in-range fix, to the owner"
-status: open
+status: done
 category: crate/hardening
 verify: "all(lacks Cargo.lock /name = \"url\"\\nversion = \"2\\.5\\.8\"/, lacks Cargo.lock /name = \"actix-http\"\\nversion = \"3\\.20\\.3\"/)"
 docs:
@@ -29,3 +29,9 @@ named, and each such ignore is the owner's to rule: asked in session, never adde
 
 ## log
 - 2026-11-23T16:27Z created
+- 2026-11-23T16:32Z open→done — verify exit 0 @ 6ed5d19+2
+
+## comments
+- 2026-11-23T16:32Z [claude (088ad122-d06d-463d-8c3f-01d8f3ef0f7f)] 2026-11-23. Cleared by update at e15b604: actix-http 3.20.3 → 3.22.0 (RUSTSEC-2026-0552, -0553, -0554) and url 2.5.8 → 2.5.9 (-0592, with form_urlencoded 1.2.3); cargo also re-pointed seven packages' windows-sys dependency from 0.61.2 to 0.52.0, both versions in the lockfile before and after.
+  
+  No release the requirements admit: cookie (actix-web 4.20.0, the newest, still resolves cookie 0.16.2; fix in 0.18.3), chrono and humantime (unmaintained, no fixed release). Checked against dbsp 0.388.0, the newest, in a scratch project with this repo's deny-dbsp.toml: the same three versions and the same three advisories. The owner first answered "what does in range mean? your options make it seem like you didn't even CHECK for a newer dbsp before bothering me with this!"; asked again with that check and the term explained, 2026-11-23 owner ruled: "Ignore all three by id (Recommended)". The three ignores are in deny-dbsp.toml at the commit after e15b604, each naming its dragging crate; deny.toml is untouched. Both `cargo deny … check -D advisory-not-detected` runs print "advisories ok, bans ok, licenses ok, sources ok".
