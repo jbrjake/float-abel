@@ -65,6 +65,26 @@ impl Exact {
         ))
     }
 
+    /// The finite part alone: the same value with every special amount left behind, so
+    /// `x.finite_part()` and [`Exact::specials`] between them say what `x` holds. It is what
+    /// [`Fixed`](crate::Fixed)`::try_from` takes of a value whose amounts it refuses. A finite
+    /// value is its own finite part, and the result is canonical: the compact word whenever the
+    /// finite part fits it.
+    #[must_use]
+    pub fn finite_part(&self) -> Self {
+        #[cfg(feature = "alloc")]
+        if self.is_heap() {
+            use super::big::Owned;
+            let value = super::value::Value {
+                finite: Owned::from_view(self.parts().finite()),
+                amounts: [Owned::ZERO; 3],
+            };
+            // The finite part was inside the caps as it stood, so this lands.
+            return Self::land(value).unwrap_or_else(|past| Self::cap(past).exceed());
+        }
+        Self::assemble(self.finite(), [0; 3])
+    }
+
     pub(super) fn projection(&self) -> Option<Special> {
         #[cfg(feature = "alloc")]
         if self.is_heap() {

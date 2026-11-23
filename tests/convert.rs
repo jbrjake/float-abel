@@ -3,7 +3,8 @@
 //! `Exact: TryFrom<&Wide>` and `Exact: TryFrom<&Fixed>` refuse past the 127-bit width by name;
 //! `Wide::try_from(&Exact)` refuses below the unit and at the ceiling by name, exactly where
 //! `Wide::deposit_product` would. Every round trip is checked bit for bit against the state the
-//! same deposits build in the target tier directly.
+//! same deposits build in the target tier directly. `tests/convert_fixed.rs` holds
+//! `Fixed::try_from(&Exact)`.
 
 use float_abel::{Exact, Fixed256, OutOfWindow, Wide};
 

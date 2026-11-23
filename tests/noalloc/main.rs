@@ -5,7 +5,7 @@
 
 #![allow(clippy::float_cmp)]
 
-use float_abel::{Binned, Exact, PastCap, Wide, WireError};
+use float_abel::{Binned, Exact, Fixed256, OutOfWindow, PastCap, Wide, WireError};
 
 const _: () = assert!(core::mem::size_of::<Exact>() == 32);
 const _: () = assert!(core::mem::size_of::<Binned<3>>() == 80);
@@ -62,6 +62,30 @@ fn noalloc_sums_products_and_specials_work_without_std() {
     assert_eq!(n, Exact::from(1.0));
     assert_eq!(Exact::from(f64::INFINITY).specials(), Some((0, 1, 0)));
     assert!(n.is_compact());
+}
+
+#[test]
+fn noalloc_an_exact_reads_into_a_fixed_window_without_std() {
+    let mut e = Exact::ZERO;
+    e.deposit(1.5);
+    e.deposit_product(3.0, -0.25);
+    let mut want = Fixed256::ZERO;
+    want.try_deposit(1.5).unwrap();
+    want.deposit_product(3.0, -0.25).unwrap();
+    assert_eq!(Fixed256::try_from(&e), Ok(want));
+    // Outside the window by name, and a special amount refused until it is left behind.
+    assert_eq!(
+        Fixed256::try_from(&Exact::from(1e-40)),
+        Err(OutOfWindow::OffGrid)
+    );
+    assert_eq!(
+        Fixed256::try_from(&Exact::from(1e40)),
+        Err(OutOfWindow::AboveCeiling)
+    );
+    e.deposit(f64::NAN);
+    assert_eq!(Fixed256::try_from(&e), Err(OutOfWindow::NotFinite));
+    assert_eq!(Fixed256::try_from(&e.finite_part()), Ok(want));
+    assert_eq!(e.specials(), Some((1, 0, 0)));
 }
 
 #[test]

@@ -16,6 +16,7 @@ mod arbitrary;
 mod binned;
 mod binned_product;
 mod convert;
+mod convert_fixed;
 #[cfg(feature = "dbsp")]
 mod dbsp;
 #[cfg(feature = "dbsp")]

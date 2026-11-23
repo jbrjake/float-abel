@@ -5,7 +5,10 @@
 //! exponent bound, and without it the width is refused by name. Out of `Exact` into [`Wide`] is a
 //! `TryFrom` that refuses exactly where [`Wide::deposit_product`] would: below the unit or at the
 //! ceiling, with a dyadic amount off the counters' grid and an amount past `i64` above their
-//! ceiling. Nothing lossy has a `From`, and a refusal builds no partial state.
+//! ceiling. Out of `Exact` into a [`Fixed`] window is a `TryFrom` that refuses exactly where
+//! [`Fixed::try_deposit`] would, and a nonzero special amount as `NotFinite`, since the window
+//! holds finite values only; [`Exact::finite_part`] leaves the amounts behind for a caller that
+//! reads them apart. Nothing lossy has a `From`, and a refusal builds no partial state.
 
 use super::compact::{Compact, Overflow};
 use super::{Exact, PastCap};
@@ -117,5 +120,35 @@ impl TryFrom<&Exact> for Wide {
         let mut wide = Self::from_parts([0; Wide::LIMBS], [n, p, q]);
         wide.try_deposit_dyadic(negative, mant, exp)?;
         Ok(wide)
+    }
+}
+
+impl<const LSB: i32, const LIMBS: usize> TryFrom<&Exact> for Fixed<LSB, LIMBS> {
+    type Error = OutOfWindow;
+
+    /// The same value on the window's grid: the finite part of an `Exact` whose amounts are all
+    /// zero, from the compact or the heap form. A caller that wants the limbs of a value with
+    /// specials converts [`Exact::finite_part`] and reads the counts from [`Exact::specials`].
+    ///
+    /// # Errors
+    ///
+    /// [`OutOfWindow::NotFinite`] when a special amount is nonzero, judged before the window;
+    /// then, where [`Fixed::try_deposit`] refuses a double, [`OutOfWindow::OffGrid`] when the
+    /// finite part has a set bit below `2^LSB`, and [`OutOfWindow::AboveCeiling`] when its
+    /// magnitude reaches `2^CEILING_EXP`. The state is built only once every part has passed.
+    fn try_from(exact: &Exact) -> Result<Self, OutOfWindow> {
+        if !exact.is_finite() {
+            return Err(OutOfWindow::NotFinite);
+        }
+        let mut fixed = Self::ZERO;
+        #[cfg(feature = "alloc")]
+        if !exact.is_compact() {
+            let finite = exact.parts().finite();
+            fixed.try_deposit_limbs(finite.neg, finite.mag, finite.exp)?;
+            return Ok(fixed);
+        }
+        let (negative, mant, exp) = exact.finite().dyadic();
+        fixed.deposit_dyadic(negative, mant, exp)?;
+        Ok(fixed)
     }
 }

@@ -373,7 +373,11 @@ Conversions between tiers: `Wide: From<Fixed<..>>` is exact, pinned by a `const`
 every state, into the heap form past the width, and refuse only the exponent bound (without
 `alloc`, the width too); `Wide::try_from(&Exact)` refuses below the unit or at the ceiling, where
 `deposit_product` would, with a dyadic amount off its counters' grid and an amount past `i64` above
-their ceiling. `Binned<K>::into_wide`
+their ceiling; `Fixed::try_from(&Exact)` places the finite part on the window's grid from either
+form, refuses below the unit or at the ceiling, where `try_deposit` would, and refuses a nonzero
+special amount as `NotFinite` before it looks at the window, and `Exact::finite_part()` is the
+value with its amounts left behind, for a caller that reads `specials()` beside the limbs.
+`Binned<K>::into_wide`
 (exact) and `Wide::to_binned::<K>` (lossy) are named methods, and nothing lossy has a `From`. Every
 tier has the bulk entry points `extend_from_slice(&[f64])` and `deposit_products(&[f64], &[f64])`;
 they are the SIMD surface.

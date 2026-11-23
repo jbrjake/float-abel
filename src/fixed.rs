@@ -65,6 +65,8 @@ impl std::error::Error for OutOfWindow {}
 /// [`Fixed256`] is the named default. `Wide: From<Fixed>` is exact and total for every
 /// `(LSB, LIMBS)` whose grid and width `Wide` holds, pinned by a `const` assertion, and
 /// `Exact: TryFrom<&Fixed>` refuses a state whose set bits span more than `Exact`'s width.
+/// `Fixed: TryFrom<&Exact>` is the way back: the finite part of an [`Exact`](crate::Exact) on the
+/// grid, refused by name outside the window and beside a nonzero special amount.
 ///
 /// Behind the `differential` feature it is a differential-dataflow diff with a declared window:
 /// `Multiply` by `i64` and `isize` on either side, and `From<i8>` pinned by a `const` assertion
@@ -207,10 +209,52 @@ impl<const LSB: i32, const LIMBS: usize> Fixed<LSB, LIMBS> {
             .map(|shift| (da.negative != db.negative, mant, shift)))
     }
 
-    /// Adds `(-1)^negative · mant · 2^exp`, checking the grid and the ceiling first.
-    fn deposit_dyadic(&mut self, negative: bool, mant: u128, exp: i32) -> Result<(), OutOfWindow> {
+    /// Adds `(-1)^negative · mant · 2^exp`, checking the grid and the ceiling first: the one
+    /// check a double, a product and a compact [`Exact`](crate::Exact) share.
+    pub(crate) fn deposit_dyadic(
+        &mut self,
+        negative: bool,
+        mant: u128,
+        exp: i32,
+    ) -> Result<(), OutOfWindow> {
         if let Some(shift) = Self::placed(mant, exp)? {
             self.add_placed(negative, mant, shift);
+        }
+        Ok(())
+    }
+
+    /// Adds `(-1)^negative · mag · 2^exp` for a normalised magnitude in limbs, its lowest set bit
+    /// at `exp`, if it lies in the window: [`Fixed::deposit_dyadic`] for a magnitude wider than
+    /// `u128`, which an [`Exact`](crate::Exact) in its heap form is. The window is checked on the
+    /// whole magnitude first, so a refusal deposits nothing.
+    ///
+    /// # Errors
+    ///
+    /// [`OutOfWindow::OffGrid`] when a set bit would lie below the unit, and
+    /// [`OutOfWindow::AboveCeiling`] when the magnitude reaches `2^CEILING_EXP`.
+    #[cfg(feature = "alloc")]
+    pub(crate) fn try_deposit_limbs(
+        &mut self,
+        negative: bool,
+        mag: &[u64],
+        exp: i64,
+    ) -> Result<(), OutOfWindow> {
+        #[allow(clippy::let_unit_value)] // evaluates the const assertion on the window
+        let () = Self::WINDOW_OK;
+        let Some(top) = limbs::top_bit(mag) else {
+            return Ok(());
+        };
+        let shift = exp - i64::from(LSB);
+        if shift < 0 {
+            return Err(OutOfWindow::OffGrid);
+        }
+        if top as i64 + 1 + shift > Self::CEILING_BITS as i64 {
+            return Err(OutOfWindow::AboveCeiling);
+        }
+        for (i, &limb) in mag.iter().enumerate() {
+            if limb != 0 {
+                self.add_placed(negative, u128::from(limb), (shift + 64 * i as i64) as u32);
+            }
         }
         Ok(())
     }
