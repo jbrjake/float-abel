@@ -11,42 +11,37 @@ verify: "all(contains .github/workflows/ci.yml fuzz/corpus, contains .github/wor
 status: open
 created: 2026-11-02T15:14Z
 handoff: |
-  Two changes in one job, `fuzz` in .github/workflows/ci.yml, both with
-  the already-pinned
-  actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 (v4.3.0). The
-  suite's gating is done: the
-  `changes` job skips every nightly on an unchanged dev, so no marker
-  cache is wanted here.
+  State at 2026-11-23, dev at c9fed1e plus this store commit; both inbound
+  asks (sazed's Wide::deposit, leras's Exact → Fixed) are answered and
+  the inbox is empty.
   
-  1. Corpus. A cache step `path: fuzz/corpus/${{ matrix.target }}`, `key:
-  fuzz-corpus-${{
-  matrix.target }}-${{ github.run_id }}`, `restore-keys: fuzz-corpus-${{
-  matrix.target }}-`: a
-  fresh key every run so the post step saves the grown corpus (cache keys
-  are immutable; the
-  restore-key prefix carries it forward). fuzz/.gitignore lists corpus, so
-  nothing is committed;
-  `cargo fuzz run` writes to fuzz/corpus/<target>/ by default.
-  2. cargo-fuzz. A cache step `id: cargo-fuzz`, `path:
-  ~/.cargo/bin/cargo-fuzz`, `key:
-  cargo-fuzz-0.13.2-${{ runner.os }}`, and `if:
-  steps.cargo-fuzz.outputs.cache-hit != 'true'` on
-  the `cargo install cargo-fuzz@0.13.2 --locked` line; the rustup line
-  stays. The install is one
-  to two minutes a job today.
+  This task, as ci.yml stands today: the `fuzz` matrix job installs
+  cargo-fuzz with `cargo install cargo-fuzz@0.13.2 --locked` on every run
+  and caches only the registry and `fuzz/target` under `fuzz-${{
+  hashFiles('fuzz/Cargo.lock') }}`. Neither `fuzz/corpus` nor `cache-hit`
+  appears in the file. What remains is the body's two changes in that one
+  job: (1) cache `fuzz/corpus/${{ matrix.target }}` with a per-run key and
+  a restore-key prefix so each run resumes the last corpus; (2) cache
+  `~/.cargo/bin/cargo-fuzz` keyed by its version and skip the install on
+  `steps.<id>.outputs.cache-hit == 'true'`. Every `uses:` names a commit
+  hash with the tag in a trailing comment
+  (`scripts/check-actions-pinned.sh` fails both gates otherwise);
+  actions/cache is already pinned in the file, so copy that line. The
+  earlier design of a per-sha marker cache is dead: the `changes` job
+  gates the nightly.
   
-  Verify is `all(contains ci.yml fuzz/corpus, contains ci.yml cache-hit)`.
-  Proof is two
-  `gh workflow run ci.yml --ref dev` dispatches: the first saves
-  `fuzz-corpus-<target>-<run_id>` and
-  `cargo-fuzz-0.13.2-Linux` (the post-cache step's `Cache saved` lines in
-  `gh run view --log`), the
-  second logs `Cache restored from key: fuzz-corpus-<target>-` and the
-  install step `skipped`. Each
-  dispatch runs the whole suite, about two billed hours; the first is also
-  fl-ezhk4cz's proof if it
-  has not run yet. The check-actions-pinned gate sees the file at commit;
-  no new action.
+  A workflow edit cannot be watched working from here: a push runs no CI.
+  `gh workflow run ci.yml --ref dev` runs the suite on demand; say what
+  was and was not observed.
+  
+  Open beside it, for the owner and not to be built on: fl-ng7bs72 (the
+  SIMD kill condition). Before asking, retake `cargo bench --bench simd`
+  on the Mac with nothing else running: today's NEON figures are medians
+  on a host shared with another session's tests, and `Wide`'s 2.7× and
+  `Fixed256`'s 3.1× sit close enough to the 3× line that a clean sitting
+  may move them. `bench-baseline.json` was not re-recorded for the faster
+  one-value deposit; `scripts/bench-baseline.sh write` wants a full
+  sitting of every bench on a quiet host.
 ---
 Owner, 2026-11-02: "MAYBE WE SHOULDN'T BE RUNNING HOURS OF FUZZING WHEN THE CODE HASN'T CHANGED".
 fuzz.yml's `schedule` ran three ten-minute targets every night of October, 576 Linux minutes, and
@@ -74,6 +69,7 @@ minutes, not the thirty.
 - 2026-11-02T15:14Z created
 - 2026-11-02T15:26Z handoff by claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)
 - 2026-11-02T18:36Z handoff by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
+- 2026-11-23T16:38Z handoff by claude (088ad122-d06d-463d-8c3f-01d8f3ef0f7f)
 
 ## comments
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the first of the three defects is closed by a different mechanism than the handoff's. fuzz.yml is gone; the fuzz targets are the `fuzz` matrix job in ci.yml, and the whole suite is gated by ci.yml's `changes` job, which on the nightly asks `gh run list` for the last completed scheduled run's commit and skips every job when `git diff --quiet <last> <now> -- . ':!docs/meshwork'` is quiet. No marker cache, no seven-day eviction, no per-sha key: an unchanged dev is not fuzzed again until it moves. The push-triggered build-only mode is gone with the push trigger; the one step is `cargo fuzz run`, ten minutes, on nightly, the PR into main and dispatch. What remains is defects 2 and 3 as the body states them, in ci.yml's fuzz job: add `fuzz/corpus/${{ matrix.target }}` to a cache with a per-run key and a restore-key prefix so each run resumes the last, and cache `~/.cargo/bin/cargo-fuzz` keyed by version with `if: steps.<id>.outputs.cache-hit != 'true'` on the install line. Verify repointed: `contains ci.yml fuzz/corpus` and `contains ci.yml cache-hit`, neither present today. The handoff's file path and its marker design are stale; its corpus and cargo-fuzz paragraphs stand.

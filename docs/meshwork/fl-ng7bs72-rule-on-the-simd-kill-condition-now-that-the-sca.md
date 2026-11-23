@@ -35,3 +35,6 @@ verify is the design row naming the ruling.
 
 ## log
 - 2026-11-23T16:21Z created
+
+## comments
+- 2026-11-23T16:38Z [claude (088ad122-d06d-463d-8c3f-01d8f3ef0f7f)] 2026-11-23: not yet put to the owner. The NEON figures in the body are medians of four takes on a host shared with another session's tests (one take in four ran up to 1.5× the others); retake benches/simd.rs on a quiet Mac first, since Wide's 2.7× and Fixed256's 3.1× are near the line. The AVX2 column is a clean sitting on an idle machine.
