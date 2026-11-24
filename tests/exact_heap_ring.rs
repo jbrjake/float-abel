@@ -7,8 +7,6 @@
 // The tests name their operands as the algebra does.
 #![allow(clippy::many_single_char_names)]
 
-use float_abel::laws::proptest::prelude::*;
-use float_abel::laws::{self, Weight};
 use float_abel::{Exact, OutOfWindow, Wide};
 use num_bigint::BigInt;
 
@@ -173,48 +171,56 @@ fn exact_heap_ring_dyadic_special_amounts_promote_and_project() {
     assert_ne!(hash(&half_nan), hash(&(&nan * 2i64)));
 }
 
-/// A normal double with its leading bit at `2^e` for `e` in `lo..hi`, a full fraction and either
-/// sign: what `tests/support.rs` draws, as a strategy.
-fn double(lo: i32, hi: i32) -> impl Strategy<Value = f64> {
-    (lo..hi, any::<u64>(), any::<bool>()).prop_map(|(e, frac, neg)| {
-        let x = f64::from_bits(((e + 1023) as u64) << 52 | frac >> 12);
-        if neg {
-            -x
-        } else {
-            x
-        }
-    })
-}
-
-fn special() -> impl Strategy<Value = f64> {
-    prop_oneof![Just(f64::NAN), Just(f64::INFINITY), Just(f64::NEG_INFINITY)]
-}
-
-/// The adversary of DESIGN.md § Exactness bounds: magnitudes uniform over 2^±300, one in sixteen a
-/// special, so most sums and every product of two promote.
-fn mixed() -> impl Strategy<Value = Exact> {
-    prop_oneof![1 => special(), 15 => double(-300, 300)].prop_map(Exact::from)
-}
-
-/// Row products of that band, as a join deposits them.
-fn products() -> impl Strategy<Value = Exact> {
-    (double(-300, 300), double(-300, 300)).prop_map(|(a, b)| Exact::product(a, b))
-}
-
-#[test]
+/// The laws kit on the mixed band, with the strategies it alone draws from. Out under miri, where a
+/// proptest case runs minutes under the interpreter.
 #[cfg(not(miri))]
-fn exact_heap_ring_laws_hold_on_the_mixed_band_through_the_kit() {
-    let mut r = laws::runner(256, 1);
-    assert_eq!(laws::check_abelian_group(&mut r, mixed()), Ok(()));
-    assert_eq!(laws::check_ring(&mut r, mixed(), -1024i64..1024), Ok(()));
-    assert_eq!(laws::check_ring(&mut r, mixed(), mixed()), Ok(()));
-    assert_eq!(laws::check_ring(&mut r, products(), mixed()), Ok(()));
-    assert_eq!(laws::check_canonical(&mut r, mixed()), Ok(()));
-    assert_eq!(
-        laws::check_consolidation_invariance(&mut r, mixed()),
-        Ok(())
-    );
-    assert!(<Exact as Weight>::zero().is_compact());
+mod kit {
+    use float_abel::laws::proptest::prelude::*;
+    use float_abel::laws::{self, Weight};
+    use float_abel::Exact;
+
+    /// A normal double with its leading bit at `2^e` for `e` in `lo..hi`, a full fraction and
+    /// either sign: what `tests/support.rs` draws, as a strategy.
+    fn double(lo: i32, hi: i32) -> impl Strategy<Value = f64> {
+        (lo..hi, any::<u64>(), any::<bool>()).prop_map(|(e, frac, neg)| {
+            let x = f64::from_bits(((e + 1023) as u64) << 52 | frac >> 12);
+            if neg {
+                -x
+            } else {
+                x
+            }
+        })
+    }
+
+    fn special() -> impl Strategy<Value = f64> {
+        prop_oneof![Just(f64::NAN), Just(f64::INFINITY), Just(f64::NEG_INFINITY)]
+    }
+
+    /// The adversary of DESIGN.md § Exactness bounds: magnitudes uniform over 2^±300, one in
+    /// sixteen a special, so most sums and every product of two promote.
+    fn mixed() -> impl Strategy<Value = Exact> {
+        prop_oneof![1 => special(), 15 => double(-300, 300)].prop_map(Exact::from)
+    }
+
+    /// Row products of that band, as a join deposits them.
+    fn products() -> impl Strategy<Value = Exact> {
+        (double(-300, 300), double(-300, 300)).prop_map(|(a, b)| Exact::product(a, b))
+    }
+
+    #[test]
+    fn exact_heap_ring_laws_hold_on_the_mixed_band_through_the_kit() {
+        let mut r = laws::runner(256, 1);
+        assert_eq!(laws::check_abelian_group(&mut r, mixed()), Ok(()));
+        assert_eq!(laws::check_ring(&mut r, mixed(), -1024i64..1024), Ok(()));
+        assert_eq!(laws::check_ring(&mut r, mixed(), mixed()), Ok(()));
+        assert_eq!(laws::check_ring(&mut r, products(), mixed()), Ok(()));
+        assert_eq!(laws::check_canonical(&mut r, mixed()), Ok(()));
+        assert_eq!(
+            laws::check_consolidation_invariance(&mut r, mixed()),
+            Ok(())
+        );
+        assert!(<Exact as Weight>::zero().is_compact());
+    }
 }
 
 #[test]
