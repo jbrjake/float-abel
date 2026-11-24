@@ -1,14 +1,14 @@
 ---
 id: fl-c8jpmpm
-title: Carry the fuzz corpus between runs and stop compiling cargo-fuzz every job
+title: Carry the fuzz corpus between runs
 category: crate/hardening
 labels: [reproducible-floats]
 seq: 20
 parent: fl-b9qtzty
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
-verify: "all(contains .github/workflows/ci.yml fuzz/corpus, contains .github/workflows/ci.yml cache-hit)"
-status: open
+verify: "all(contains .github/workflows/ci.yml fuzz/corpus, contains .github/workflows/ci.yml cmin, contains docs/DESIGN.md minimised)"
+status: doing
 created: 2026-11-02T15:14Z
 handoff: |
   State at 2026-11-23, dev at c9fed1e plus this store commit; both inbound
@@ -42,6 +42,7 @@ handoff: |
   may move them. `bench-baseline.json` was not re-recorded for the faster
   one-value deposit; `scripts/bench-baseline.sh write` wants a full
   sitting of every bench on a quiet host.
+claimed-by: claude (4aebe618-581f-48ef-9ee8-943721730ef9)
 ---
 Owner, 2026-11-02: "MAYBE WE SHOULDN'T BE RUNNING HOURS OF FUZZING WHEN THE CODE HASN'T CHANGED".
 fuzz.yml's `schedule` ran three ten-minute targets every night of October, 576 Linux minutes, and
@@ -70,6 +71,8 @@ minutes, not the thirty.
 - 2026-11-02T15:26Z handoff by claude (c90f1eae-8c6b-41ec-aa59-9d0990f41bc2)
 - 2026-11-02T18:36Z handoff by claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)
 - 2026-11-23T16:38Z handoff by claude (088ad122-d06d-463d-8c3f-01d8f3ef0f7f)
+- 2026-11-24T23:34Z open→doing — claimed by claude (4aebe618-581f-48ef-9ee8-943721730ef9)
 
 ## comments
 - 2026-11-02T18:34Z [claude (227b40e5-20bd-44b0-9b79-d44c1a3c3587)] 2026-11-02, fl-ezhk4cz at 4bec2d5: the first of the three defects is closed by a different mechanism than the handoff's. fuzz.yml is gone; the fuzz targets are the `fuzz` matrix job in ci.yml, and the whole suite is gated by ci.yml's `changes` job, which on the nightly asks `gh run list` for the last completed scheduled run's commit and skips every job when `git diff --quiet <last> <now> -- . ':!docs/meshwork'` is quiet. No marker cache, no seven-day eviction, no per-sha key: an unchanged dev is not fuzzed again until it moves. The push-triggered build-only mode is gone with the push trigger; the one step is `cargo fuzz run`, ten minutes, on nightly, the PR into main and dispatch. What remains is defects 2 and 3 as the body states them, in ci.yml's fuzz job: add `fuzz/corpus/${{ matrix.target }}` to a cache with a per-run key and a restore-key prefix so each run resumes the last, and cache `~/.cargo/bin/cargo-fuzz` keyed by version with `if: steps.<id>.outputs.cache-hit != 'true'` on the install line. Verify repointed: `contains ci.yml fuzz/corpus` and `contains ci.yml cache-hit`, neither present today. The handoff's file path and its marker design are stale; its corpus and cargo-fuzz paragraphs stand.
+- 2026-11-24T23:46Z [claude (4aebe618-581f-48ef-9ee8-943721730ef9)] 2026-11-24: re-scoped to the corpus, the second defect, after measuring both on the nightly of 2026-11-24 (run 45407465768 at c8093d3, ubuntu-latest, `fuzz sum_vs_oracle`, job 138492077833). The corpus is worth carrying: the run started on `0 files found` and reached 1777 of its final 1779 edges and 7129 of its final 7975 features in the first minute, then added 6 to 29 new inputs a minute for nine more, so nine tenths of a night's features are the last night's found again. The cargo-fuzz install is not worth caching: 16.34 s of a 653 s leg that ends 29 minutes before the miri job beside it, on a repository that is now public and bills nothing; it is filed apart with its numbers. Title and verify repointed: `cache-hit` is out, `cmin` and DESIGN.md's `minimised` are in, none of the three present at c8093d3. A third finding from the same logs, the build cache a nightly toolchain makes useless, is filed apart too.
