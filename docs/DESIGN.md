@@ -697,8 +697,8 @@ they are missed.
 - **Decode refuses non-canonical bytes**, and nothing allocates a size taken from untrusted input
   above the cap. `cargo-fuzz` targets cover the decoder (`decode_robustness`), sums against a
   `num-bigint` rational oracle (`sum_vs_oracle`), and subtraction round-trips (`sub_roundtrip`), run
-  nightly for 10 minutes per target. Every crash found is committed as a regression test. `cargo miri
-  test` runs in CI.
+  nightly for 10 minutes per target, each run starting from the minimised corpus the last green one
+  left. Every crash found is committed as a regression test. `cargo miri test` runs in CI.
 - **Supply chain:** zero required dependencies; `cargo-deny` for licenses, advisories and duplicate
   majors; `cargo-semver-checks` from the first published release on; signed tags; `cargo publish
   --locked` from CI with provenance; a `SECURITY.md` with a disclosure address; the MSRV asserted.

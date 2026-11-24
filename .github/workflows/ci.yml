@@ -394,9 +394,9 @@ jobs:
           restore-keys: golden-${{ matrix.target }}-
       - run: cross test --locked -p float-abel-golden --target ${{ matrix.target }}
 
-  # The fuzz targets, DESIGN.md § Hardening: cargo-fuzz runs each for ten minutes. A crash is an
-  # artifact to download and commit as a regression test under tests/, never a reason to loosen the
-  # target.
+  # The fuzz targets, DESIGN.md § Hardening: cargo-fuzz runs each for ten minutes from the corpus
+  # the last green run left. A crash is an artifact to download and commit as a regression test
+  # under tests/, never a reason to loosen the target.
   fuzz:
     name: fuzz ${{ matrix.target }} (10 min)
     needs: changes
@@ -423,7 +423,25 @@ jobs:
             fuzz/target
           key: fuzz-${{ hashFiles('fuzz/Cargo.lock') }}
           restore-keys: fuzz-
+      # The corpus, every input that reached something no earlier one had, carried from run to run
+      # so the ten minutes go past what the earlier runs reached and not to finding the way back
+      # to it. The key is the run's own, so no restore hits it and every green run saves;
+      # `restore-keys` takes the newest corpus the target has. The nightly saves on dev, the
+      # default branch, which a pull request into main reads; a pull request's own save stays on
+      # its merge ref. A run that finds a crash saves nothing, and the next starts from the last
+      # green corpus. GitHub evicts a cache nothing has read for seven days, and the run after
+      # that starts empty.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: corpus-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: corpus-${{ matrix.target }}-
       - run: cargo fuzz run ${{ matrix.target }} -- -max_total_time=600
+      # libFuzzer deletes a replaced input only when the same run wrote it, so every restored
+      # input a run shrinks stays beside its replacement and the directory outgrows the corpus.
+      # `cmin` rewrites it as the smallest set that reaches every feature, and that is what the
+      # cache saves.
+      - run: cargo fuzz cmin ${{ matrix.target }}
       - name: Keep the crash
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
