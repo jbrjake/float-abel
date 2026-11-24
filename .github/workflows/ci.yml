@@ -409,20 +409,14 @@ jobs:
         target: [decode_robustness, sum_vs_oracle, sub_roundtrip]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No build cache: the toolchain is the day's nightly, and cargo rebuilds whole a target
+      # directory another nightly built.
       - name: Install nightly and cargo-fuzz
         run: |
           rustup toolchain install nightly --profile minimal --component rust-src
           rustup default nightly
           cargo install cargo-fuzz@0.13.2 --locked
           cargo --version && rustc --version && cargo fuzz --version
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            fuzz/target
-          key: fuzz-${{ hashFiles('fuzz/Cargo.lock') }}
-          restore-keys: fuzz-
       # The corpus, every input that reached something no earlier one had, carried from run to run
       # so the ten minutes go past what the earlier runs reached and not to finding the way back
       # to it. The key is the run's own, so no restore hits it and every green run saves;
