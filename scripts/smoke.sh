@@ -74,10 +74,11 @@ if [ "$scripts" -eq 1 ]; then
 fi
 cargo fmt --all -- --check
 
-# The fuzz package is outside the workspace, so the root test below never reaches its oracle.
+# The fuzz package is outside the workspace, so the root test below never reaches its oracle. The
+# test names the lib, for the reason scripts/regression.sh gives.
 if [ "$fuzz" -eq 1 ]; then
   cargo fmt --manifest-path fuzz/Cargo.toml -- --check
-  if ! cargo test --quiet --locked --manifest-path fuzz/Cargo.toml >/dev/null; then
+  if ! cargo test --quiet --locked --manifest-path fuzz/Cargo.toml --lib >/dev/null; then
     echo "smoke: FAILED (the fuzz oracle's tests)" >&2
     exit 1
   fi
