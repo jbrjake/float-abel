@@ -42,7 +42,7 @@ allow = [
   "MIT",
   "Apache-2.0",
   "Unicode-3.0",
-  "BSD-3-Clause",         # alloc-no-stdlib, alloc-stdlib, aws-lc-sys, brotli, encoding_rs, snap, subtle, zstd 0.14, zstd-safe 7, zstd-safe 8, zstd-sys
+  "BSD-3-Clause",         # alloc-no-stdlib, alloc-stdlib, aws-lc-sys, brotli, encoding_rs, snap, subtle, zstd 0.14, zstd-safe 8, zstd-sys
   "ISC",                  # aws-lc-rs, aws-lc-sys, rustls-webpki, untrusted
   "Zlib",                 # foldhash, zlib-rs
   "MIT-0",                # aws-lc-sys, ppmd-rust
@@ -95,9 +95,7 @@ skip = [
   { crate = "unicode-width@0.1", reason = "textwrap 0.15.2 on it; getopts 0.2.24 on 0.2.2; through dbsp" },
   { crate = "windows-sys@0.52", reason = "memory-stats 1.2.0 on it; anstyle-query 1.1.5, anstyle-wincon 3.0.11, colored 3.1.1, errno 0.3.14, mio 1.2.4, nu-ansi-term 0.50.3, object_store 0.14.2, rustix 1.1.5, rustls-platform-verifier 0.7.1, schannel 0.1.29, socket2 0.6.5, tempfile 3.27.0, terminal_size 0.4.4, thread-id 5.1.0, tokio 1.53.2, winapi-util 0.1.11 on 0.61.2; through dbsp" },
   { crate = "zstd@0.12", reason = "dbsp 0.367.0 on it; actix-http 3.20.3, zip 9.0.5 on 0.14.3; through dbsp" },
-  { crate = "zstd@0.13", reason = "actix-http 3.18.13 on it; zip 9.0.5 on 0.14.3; through dbsp" },
   { crate = "zstd-safe@6", reason = "zstd 0.12.4 on it; zstd 0.14.3 on 8.2.0; through dbsp" },
-  { crate = "zstd-safe@7", reason = "zstd 0.13.3 on it; zstd 0.14.3 on 8.2.0; through dbsp" },
 ]
 skip-tree = []
 
