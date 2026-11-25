@@ -8,9 +8,8 @@ discovered-from: fl-c8jpmpm
 docs:
   - docs/DESIGN.md#hardening-sp-hardening
 verify: "lacks .github/workflows/ci.yml fuzz/target"
-status: doing
+status: done
 created: 2026-11-24T23:46Z
-claimed-by: claude (4aebe618-581f-48ef-9ee8-943721730ef9)
 ---
 ci.yml's `fuzz` job caches `~/.cargo/registry/index`, `~/.cargo/registry/cache` and `fuzz/target`
 under `fuzz-${{ hashFiles('fuzz/Cargo.lock') }}`, and installs whatever `nightly` is that day. The
@@ -40,3 +39,7 @@ nightly) and was not examined.
 ## log
 - 2026-11-24T23:46Z created
 - 2026-11-24T23:46Z open→doing — claimed by claude (4aebe618-581f-48ef-9ee8-943721730ef9)
+- 2026-11-25T00:30Z doing→done — verify exit 0 @ 99b943b+3
+
+## comments
+- 2026-11-25T00:30Z [claude (4aebe618-581f-48ef-9ee8-943721730ef9)] 2026-11-25 at be97e42: the step is out of ci.yml's fuzz job, with a comment where it stood saying why there is none. Watched on run 45512975046 (dispatch on dev at 37e3431, ubuntu-latest, nightly of 2026-11-24), all three legs green with no build cache: the fuzz target built in 27.88 s (sum_vs_oracle), 19.16 s (decode_robustness) and 27.79 s (sub_roundtrip), the run steps took 630, 620 and 629 s for 601 s of fuzzing, and the jobs 669, 652 and 664 s. With the cache, across the eight suite runs since 2026-11-02, the run step was 618 to 650 s. The last `fuzz-d66e676f…` entry, 58 MB on refs/heads/dev, is read by nothing now and stays until GitHub evicts it. The miri job's cache was not examined.
