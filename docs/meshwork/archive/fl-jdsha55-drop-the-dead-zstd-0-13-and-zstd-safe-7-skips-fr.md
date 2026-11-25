@@ -1,7 +1,7 @@
 ---
 id: fl-jdsha55
 title: Drop the dead zstd@0.13 and zstd-safe@7 skips from deny-dbsp.toml
-status: open
+status: done
 category: crate/hardening
 labels: [reproducible-floats]
 parent: fl-b9qtzty
@@ -24,3 +24,8 @@ with no unmatched-skip warning; `cargo deny check` over deny.toml must stay gree
 
 ## log
 - 2026-11-02T19:34Z created
+- 2026-11-25T00:11Z open→doing — claimed by claude (4aebe618-581f-48ef-9ee8-943721730ef9)
+- 2026-11-25T00:12Z doing→done — verify exit 0 @ 1254159+2
+
+## comments
+- 2026-11-25T00:12Z [claude (4aebe618-581f-48ef-9ee8-943721730ef9)] 2026-11-24 at 1254159: the zstd@0.13 and zstd-safe@7 skip rows are gone and the licences comment names zstd-safe 8 alone. Before, this session's push at 37e3431 printed the two unmatched-skip warnings from the deny-dbsp.toml leg; after, the gate's two lines (`cargo deny --log-level warn check -D advisory-not-detected` and the same with `--config deny-dbsp.toml`, cargo-deny 0.20.2, sandbox off) each exit 0 on `advisories ok, bans ok, licenses ok, sources ok` with no warning line. zstd@0.12, zstd-safe@6 and the RUSTSEC-2026-0403 ignore stand.
