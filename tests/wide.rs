@@ -6,9 +6,10 @@
 //! Oracles: bitrep's committed conformance vectors and bitrep itself (the same multiset must land
 //! the same 272 limb bytes and the same rounded value); IEEE `a + b`, `a * b`, `a.mul_add(b, c)`
 //! and `a / n` for `n < 2^53`, each the correctly rounded value of the exact two-term expression;
-//! and the NaN algebra of DESIGN.md § NaN and ±∞ on the counters.
+//! and the NaN algebra of DESIGN.md § NaN and ±∞ on the counters. `Exact` folds bitrep's random
+//! multisets beside `Wide` and must read the same double.
 
-use float_abel::{OutOfWindow, Wide};
+use float_abel::{Exact, OutOfWindow, Wide};
 
 use crate::support::{pow2, rounds, Rng};
 
@@ -103,8 +104,9 @@ fn wide_reproduces_every_bitrep_conformance_vector() {
 }
 
 #[test]
-fn wide_limbs_and_value_match_bitrep_on_random_multisets() {
+fn wide_and_exact_match_bitrep_on_random_multisets() {
     let mut rng = Rng(10);
+    let mut promoted = 0;
     for round in 0..rounds(300) {
         let len = 1 + (rng.next() % 400) as usize;
         let xs: Vec<f64> = (0..len)
@@ -116,17 +118,21 @@ fn wide_limbs_and_value_match_bitrep_on_random_multisets() {
             .collect();
         let cut = len / 2;
         let (mut ours, mut ours_left) = (Wide::ZERO, Wide::ZERO);
+        let (mut exact, mut exact_left) = (Exact::ZERO, Exact::ZERO);
         let (mut theirs, mut theirs_left) = (bitrep::SumF64::new(), bitrep::SumF64::new());
         for (i, &x) in xs.iter().enumerate() {
             if i < cut {
                 ours_left.deposit(x);
+                exact_left.deposit(x);
                 theirs_left.add(x);
             } else {
                 ours.deposit(x);
+                exact.deposit(x);
                 theirs.add(x);
             }
         }
         ours += ours_left;
+        exact += exact_left;
         theirs.merge(&theirs_left);
         let bytes = theirs.to_bytes();
         assert_eq!(limb_bytes(&ours), &bytes[..272], "round {round}");
@@ -138,7 +144,23 @@ fn wide_limbs_and_value_match_bitrep_on_random_multisets() {
             ours.to_f64(),
             theirs.value()
         );
+        // `Exact` shares no limb layout with bitrep, so its read is the whole comparison: the
+        // same multiset, in the heap form wherever the sum outgrows the compact word.
+        promoted += usize::from(!exact.is_compact());
+        assert_eq!(
+            exact.to_f64().to_bits(),
+            theirs.value().to_bits(),
+            "round {round}: Exact reads {:e}, bitrep {:e}",
+            exact.to_f64(),
+            theirs.value()
+        );
     }
+    // A multiset of one value is the only kind these draws leave compact.
+    assert!(
+        promoted * 10 >= rounds(300) * 9,
+        "{promoted} of {} multisets reached the heap form",
+        rounds(300)
+    );
 }
 
 #[test]
